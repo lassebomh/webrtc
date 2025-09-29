@@ -4,7 +4,9 @@
     "noEmit": true,
     "target": "ES2024",
     "lib": ["ES2024", "DOM", "ES2017.TypedArrays"],
-    "allowJs": true
+    "allowJs": true,
+    "module": "esnext",
+    "types": ["./types.d.ts"]
   },
   "include": ["docs/**/*.js"]
 }
