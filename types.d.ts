@@ -3,16 +3,16 @@ type Prettify<T> = {
 } & unknown;
 
 type Exclusive<T> = Prettify<
-  { [K in keyof T]: { [X in K]: T[K] } & { [X in Exclude<keyof T, K>]: undefined } }[keyof T]
+  { [K in keyof T]: { [X in K]: T[K] } & { [X in Exclude<keyof T, K>]?: undefined } }[keyof T]
 >;
 
-export type GameState = {
-  players: { id: number; x: number; y: number };
+type GameState = {
+  players: { id: number; x: number; y: number }[];
   tick: number;
   created: number;
 };
 
-export type Input = Exclusive<{
+type Input = Exclusive<{
   playerJoin: number;
   playerLeave: number;
   keydown: {
@@ -25,10 +25,8 @@ export type Input = Exclusive<{
   };
 }> & { time: number };
 
-export type Message = Exclusive<{
+type Message = Exclusive<{
   input: Input;
   staterequest: true;
   stateresponse: GameState;
 }>;
-
-export {};
