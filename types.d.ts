@@ -7,7 +7,7 @@ type Exclusive<T> = Prettify<
 >;
 
 type GameState = {
-  players: { id: number; x: number; y: number; keysdown: string[] }[];
+  players: { id: number; x: number; y: number; dx: number; dy: number; keysdown: string[] }[];
   tick: number;
   tickRate: number;
   created: number;

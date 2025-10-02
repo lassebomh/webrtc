@@ -74,7 +74,7 @@ const send = setupConnection(
       }
     }
   },
-  500
+  1000
 );
 
 // wait for connection
@@ -136,6 +136,8 @@ function tick(prevGameState, inputs) {
           keysdown: [],
           x: 50,
           y: 50,
+          dx: 0,
+          dy: 0,
         };
 
         gameState.players.push(player);
@@ -155,22 +157,26 @@ function tick(prevGameState, inputs) {
   }
 
   for (const player of gameState.players) {
-    const SPEED = 0.1;
+    const SPEED = 0.02;
+    const FRICTION = 1.02;
+    const MAX_SPEED = 12;
 
-    let dx = Number(player.keysdown.includes("d")) - Number(player.keysdown.includes("a"));
-    let dy = Number(player.keysdown.includes("s")) - Number(player.keysdown.includes("w"));
-    const mag = Math.hypot(dx, dy);
+    player.dx += Number(player.keysdown.includes("d")) - Number(player.keysdown.includes("a"));
+    player.dy += Number(player.keysdown.includes("s")) - Number(player.keysdown.includes("w"));
 
-    if (mag !== 0) {
-      dx /= mag;
-      dy /= mag;
+    const mag = Math.hypot(player.dx, player.dy);
 
-      dx *= SPEED * gameState.tickRate;
-      dy *= SPEED * gameState.tickRate;
-
-      player.x += dx;
-      player.y += dy;
+    if (mag > MAX_SPEED) {
+      const scale = MAX_SPEED / mag;
+      player.dx *= scale;
+      player.dy *= scale;
     }
+
+    player.dx /= FRICTION;
+    player.dy /= FRICTION;
+
+    player.x += player.dx * SPEED * gameState.tickRate;
+    player.y += player.dy * SPEED * gameState.tickRate;
   }
 
   return gameState;
