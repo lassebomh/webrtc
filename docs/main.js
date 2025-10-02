@@ -74,7 +74,7 @@ const send = setupConnection(
       }
     }
   },
-  1000
+  400
 );
 
 // wait for connection
