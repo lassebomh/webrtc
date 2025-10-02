@@ -1,8 +1,9 @@
 /**
  * @param {number} roomId
  * @param {(data: any) => any} onmessage
+ * @param {number} delay
  */
-export function setupConnection(roomId, onmessage) {
+export function setupConnection(roomId, onmessage, delay = 0) {
   if (!Number.isSafeInteger(roomId)) {
     throw new Error("Invalid room id");
   }
@@ -102,11 +103,17 @@ export function setupConnection(roomId, onmessage) {
     }
   });
 
-  return (data) => {
-    for (const [k, v] of channels) {
-      v.send(JSON.stringify(data));
+  const sendFunc = (data) => {
+    for (const channel of channels.values()) {
+      channel.send(JSON.stringify(data));
     }
   };
+
+  if (delay) {
+    return (data) => sleep(delay).then(() => sendFunc(data));
+  } else {
+    return sendFunc;
+  }
 }
 
 export const sleep = (ms) => new Promise((res) => setTimeout(res, ms));

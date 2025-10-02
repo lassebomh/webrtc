@@ -7,8 +7,9 @@ type Exclusive<T> = Prettify<
 >;
 
 type GameState = {
-  players: { id: number; x: number; y: number }[];
+  players: { id: number; x: number; y: number; keysdown: string[] }[];
   tick: number;
+  tickRate: number;
   created: number;
 };
 
@@ -26,7 +27,7 @@ type Input = Exclusive<{
 }> & { time: number };
 
 type Message = Exclusive<{
-  input: Input;
+  inputs: Input[];
   staterequest: true;
   stateresponse: GameState;
 }>;
