@@ -1,13 +1,10 @@
 import { setupConnection, sleep } from "./conn.js";
 import { fail, now } from "./utils.js";
 
-const roomId = parseInt(window.location.pathname.slice(1));
+const urlParams = new URL(window.location.href).searchParams;
 
-if (!location.hash) {
-  location.hash = Math.floor(Math.random() * 10000000).toString();
-}
-
-const playerId = parseInt(location.hash.slice(1));
+const roomId = parseInt(urlParams.get("room") ?? fail()) || fail();
+const playerId = parseInt(urlParams.get("player") ?? fail()) || fail();
 
 const canvas = /** @type {HTMLCanvasElement} */ (document.getElementById("canvas"));
 const ctx = canvas.getContext("2d") ?? fail();
@@ -62,15 +59,17 @@ const send = setupConnection(
     } else if (inputBuffer) {
       inputs.push(...inputBuffer);
 
-      const minTime = inputBuffer[0].time;
+      if (gameState) {
+        const minTime = inputBuffer[0].time;
 
-      if (minTime < gameState.created + gameState.tick * gameState.tickRate) {
-        const index = gameStateHistory.findLastIndex((x) => minTime > x.created + x.tick * x.tickRate);
-        if (index === -1) {
-          fail("cannot recover");
+        if (minTime < gameState.created + gameState.tick * gameState.tickRate) {
+          const index = gameStateHistory.findLastIndex((x) => minTime > x.created + x.tick * x.tickRate);
+          if (index === -1) {
+            fail("cannot recover");
+          }
+          gameState = gameStateHistory[index];
+          gameStateHistory.splice(index + 1, gameStateHistory.length - index);
         }
-        gameState = gameStateHistory[index];
-        gameStateHistory.splice(index + 1, gameStateHistory.length - index);
       }
     }
   },
@@ -128,7 +127,7 @@ function tick(prevGameState, inputs) {
     const { time, keydown, keyup, playerJoin, playerLeave } = input;
 
     if (keydown || keyup) {
-      const playerId = keydown?.playerId ?? keyup?.playerId;
+      const playerId = keydown?.playerId ?? keyup?.playerId ?? fail();
       let player = gameState.players.find((x) => x.id === playerId);
       if (player === undefined) {
         player = {
@@ -183,7 +182,9 @@ function tick(prevGameState, inputs) {
 }
 
 setInterval(() => {
-  gameStateHistory.push(structuredClone(gameState));
+  if (gameState) {
+    gameStateHistory.push(structuredClone(gameState));
+  }
   while (gameStateHistory.length > 16) {
     gameStateHistory.shift();
   }
@@ -197,25 +198,27 @@ function main() {
   }
   inputs.sort((a, b) => a.time - b.time);
 
-  while (true) {
-    const currentGameTime = gameState.created + gameState.tickRate * gameState.tick;
+  if (gameState) {
+    while (true) {
+      const currentGameTime = gameState.created + gameState.tickRate * gameState.tick;
 
-    if (currentGameTime > now() - gameState.tickRate) {
-      break;
+      if (currentGameTime > now() - gameState.tickRate) {
+        break;
+      }
+
+      const currentInputs = inputs.filter(
+        (x) => x.time >= currentGameTime && x.time < currentGameTime + (gameState ?? fail()).tickRate
+      );
+
+      gameState = tick(gameState, currentInputs);
     }
 
-    const currentInputs = inputs.filter(
-      (x) => x.time >= currentGameTime && x.time < currentGameTime + gameState.tickRate
-    );
+    render(gameState);
 
-    gameState = tick(gameState, currentInputs);
+    const delay = gameState.created + gameState.tickRate * (gameState.tick + 1) - now();
+
+    setTimeout(main, delay);
   }
-
-  render(gameState);
-
-  const delay = gameState.created + gameState.tickRate * (gameState.tick + 1) - now();
-
-  setTimeout(main, delay);
 }
 
 main();

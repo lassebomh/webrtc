@@ -5,6 +5,16 @@
 export function fail(msg = undefined) {
   throw new Error(msg);
 }
+/**
+ * @param {any} value
+ * @param {string | undefined} msg
+ * @returns {asserts value}
+ */
+export function assert(value, msg = undefined) {
+  if (!value) {
+    throw new Error(msg);
+  }
+}
 
 export function now() {
   return performance.timeOrigin + performance.now();

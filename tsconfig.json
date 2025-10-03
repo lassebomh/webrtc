@@ -6,6 +6,7 @@
     "lib": ["ES2024", "DOM", "ES2017.TypedArrays"],
     "allowJs": true,
     "module": "esnext",
+    "strict": true,
     "types": ["./types.d.ts"]
   },
   "include": ["docs/**/*.js"]

@@ -7,7 +7,7 @@
   "type": "module",
   "main": "index.mjs",
   "scripts": {
-    "dev": "node --watch index.mjs"
+    "dev": "node --watch-path=./docs --watch-path=./index.mjs  index.mjs"
   },
   "dependencies": {
     "ws": "8.18.3"

@@ -1,7 +1,50 @@
 import { WebSocket, WebSocketServer } from "ws";
+import http from "http";
+import { extname, join } from "path";
+import { fileURLToPath } from "url";
+import { createReadStream, statSync } from "fs";
+
+const __dirname = fileURLToPath(new URL(".", import.meta.url));
 
 const PORT = 8080;
-const wss = new WebSocketServer({ port: PORT });
+const PUBLIC_DIR = join(__dirname, "docs");
+
+/** @type {Record<string, string>} */
+const mimeTypes = {
+  ".html": "text/html",
+  ".css": "text/css",
+  ".js": "application/javascript",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".svg": "image/svg+xml",
+  ".json": "application/json",
+  ".ico": "image/x-icon",
+};
+
+const server = http.createServer((req, res) => {
+  const safePath = decodeURIComponent((req.url ?? "").split("?")[0]);
+  const filePath = join(PUBLIC_DIR, safePath === "/" ? "/index.html" : safePath);
+
+  try {
+    const stat = statSync(filePath);
+    if (stat.isDirectory()) {
+      res.writeHead(403);
+      res.end("Forbidden");
+      return;
+    }
+
+    const ext = extname(filePath);
+    const contentType = mimeTypes[ext] || "application/octet-stream";
+
+    res.writeHead(200, { "Content-Type": contentType });
+    createReadStream(filePath).pipe(res);
+  } catch (err) {
+    res.writeHead(404);
+    res.end("Not Found");
+  }
+});
+
+const wss = new WebSocketServer({ server });
 
 /** @type {Map<number, Set<WebSocket>>} */
 const rooms = new Map();
@@ -37,4 +80,8 @@ wss.on("connection", (ws, req) => {
       rooms.delete(roomId);
     }
   });
+});
+
+server.listen(PORT, () => {
+  console.log(`Server running at http://localhost:${PORT}`);
 });

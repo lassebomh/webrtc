@@ -1,3 +1,5 @@
+import { assert } from "./utils.js";
+
 /**
  * @param {number} roomId
  * @param {(data: any) => any} onmessage
@@ -18,9 +20,19 @@ export function setupConnection(roomId, onmessage, delay = 0) {
   /** @type {Map<number, RTCPeerConnection>} */
   const peers = new Map();
 
-  function send(data, to) {
+  /**
+   * @param {*} data
+   * @param {*} to
+   */
+  function send(data, to = undefined) {
     signal.send(JSON.stringify({ from: id, to, ...data }));
   }
+
+  signal.addEventListener("close", () => {
+    sleep(100).then(() => {
+      window.location.reload();
+    });
+  });
 
   signal.addEventListener("open", (e) => {
     send({ type: "init" });
@@ -33,7 +45,8 @@ export function setupConnection(roomId, onmessage, delay = 0) {
 
     let peer = peers.get(from);
 
-    if (peer === undefined && from !== undefined) {
+    if (peer === undefined) {
+      assert(from !== undefined);
       peer = new RTCPeerConnection({
         iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
       });
@@ -103,6 +116,7 @@ export function setupConnection(roomId, onmessage, delay = 0) {
     }
   });
 
+  /** @type {(data: any) => void} */
   const sendFunc = (data) => {
     for (const channel of channels.values()) {
       channel.send(JSON.stringify(data));
@@ -110,10 +124,11 @@ export function setupConnection(roomId, onmessage, delay = 0) {
   };
 
   if (delay) {
-    return (data) => sleep(delay).then(() => sendFunc(data));
+    return /** @type {(data: any) => void} */ ((data) => sleep(delay).then(() => sendFunc(data)));
   } else {
     return sendFunc;
   }
 }
 
+/** @type {(ms: number) => Promise<void>} */
 export const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
