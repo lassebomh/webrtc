@@ -1,4 +1,4 @@
-import { assert } from "./utils.js";
+import { assert, sleep } from "./utils.js";
 
 /**
  * @param {number} roomId
@@ -13,7 +13,7 @@ export function setupConnection(roomId, onmessage, delay = 0) {
   const id = Math.trunc(Math.random() * Number.MAX_SAFE_INTEGER);
 
   const signal = new WebSocket(
-    `ws${window.location.protocol === "https:" ? "s" : ""}://${window.location.hostname}/${roomId}`
+    `ws${window.location.protocol === "https:" ? "s" : ""}://${window.location.host}/${roomId}`
   );
 
   /** @type {Map<number, RTCDataChannel>} */
@@ -23,8 +23,8 @@ export function setupConnection(roomId, onmessage, delay = 0) {
   const peers = new Map();
 
   /**
-   * @param {*} data
-   * @param {*} to
+   * @param {any} data
+   * @param {any} to
    */
   function send(data, to = undefined) {
     signal.send(JSON.stringify({ from: id, to, ...data }));
@@ -134,6 +134,3 @@ export function setupConnection(roomId, onmessage, delay = 0) {
     return sendFunc;
   }
 }
-
-/** @type {(ms: number) => Promise<void>} */
-export const sleep = (ms) => new Promise((res) => setTimeout(res, ms));

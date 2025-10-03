@@ -1,5 +1,5 @@
-import { setupConnection, sleep } from "./conn.js";
-import { fail, now } from "./utils.js";
+import { setupConnection } from "./conn.js";
+import { fail, now, sleep } from "./utils.js";
 
 const urlParams = new URL(window.location.href).searchParams;
 
@@ -7,8 +7,8 @@ const roomId = parseInt(urlParams.get("room") ?? fail()) || fail();
 const playerId = parseInt(urlParams.get("player") ?? fail()) || fail();
 
 const TICK_RATE = 1000 / 60;
-const SIMULATED_LATENCY = 0;
 const DELAY_TICKS = 2;
+const SIMULATED_LATENCY = 0;
 
 const canvas = /** @type {HTMLCanvasElement} */ (document.getElementById("canvas"));
 const ctx = canvas.getContext("2d") ?? fail();

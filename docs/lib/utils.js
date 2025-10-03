@@ -20,3 +20,6 @@ export function assert(value, msg = undefined) {
 export function now() {
   return performance.timeOrigin + performance.now();
 }
+
+/** @type {(ms: number) => Promise<void>} */
+export const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
