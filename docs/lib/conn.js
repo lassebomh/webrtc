@@ -12,7 +12,9 @@ export function setupConnection(roomId, onmessage, delay = 0) {
 
   const id = Math.trunc(Math.random() * Number.MAX_SAFE_INTEGER);
 
-  const signal = new WebSocket(`ws://localhost:8080/${roomId}`);
+  const signal = new WebSocket(
+    `ws${window.location.protocol.endsWith("s") ? "s" : ""}://${window.location.hostname}/${roomId}`
+  );
 
   /** @type {Map<number, RTCDataChannel>} */
   const channels = new Map();
@@ -118,8 +120,11 @@ export function setupConnection(roomId, onmessage, delay = 0) {
 
   /** @type {(data: any) => void} */
   const sendFunc = (data) => {
+    const payload = JSON.stringify(data);
     for (const channel of channels.values()) {
-      channel.send(JSON.stringify(data));
+      if (channel.readyState === "open") {
+        channel.send(payload);
+      }
     }
   };
 

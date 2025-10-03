@@ -6,6 +6,10 @@ const urlParams = new URL(window.location.href).searchParams;
 const roomId = parseInt(urlParams.get("room") ?? fail()) || fail();
 const playerId = parseInt(urlParams.get("player") ?? fail()) || fail();
 
+const TICK_RATE = 1000 / 60;
+const SIMULATED_LATENCY = 0;
+const DELAY_TICKS = 2;
+
 const canvas = /** @type {HTMLCanvasElement} */ (document.getElementById("canvas"));
 const ctx = canvas.getContext("2d") ?? fail();
 
@@ -62,8 +66,8 @@ const send = setupConnection(
       if (gameState) {
         const minTime = inputBuffer[0].time;
 
-        if (minTime < gameState.created + gameState.tick * gameState.tickRate) {
-          const index = gameStateHistory.findLastIndex((x) => minTime > x.created + x.tick * x.tickRate);
+        if (minTime < gameState.created + gameState.tick * TICK_RATE) {
+          const index = gameStateHistory.findLastIndex((x) => minTime > x.created + x.tick * TICK_RATE);
           if (index === -1) {
             fail("cannot recover");
           }
@@ -73,7 +77,7 @@ const send = setupConnection(
       }
     }
   },
-  400
+  SIMULATED_LATENCY
 );
 
 // wait for connection
@@ -87,7 +91,6 @@ await sleep(300 + 200 * Math.random());
 if (gameState === undefined) {
   gameState = {
     created: now(),
-    tickRate: 1000 / 30,
     players: [],
     tick: 0,
   };
@@ -156,9 +159,9 @@ function tick(prevGameState, inputs) {
   }
 
   for (const player of gameState.players) {
-    const SPEED = 0.02;
-    const FRICTION = 1.02;
-    const MAX_SPEED = 12;
+    const SPEED = 0.2;
+    const FRICTION = 1.04;
+    const MAX_SPEED = 2;
 
     player.dx += Number(player.keysdown.includes("d")) - Number(player.keysdown.includes("a"));
     player.dy += Number(player.keysdown.includes("s")) - Number(player.keysdown.includes("w"));
@@ -174,8 +177,8 @@ function tick(prevGameState, inputs) {
     player.dx /= FRICTION;
     player.dy /= FRICTION;
 
-    player.x += player.dx * SPEED * gameState.tickRate;
-    player.y += player.dy * SPEED * gameState.tickRate;
+    player.x += player.dx * SPEED * TICK_RATE;
+    player.y += player.dy * SPEED * TICK_RATE;
   }
 
   return gameState;
@@ -185,10 +188,10 @@ setInterval(() => {
   if (gameState) {
     gameStateHistory.push(structuredClone(gameState));
   }
-  while (gameStateHistory.length > 16) {
+  while (gameStateHistory.length > 8) {
     gameStateHistory.shift();
   }
-}, 500);
+}, 100);
 
 function main() {
   if (inputBuffer.length) {
@@ -200,24 +203,24 @@ function main() {
 
   if (gameState) {
     while (true) {
-      const currentGameTime = gameState.created + gameState.tickRate * gameState.tick;
+      const currentGameTime = gameState.created + TICK_RATE * gameState.tick;
 
-      if (currentGameTime > now() - gameState.tickRate) {
+      if (currentGameTime > now() - TICK_RATE * (1 + DELAY_TICKS)) {
         break;
       }
 
-      const currentInputs = inputs.filter(
-        (x) => x.time >= currentGameTime && x.time < currentGameTime + (gameState ?? fail()).tickRate
-      );
+      const currentInputs = inputs.filter((x) => x.time >= currentGameTime && x.time < currentGameTime + TICK_RATE);
 
       gameState = tick(gameState, currentInputs);
     }
 
     render(gameState);
 
-    const delay = gameState.created + gameState.tickRate * (gameState.tick + 1) - now();
+    const delay = gameState.created + TICK_RATE * (gameState.tick + 1) - now();
 
     setTimeout(main, delay);
+  } else {
+    setTimeout(main, 500);
   }
 }
 
