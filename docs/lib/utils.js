@@ -5,6 +5,7 @@
 export function fail(msg = undefined) {
   throw new Error(msg);
 }
+
 /**
  * @param {any} value
  * @param {string | undefined} msg

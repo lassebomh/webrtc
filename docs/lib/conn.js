@@ -13,7 +13,7 @@ export function setupConnection(roomId, onmessage, delay = 0) {
   const id = Math.trunc(Math.random() * Number.MAX_SAFE_INTEGER);
 
   const signal = new WebSocket(
-    `ws${window.location.protocol.endsWith("s") ? "s" : ""}://${window.location.hostname}/${roomId}`
+    `ws${window.location.protocol === "https:" ? "s" : ""}://${window.location.hostname}/${roomId}`
   );
 
   /** @type {Map<number, RTCDataChannel>} */
