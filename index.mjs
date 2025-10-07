@@ -46,16 +46,13 @@ const server = http.createServer((req, res) => {
 
 const wss = new WebSocketServer({ server });
 
-/** @type {Map<number, Set<WebSocket>>} */
+/** @type {Map<string, Set<WebSocket>>} */
 const rooms = new Map();
 
 wss.on("connection", (ws, req) => {
   if (req.url === undefined) return;
 
-  /** @type {number} */
-  const roomId = parseInt(req.url.slice(1));
-
-  if (!Number.isSafeInteger(roomId)) return;
+  const roomId = req.url.slice(1);
 
   let room = rooms.get(roomId);
 

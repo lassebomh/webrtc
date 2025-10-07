@@ -1,58 +1,34 @@
 import { setupConnection } from "./conn.js";
+import { createInputEntry, Input } from "./inputs.js";
 import { fail, now, sleep } from "./utils.js";
 
-const urlParams = new URL(window.location.href).searchParams;
-
-const roomId = parseInt(urlParams.get("room") ?? fail()) || fail();
-const playerId = parseInt(urlParams.get("player") ?? fail()) || fail();
-
-const TICK_RATE = 1000 / 60;
+const TICK_RATE = 1000 / 2;
 const DELAY_TICKS = 2;
-const SIMULATED_LATENCY = 0;
+const SIMULATED_LATENCY = 50;
 
-const canvas = /** @type {HTMLCanvasElement} */ (document.getElementById("canvas"));
-const ctx = canvas.getContext("2d") ?? fail();
-
-let width = 0;
-let height = 0;
+const DefaultInputID = Math.random();
 
 /** @type {GameState[]} */
 const gameStateHistory = [];
 
 /** @type {GameState | undefined} */
+let prevGameState;
+/** @type {GameState | undefined} */
 let gameState;
 
 /**
+ * @param {GameState} prevGameState
  * @param {GameState} gameState
+ * @param {number} alpha
  */
-function render(gameState) {
-  ctx.clearRect(0, 0, width, height);
-  for (const player of gameState.players) {
-    ctx.fillStyle = "red";
-    ctx.fillRect(player.x, player.y, 30, 30);
-  }
-}
+function render(prevGameState, gameState, alpha) {}
 
-const observer = new ResizeObserver((entries) => {
-  for (const { contentRect } of entries) {
-    width = contentRect.width;
-    height = contentRect.height;
-    canvas.width = width;
-    canvas.height = height;
-    if (gameState !== undefined) {
-      render(gameState);
-    }
-  }
-});
-
-observer.observe(canvas);
-
-/** @type {Input[]} */
+/** @type {InputEntry[]} */
 const inputs = [];
 
 /** @type {(data: Message) => void} */
 const send = setupConnection(
-  roomId,
+  "roomId",
   (/** @type {Message} */ data) => {
     const { stateresponse, staterequest, inputs: inputBuffer } = data;
 
@@ -64,7 +40,7 @@ const send = setupConnection(
       inputs.push(...inputBuffer);
 
       if (gameState) {
-        const minTime = inputBuffer[0].time;
+        const minTime = inputBuffer[0][Input.Time];
 
         if (minTime < gameState.created + gameState.tick * TICK_RATE) {
           const index = gameStateHistory.findLastIndex((x) => minTime > x.created + x.tick * TICK_RATE);
@@ -97,89 +73,37 @@ if (gameState === undefined) {
 
   send({ stateresponse: gameState });
 }
-/** @type {Input[]} */
-let inputBuffer = [];
+
+let defaultInputEntry = createInputEntry(DefaultInputID);
 
 window.addEventListener("keydown", (e) => {
   if (e.repeat) return;
-  const input = {
-    time: now(),
-    keydown: { key: e.key.toLowerCase(), playerId },
-  };
-  inputBuffer.push(input);
+  let key = e.code;
+
+  console.log(key);
+
+  if (key in Input) {
+    defaultInputEntry[Input[/** @type {keyof (typeof Input)} */ (key)]] = 1;
+  }
 });
 
 window.addEventListener("keyup", (e) => {
-  const input = {
-    time: now(),
-    keyup: { key: e.key.toLowerCase(), playerId },
-  };
-  inputBuffer.push(input);
+  const key = e.key.toLowerCase();
+  if (key in Input) {
+    defaultInputEntry[Input[/** @type {keyof (typeof Input)} */ (key)]] = 0;
+  }
 });
 
 /**
  * @param {GameState} prevGameState
- * @param {Input[]} inputs
+ * @param {InputEntry[]} inputs
  */
 function tick(prevGameState, inputs) {
   const gameState = structuredClone(prevGameState);
 
   gameState.tick++;
 
-  for (const input of inputs) {
-    const { time, keydown, keyup, playerJoin, playerLeave } = input;
-
-    if (keydown || keyup) {
-      const playerId = keydown?.playerId ?? keyup?.playerId ?? fail();
-      let player = gameState.players.find((x) => x.id === playerId);
-      if (player === undefined) {
-        player = {
-          id: playerId,
-          keysdown: [],
-          x: 50,
-          y: 50,
-          dx: 0,
-          dy: 0,
-        };
-
-        gameState.players.push(player);
-      }
-
-      if (keydown) {
-        if (!player.keysdown.includes(keydown.key)) {
-          player.keysdown.push(keydown.key);
-        }
-      } else if (keyup) {
-        const index = player.keysdown.indexOf(keyup.key);
-        if (index !== -1) {
-          player.keysdown.splice(index, 1);
-        }
-      }
-    }
-  }
-
-  for (const player of gameState.players) {
-    const SPEED = 0.2;
-    const FRICTION = 1.04;
-    const MAX_SPEED = 2;
-
-    player.dx += Number(player.keysdown.includes("d")) - Number(player.keysdown.includes("a"));
-    player.dy += Number(player.keysdown.includes("s")) - Number(player.keysdown.includes("w"));
-
-    const mag = Math.hypot(player.dx, player.dy);
-
-    if (mag > MAX_SPEED) {
-      const scale = MAX_SPEED / mag;
-      player.dx *= scale;
-      player.dy *= scale;
-    }
-
-    player.dx /= FRICTION;
-    player.dy /= FRICTION;
-
-    player.x += player.dx * SPEED * TICK_RATE;
-    player.y += player.dy * SPEED * TICK_RATE;
-  }
+  console.log(inputs);
 
   return gameState;
 }
@@ -193,13 +117,12 @@ setInterval(() => {
   }
 }, 100);
 
-function main() {
-  if (inputBuffer.length) {
-    send({ inputs: inputBuffer });
-    inputs.push(...inputBuffer);
-    inputBuffer = [];
-  }
-  inputs.sort((a, b) => a.time - b.time);
+function mainloop() {
+  send({ inputs: [defaultInputEntry] });
+  inputs.push(defaultInputEntry);
+  defaultInputEntry = createInputEntry(DefaultInputID);
+
+  inputs.sort((a, b) => a[Input.Time] - b[Input.Time]);
 
   if (gameState) {
     while (true) {
@@ -209,19 +132,34 @@ function main() {
         break;
       }
 
-      const currentInputs = inputs.filter((x) => x.time >= currentGameTime && x.time < currentGameTime + TICK_RATE);
+      const currentInputs = inputs.filter(
+        (x) => x[Input.Time] >= currentGameTime && x[Input.Time] < currentGameTime + TICK_RATE
+      );
 
+      prevGameState = gameState;
       gameState = tick(gameState, currentInputs);
     }
-
-    render(gameState);
-
-    const delay = gameState.created + TICK_RATE * (gameState.tick + 1) - now();
-
-    setTimeout(main, delay);
-  } else {
-    setTimeout(main, 500);
   }
 }
 
-main();
+mainloop();
+
+setInterval(mainloop, TICK_RATE);
+
+function renderloop() {
+  requestAnimationFrame(renderloop);
+
+  if (!gameState) return;
+
+  if (prevGameState) {
+    const prevGameStateTime = prevGameState.created + prevGameState.tick * TICK_RATE;
+    const gameStateTime = gameState.created + gameState.tick * TICK_RATE;
+    const alpha = (now() - TICK_RATE * (1 + DELAY_TICKS) - prevGameStateTime) / (gameStateTime - prevGameStateTime);
+
+    render(prevGameState, gameState, alpha);
+  } else {
+    render(gameState, gameState, 1);
+  }
+}
+
+renderloop();

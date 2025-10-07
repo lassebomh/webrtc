@@ -1,15 +1,11 @@
 import { assert, sleep } from "./utils.js";
 
 /**
- * @param {number} roomId
+ * @param {string} roomId
  * @param {(data: any) => any} onmessage
  * @param {number} delay
  */
 export function setupConnection(roomId, onmessage, delay = 0) {
-  if (!Number.isSafeInteger(roomId)) {
-    throw new Error("Invalid room id");
-  }
-
   const id = Math.trunc(Math.random() * Number.MAX_SAFE_INTEGER);
 
   const signal = new WebSocket(

@@ -6,27 +6,18 @@ type Exclusive<T> = Prettify<
   { [K in keyof T]: { [X in K]: T[K] } & { [X in Exclude<keyof T, K>]?: undefined } }[keyof T]
 >;
 
-type GameState = {
-  players: { id: number; x: number; y: number; dx: number; dy: number; keysdown: string[] }[];
+type Game = {
   tick: number;
-  created: number;
+  originTime: number;
+  players: Record<DeviceID, { x: number; y: number; dx: number; dy: number }>;
 };
 
-type Input = Exclusive<{
-  playerJoin: number;
-  playerLeave: number;
-  keydown: {
-    playerId: number;
-    key: string;
-  };
-  keyup: {
-    playerId: number;
-    key: string;
-  };
-}> & { time: number };
+type InputEntry = { deviceID: DeviceID; key: string; value: number; time: number };
 
-type Message = Exclusive<{
-  inputs: Input[];
-  staterequest: true;
-  stateresponse: GameState;
-}>;
+type TickInput = Record<string, number>;
+type TickInputMap = Record<DeviceID, TickInput>;
+
+type DeviceID = string & {};
+
+type GameFunc = (prev: Game, inputs: TickInputMap) => void;
+type RenderFunc = (prev: Game, current: Game, alpha: number) => void;
