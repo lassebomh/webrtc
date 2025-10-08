@@ -1,17 +1,18 @@
-import { fail, now } from "./utils.js";
+import { fail, now, setupCanvas } from "./utils.js";
+import { setupConnection } from "./conn.js";
 
-const canvas = /** @type {HTMLCanvasElement} */ (document.getElementById("canvas"));
-const ctx = canvas.getContext("2d") ?? fail();
+setupConnection("a", () => {});
 
-let width = 0;
-let height = 0;
+const ctx = setupCanvas(document.getElementById("canvas"));
 
-const TICK_RATE = 1000 / 45;
-const DELAY_TICKS = 2;
+const TICK_RATE = 1000 / 30;
+const DELAY_TICKS = 1;
+const TICKS_PER_SNAPSHOT = 30;
+const MAX_SNAPSHOTS = 5;
 
 /** @type {GameFunc} */
 const tick = (game, inputs) => {
-  const PLAYER_SPEED = 0.4 * TICK_RATE;
+  const PLAYER_SPEED = 1 * TICK_RATE;
 
   for (const deviceID in inputs) {
     game.players[deviceID] ??= { x: 400, y: 400, dx: 0, dy: 0 };
@@ -51,7 +52,7 @@ function lin(start, end, alpha) {
 
 /** @type {RenderFunc} */
 const renderFunc = (prev, current, alpha) => {
-  ctx.clearRect(0, 0, width, height);
+  ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
   for (const deviceID in current.players) {
     const player = current.players[deviceID] ?? fail();
@@ -66,6 +67,9 @@ const renderFunc = (prev, current, alpha) => {
 /** @type {InputEntry[]} */
 const inputEntries = [];
 
+/** @type {Array<[Game, TickInputMap]>} */
+const snapshots = [];
+
 /** @type {Game} */
 let game = {
   originTime: now(),
@@ -76,41 +80,29 @@ let game = {
 /** @type {Game | undefined} */
 let prevGame;
 
-const observer = new ResizeObserver((entries) => {
-  for (const { contentRect } of entries) {
-    width = contentRect.width;
-    height = contentRect.height;
-    canvas.width = width;
-    canvas.height = height;
-  }
-});
-
-observer.observe(canvas);
-
-window.addEventListener("keydown", (e) => {
-  if (e.repeat) return;
-  /** @type {InputEntry} */
-
-  const input = {
+/**
+ * @param {KeyboardEvent} event
+ */
+function onkey(event) {
+  if (event.repeat) return;
+  inputEntries.push({
     time: now(),
-    key: e.key.toLowerCase(),
+    key: event.key.toLowerCase(),
     deviceID: "default",
-    value: 1,
-  };
-  inputEntries.push(input);
-});
+    value: Number(event.type === "keydown"),
+  });
+}
 
-window.addEventListener("keyup", (e) => {
-  const input = {
-    time: now(),
-    key: e.key.toLowerCase(),
-    deviceID: "default",
-    value: 0,
-  };
-  inputEntries.push(input);
-});
+window.addEventListener("keydown", onkey);
+window.addEventListener("keyup", onkey);
+
+setInterval(() => {
+  console.log(`inputEntries=${inputEntries.length}, snapshots=${snapshots.length}`);
+}, 500);
 
 function mainloop() {
+  // inputEntries.sort((a, b) => a.time - b.time);
+
   const currentTime = now();
 
   while (game.tick < (currentTime - game.originTime) / TICK_RATE - DELAY_TICKS) {
@@ -119,8 +111,6 @@ function mainloop() {
     const tickStartTime = game.originTime + (game.tick - 1) * TICK_RATE;
     const tickEndTime = tickStartTime + TICK_RATE;
 
-    inputEntries.sort((a, b) => a.time - b.time);
-
     // const inputEntriesInTimeWindow = inputEntries.filter((x) => x.time >= tickStartTime && x.time < tickEndTime);
     const inputEntriesInTimeWindow = inputEntries.filter((x) => x.time < tickEndTime);
 
@@ -128,14 +118,26 @@ function mainloop() {
     const combinedInputs = {};
 
     for (const inputEntry of inputEntriesInTimeWindow) {
-      combinedInputs[inputEntry.deviceID] ??= {};
+      const combinedInput = (combinedInputs[inputEntry.deviceID] ??= {});
 
-      combinedInputs[inputEntry.deviceID][inputEntry.key] = inputEntry.value;
+      combinedInput[inputEntry.key] = inputEntry.value;
     }
 
     game = structuredClone(game);
     game.tick++;
     tick(game, combinedInputs);
+
+    if (game.tick % TICKS_PER_SNAPSHOT === 0) {
+      snapshots.push([game, combinedInputs]);
+      if (snapshots.length > MAX_SNAPSHOTS) {
+        const discardedSnapshot = snapshots.shift() ?? fail();
+        const time = discardedSnapshot[0].originTime + discardedSnapshot[0].tick * TICK_RATE;
+
+        while (inputEntries[0] && inputEntries[0].time < time) {
+          inputEntries.shift();
+        }
+      }
+    }
   }
 
   const currentTimeTick = (now() - game.originTime) / TICK_RATE - DELAY_TICKS;
