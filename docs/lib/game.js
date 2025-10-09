@@ -1,14 +1,14 @@
-import { fail, now, setupCanvas } from "./utils.js";
+import { fail, now, tabID, setupCanvas, sleep } from "./utils.js";
 import { setupConnection } from "./conn.js";
 
-setupConnection("a", () => {});
+const roomID = (window.location.search ||= "?" + crypto.randomUUID().slice(0, 5).toUpperCase()).slice(1);
+
+const TICK_RATE = 1000 / 60;
+const DELAY_TICKS = 3;
+const TICKS_PER_SNAPSHOT = 10;
+const MAX_SNAPSHOTS = 20;
 
 const ctx = setupCanvas(document.getElementById("canvas"));
-
-const TICK_RATE = 1000 / 30;
-const DELAY_TICKS = 1;
-const TICKS_PER_SNAPSHOT = 30;
-const MAX_SNAPSHOTS = 5;
 
 /** @type {GameFunc} */
 const tick = (game, inputs) => {
@@ -65,10 +65,10 @@ const renderFunc = (prev, current, alpha) => {
 };
 
 /** @type {InputEntry[]} */
-const inputEntries = [];
+let inputEntries = [];
 
-/** @type {Array<[Game, TickInputMap]>} */
-const snapshots = [];
+/** @type {Array<Game>} */
+let snapshots = [];
 
 /** @type {Game} */
 let game = {
@@ -81,28 +81,84 @@ let game = {
 let prevGame;
 
 /**
+ * @param {InputEntry} inputEntry
+ */
+function addInputEntry(inputEntry) {
+  inputEntries.push(inputEntry);
+  inputEntries.sort((a, b) => a.time - b.time);
+
+  if (inputEntry.time < game.originTime + game.tick * TICK_RATE) {
+    console.warn("trying to recover. behind:", now() - inputEntry.time);
+
+    /** @type {Game} */
+    let snapshot;
+
+    while (true) {
+      snapshot = snapshots.pop() ?? fail("cannot recover");
+
+      if (inputEntry.time > snapshot.originTime + snapshot.tick * TICK_RATE) {
+        break;
+      }
+    }
+
+    game = snapshot;
+    prevGame = undefined;
+  }
+}
+
+/** @type {(message: Message) => void} */
+const send = setupConnection(
+  roomID,
+  (/** @type {Message} */ message) => {
+    switch (message.type) {
+      case "input":
+        addInputEntry(message.data);
+        break;
+
+      case "syncResponse":
+        if (game.originTime > message.data.game.originTime) {
+          snapshots = [];
+          game = message.data.game;
+          prevGame = undefined;
+          inputEntries = message.data.inputEntries;
+        }
+        break;
+
+      case "syncRequest":
+        send({
+          type: "syncResponse",
+          data: { game, inputEntries },
+        });
+        break;
+    }
+  },
+  20
+);
+
+await sleep(1000); // wait for connection to open
+
+send({ type: "syncRequest", data: true });
+
+/**
  * @param {KeyboardEvent} event
  */
 function onkey(event) {
   if (event.repeat) return;
-  inputEntries.push({
+  /** @type {InputEntry} */
+  const inputEntry = {
     time: now(),
     key: event.key.toLowerCase(),
-    deviceID: "default",
+    deviceID: tabID,
     value: Number(event.type === "keydown"),
-  });
+  };
+  addInputEntry(inputEntry);
+  send({ type: "input", data: inputEntry });
 }
 
 window.addEventListener("keydown", onkey);
 window.addEventListener("keyup", onkey);
 
-setInterval(() => {
-  console.log(`inputEntries=${inputEntries.length}, snapshots=${snapshots.length}`);
-}, 500);
-
 function mainloop() {
-  // inputEntries.sort((a, b) => a.time - b.time);
-
   const currentTime = now();
 
   while (game.tick < (currentTime - game.originTime) / TICK_RATE - DELAY_TICKS) {
@@ -111,7 +167,6 @@ function mainloop() {
     const tickStartTime = game.originTime + (game.tick - 1) * TICK_RATE;
     const tickEndTime = tickStartTime + TICK_RATE;
 
-    // const inputEntriesInTimeWindow = inputEntries.filter((x) => x.time >= tickStartTime && x.time < tickEndTime);
     const inputEntriesInTimeWindow = inputEntries.filter((x) => x.time < tickEndTime);
 
     /** @type {TickInputMap} */
@@ -128,10 +183,10 @@ function mainloop() {
     tick(game, combinedInputs);
 
     if (game.tick % TICKS_PER_SNAPSHOT === 0) {
-      snapshots.push([game, combinedInputs]);
+      snapshots.push(game);
       if (snapshots.length > MAX_SNAPSHOTS) {
         const discardedSnapshot = snapshots.shift() ?? fail();
-        const time = discardedSnapshot[0].originTime + discardedSnapshot[0].tick * TICK_RATE;
+        const time = discardedSnapshot.originTime + discardedSnapshot.tick * TICK_RATE;
 
         while (inputEntries[0] && inputEntries[0].time < time) {
           inputEntries.shift();

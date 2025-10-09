@@ -2,9 +2,7 @@ type Prettify<T> = {
   [K in keyof T]: T[K];
 } & unknown;
 
-type Exclusive<T> = Prettify<
-  { [K in keyof T]: { [X in K]: T[K] } & { [X in Exclude<keyof T, K>]?: undefined } }[keyof T]
->;
+type TaggedUnion<T> = Prettify<{ [K in keyof T]: { type: K; data: T[K] } }[keyof T]>;
 
 type Game = {
   tick: number;
@@ -21,3 +19,12 @@ type DeviceID = string & {};
 
 type GameFunc = (prev: Game, inputs: TickInputMap) => void;
 type RenderFunc = (prev: Game, current: Game, alpha: number) => void;
+
+type Message = TaggedUnion<{
+  input: InputEntry;
+  syncRequest: true;
+  syncResponse: {
+    game: Game;
+    inputEntries: InputEntry[];
+  };
+}>;

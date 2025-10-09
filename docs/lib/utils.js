@@ -42,3 +42,6 @@ export function setupCanvas(canvas) {
 
   return ctx;
 }
+
+/** @type {DeviceID} */
+export const tabID = (sessionStorage.tabId ??= crypto.randomUUID());
