@@ -4,11 +4,10 @@ type Prettify<T> = {
 
 type TaggedUnion<T> = Prettify<{ [K in keyof T]: { type: K; data: T[K] } }[keyof T]>;
 
-type Game = {
+interface IGame {
   tick: number;
   originTime: number;
-  players: Record<DeviceID, { x: number; y: number; dx: number; dy: number }>;
-};
+}
 
 type InputEntry = { deviceID: DeviceID; key: string; value: number; time: number };
 
@@ -17,14 +16,19 @@ type TickInputMap = Record<DeviceID, TickInput>;
 
 type DeviceID = string & {};
 
-type GameFunc = (prev: Game, inputs: TickInputMap) => void;
-type RenderFunc = (prev: Game, current: Game, alpha: number) => void;
+type GameFunc<TGame extends IGame> = (prev: TGame, inputs: TickInputMap) => void;
+type RenderFunc<TGame extends IGame> = (
+  ctx: CanvasRenderingContext2D,
+  prev: TGame,
+  current: TGame,
+  alpha: number
+) => void;
 
-type Message = TaggedUnion<{
+type Message<TGame extends IGame> = TaggedUnion<{
   input: InputEntry;
   syncRequest: true;
   syncResponse: {
-    game: Game;
+    game: TGame;
     inputEntries: InputEntry[];
   };
 }>;

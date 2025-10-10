@@ -1,57 +1,37 @@
-import { fail, now, tabID, setupCanvas, sleep } from "./utils.js";
-import { setupConnection } from "./conn.js";
+import { fail, now } from "./utils.js";
+import { lin, run } from "./rollback.js";
 
-const roomID = (window.location.search ||= "?" + crypto.randomUUID().slice(0, 5).toUpperCase()).slice(1);
+/** @typedef {{tick: number;originTime: number;players: Record<DeviceID, { x: number; y: number; dx: number; dy: number }>;}} Game */
 
-const TICK_RATE = 1000 / 60;
-const DELAY_TICKS = 3;
-const TICKS_PER_SNAPSHOT = 10;
-const MAX_SNAPSHOTS = 20;
-
-const ctx = setupCanvas(document.getElementById("canvas"));
-
-/** @type {GameFunc} */
+/** @type {GameFunc<Game>} */
 const tick = (game, inputs) => {
-  const PLAYER_SPEED = 1 * TICK_RATE;
-
   for (const deviceID in inputs) {
     game.players[deviceID] ??= { x: 400, y: 400, dx: 0, dy: 0 };
     const player = game.players[deviceID];
     const device = inputs[deviceID] ?? fail();
 
     if (device.a) {
-      player.dx = -PLAYER_SPEED;
+      player.dx = -10;
     } else if (device.d) {
-      player.dx = +PLAYER_SPEED;
+      player.dx = +10;
     } else {
       player.dx = 0;
     }
     if (device.w) {
-      player.dy = -PLAYER_SPEED;
+      player.dy = -10;
     } else if (device.s) {
-      player.dy = +PLAYER_SPEED;
+      player.dy = +10;
     } else {
       player.dy = 0;
     }
 
-    // player.dx /= 1.1;
-    // player.dy /= 1.1;
     player.x += player.dx;
     player.y += player.dy;
   }
 };
 
-/**
- * @param {number | undefined} start
- * @param {number} end
- * @param {number} alpha
- */
-function lin(start, end, alpha) {
-  return start === undefined ? end : start + (end - start) * alpha;
-}
-
-/** @type {RenderFunc} */
-const renderFunc = (prev, current, alpha) => {
+/** @type {RenderFunc<Game>} */
+const render = (ctx, prev, current, alpha) => {
   ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
   for (const deviceID in current.players) {
@@ -64,147 +44,8 @@ const renderFunc = (prev, current, alpha) => {
   }
 };
 
-/** @type {InputEntry[]} */
-let inputEntries = [];
-
-/** @type {Array<Game>} */
-let snapshots = [];
-
-/** @type {Game} */
-let game = {
-  originTime: now(),
+run(tick, render, {
   tick: 0,
+  originTime: now(),
   players: {},
-};
-
-/** @type {Game | undefined} */
-let prevGame;
-
-/**
- * @param {InputEntry} inputEntry
- */
-function addInputEntry(inputEntry) {
-  inputEntries.push(inputEntry);
-  inputEntries.sort((a, b) => a.time - b.time);
-
-  if (inputEntry.time < game.originTime + game.tick * TICK_RATE) {
-    console.warn("trying to recover. behind:", now() - inputEntry.time);
-
-    /** @type {Game} */
-    let snapshot;
-
-    while (true) {
-      snapshot = snapshots.pop() ?? fail("cannot recover");
-
-      if (inputEntry.time > snapshot.originTime + snapshot.tick * TICK_RATE) {
-        break;
-      }
-    }
-
-    game = snapshot;
-    prevGame = undefined;
-  }
-}
-
-/** @type {(message: Message) => void} */
-const send = setupConnection(
-  roomID,
-  (/** @type {Message} */ message) => {
-    switch (message.type) {
-      case "input":
-        addInputEntry(message.data);
-        break;
-
-      case "syncResponse":
-        if (game.originTime > message.data.game.originTime) {
-          snapshots = [];
-          game = message.data.game;
-          prevGame = undefined;
-          inputEntries = message.data.inputEntries;
-        }
-        break;
-
-      case "syncRequest":
-        send({
-          type: "syncResponse",
-          data: { game, inputEntries },
-        });
-        break;
-    }
-  },
-  20
-);
-
-await sleep(1000); // wait for connection to open
-
-send({ type: "syncRequest", data: true });
-
-/**
- * @param {KeyboardEvent} event
- */
-function onkey(event) {
-  if (event.repeat) return;
-  /** @type {InputEntry} */
-  const inputEntry = {
-    time: now(),
-    key: event.key.toLowerCase(),
-    deviceID: tabID,
-    value: Number(event.type === "keydown"),
-  };
-  addInputEntry(inputEntry);
-  send({ type: "input", data: inputEntry });
-}
-
-window.addEventListener("keydown", onkey);
-window.addEventListener("keyup", onkey);
-
-function mainloop() {
-  const currentTime = now();
-
-  while (game.tick < (currentTime - game.originTime) / TICK_RATE - DELAY_TICKS) {
-    prevGame = game;
-
-    const tickStartTime = game.originTime + (game.tick - 1) * TICK_RATE;
-    const tickEndTime = tickStartTime + TICK_RATE;
-
-    const inputEntriesInTimeWindow = inputEntries.filter((x) => x.time < tickEndTime);
-
-    /** @type {TickInputMap} */
-    const combinedInputs = {};
-
-    for (const inputEntry of inputEntriesInTimeWindow) {
-      const combinedInput = (combinedInputs[inputEntry.deviceID] ??= {});
-
-      combinedInput[inputEntry.key] = inputEntry.value;
-    }
-
-    game = structuredClone(game);
-    game.tick++;
-    tick(game, combinedInputs);
-
-    if (game.tick % TICKS_PER_SNAPSHOT === 0) {
-      snapshots.push(game);
-      if (snapshots.length > MAX_SNAPSHOTS) {
-        const discardedSnapshot = snapshots.shift() ?? fail();
-        const time = discardedSnapshot.originTime + discardedSnapshot.tick * TICK_RATE;
-
-        while (inputEntries[0] && inputEntries[0].time < time) {
-          inputEntries.shift();
-        }
-      }
-    }
-  }
-
-  const currentTimeTick = (now() - game.originTime) / TICK_RATE - DELAY_TICKS;
-
-  if (prevGame !== undefined) {
-    const alpha = (currentTimeTick - prevGame.tick) / (game.tick - prevGame.tick);
-    renderFunc(prevGame, game, alpha);
-  } else {
-    renderFunc(game, game, 1);
-  }
-
-  requestAnimationFrame(mainloop);
-}
-
-mainloop();
+});
