@@ -7,7 +7,7 @@
     "allowJs": true,
     "module": "esnext",
     "strict": true,
-    "types": ["./types.d.ts"],
+    "types": ["./types.d.ts", "./docs/game/types.d.ts"],
     "erasableSyntaxOnly": true,
     "noUncheckedIndexedAccess": true
   },

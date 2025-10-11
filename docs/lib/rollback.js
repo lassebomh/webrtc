@@ -2,21 +2,10 @@ import { fail, now, tabID, setupCanvas, sleep } from "./utils.js";
 import { setupConnection } from "./conn.js";
 
 /**
- * @param {number | undefined} start
- * @param {number} end
- * @param {number} alpha
- */
-export function lin(start, end, alpha) {
-  return start === undefined ? end : start + (end - start) * alpha;
-}
-
-/**
  * @template {IGame} TGame
- * @param {GameFunc<TGame>} tick
- * @param {RenderFunc<TGame>} render
- * @param {TGame} initial
+ * @param {{ tick: GameFunc<TGame>, render: RenderFunc<TGame>, init: () => TGame }} tick
  */
-export async function run(tick, render, initial) {
+export async function run({ tick, render, init }) {
   const roomID = (window.location.search ||= "?" + crypto.randomUUID().slice(0, 5).toUpperCase()).slice(1);
 
   const TICK_RATE = 1000 / 60;
@@ -25,6 +14,9 @@ export async function run(tick, render, initial) {
   const MAX_SNAPSHOTS = 20;
 
   const ctx = setupCanvas(document.getElementById("canvas"));
+  const fpsElement = document.getElementById("fps") ?? fail();
+  const fpsLogs = new Array(32).fill(0);
+  let fpsCounter = 0;
 
   /** @type {InputEntry[]} */
   let inputEntries = [];
@@ -33,7 +25,7 @@ export async function run(tick, render, initial) {
   let snapshots = [];
 
   /** @type {TGame} */
-  let game = initial;
+  let game = init();
 
   /** @type {TGame | undefined} */
   let prevGame;
@@ -120,8 +112,20 @@ export async function run(tick, render, initial) {
   window.addEventListener("keydown", onkey);
   window.addEventListener("keyup", onkey);
 
+  let lastTime = 0;
+
   function mainloop() {
     const currentTime = now();
+
+    fpsCounter++;
+
+    fpsLogs[fpsCounter & 31] = currentTime - lastTime;
+
+    if ((fpsCounter & 31) === 0) {
+      const fps = 1000 / (fpsLogs.reduce((acc, x) => acc + x, 0) / fpsLogs.length);
+
+      fpsElement.textContent = `${fps.toFixed(2)} FPS`;
+    }
 
     while (game.tick < (currentTime - game.originTime) / TICK_RATE - DELAY_TICKS) {
       prevGame = game;
@@ -165,6 +169,8 @@ export async function run(tick, render, initial) {
     } else {
       render(ctx, game, game, 1);
     }
+
+    lastTime = currentTime;
 
     requestAnimationFrame(mainloop);
   }

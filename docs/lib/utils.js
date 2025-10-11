@@ -43,5 +43,14 @@ export function setupCanvas(canvas) {
   return ctx;
 }
 
+/**
+ * @param {number | undefined} start
+ * @param {number} end
+ * @param {number} alpha
+ */
+export function lin(start, end, alpha) {
+  return start === undefined ? end : start + (end - start) * alpha;
+}
+
 /** @type {DeviceID} */
 export const tabID = (sessionStorage.tabId ??= crypto.randomUUID());
