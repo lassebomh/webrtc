@@ -11,18 +11,32 @@ function createLevelFromText(text) {
   const width = lineLengths.pop();
   assert(width && lineLengths.length === 0);
 
-  /** @type {number[][]} */
+  /** @type {Level['spawnPoints']} */
+  const spawnPoints = [];
+
+  /** @type {Level['tiles']} */
   const tiles = [];
 
-  for (const line of lines) {
+  for (let y = 0; y < lines.length; y++) {
+    const line = lines[y] ?? fail();
+
     /** @type {number[]} */
     const lineTiles = [];
 
-    for (const tileString of line.split("")) {
+    const tileStrings = line.split("");
+
+    for (let x = 0; x < tileStrings.length; x++) {
+      const tileString = tileStrings[x];
+
       if (tileString === "#") {
         lineTiles.push(1);
-      } else {
+      } else if (tileString === "s") {
+        spawnPoints.push({ x, y });
         lineTiles.push(0);
+      } else if (tileString === " ") {
+        lineTiles.push(0);
+      } else {
+        fail(`Tile "${tileString}" not supported`);
       }
     }
 
@@ -41,9 +55,10 @@ function createLevelFromText(text) {
       const offset = (y * width + x) * 4;
 
       if (value === 1) {
-        image.data[offset + 0] = 0;
-        image.data[offset + 1] = 0;
-        image.data[offset + 2] = 0;
+        const v = ((x + y) & 1) === 0 ? 90 : 70;
+        image.data[offset + 0] = v;
+        image.data[offset + 1] = v;
+        image.data[offset + 2] = v;
         image.data[offset + 3] = 255;
       } else {
         image.data[offset + 0] = 255;
@@ -62,6 +77,7 @@ function createLevelFromText(text) {
     width,
     tiles,
     canvas,
+    spawnPoints,
   };
 
   return level;
@@ -79,11 +95,11 @@ export const levels = [
 #           #####       #####           #
 #                                       #
 #                                       #
-#                                       #
+#      s                         s      #
 #                                       #
 #    #####          #          #####    #
 #                   #                   #
-#                   #                   #
+#      s            #            s      #
 #                   #                   #
 #    ############   #   ############    #
 #                                       #

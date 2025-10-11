@@ -1,6 +1,12 @@
 type Player = { x: number; y: number; dx: number; dy: number };
 
-type Level = { width: number; height: number; tiles: number[][]; canvas: OffscreenCanvas };
+type Level = {
+  width: number;
+  height: number;
+  tiles: number[][];
+  canvas: OffscreenCanvas;
+  spawnPoints: { x: number; y: number }[];
+};
 
 interface Game extends IGame {
   players: Record<DeviceID, Player>;

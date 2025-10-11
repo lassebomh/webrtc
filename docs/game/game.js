@@ -4,29 +4,48 @@ import { levels } from "./levels.js";
 
 const CANVAS_SCALE = 30;
 
+const PLAYER_SPEED = 0.04;
+const PLAYER_FRICTION = 1.2;
+const PLAYER_WIDTH = 0.9;
+const PLAYER_HEIGHT = 1.2;
+
 /** @type {GameFunc<Game>} */
 const tick = (game, inputs) => {
   const level = levels[game.level] ?? fail();
 
   for (const deviceID in inputs) {
-    game.players[deviceID] ??= { x: 0, y: 0, dx: 0, dy: 0 };
+    if (game.players[deviceID] === undefined) {
+      const spawnPointPlayerDistances = level.spawnPoints
+        .map((spawnPoint) => {
+          const players = Object.values(game.players);
+          const distances = players.map((p) => Math.hypot(p.x - spawnPoint.x, p.y - spawnPoint.y));
+          return /** @type {const} */ ([spawnPoint, Math.min(...distances)]);
+        })
+        .toSorted(([_, aDist], [__, bDist]) => bDist - aDist);
+
+      const safestSpawnPoint = spawnPointPlayerDistances[0]?.[0] ?? fail();
+
+      game.players[deviceID] = { x: safestSpawnPoint.x, y: safestSpawnPoint.y, dx: 0, dy: 0 };
+    }
+
     const player = game.players[deviceID];
     const device = inputs[deviceID] ?? fail();
 
     if (device.a) {
-      player.dx = -0.2;
-    } else if (device.d) {
-      player.dx = +0.2;
-    } else {
-      player.dx = 0;
+      player.dx -= PLAYER_SPEED;
+    }
+    if (device.d) {
+      player.dx += PLAYER_SPEED;
     }
     if (device.w) {
-      player.dy = -0.2;
-    } else if (device.s) {
-      player.dy = +0.2;
-    } else {
-      player.dy = 0;
+      player.dy -= PLAYER_SPEED;
     }
+    if (device.s) {
+      player.dy += PLAYER_SPEED;
+    }
+
+    player.dx /= PLAYER_FRICTION;
+    player.dy /= PLAYER_FRICTION;
 
     player.x += player.dx;
     player.y += player.dy;
@@ -78,7 +97,7 @@ const render = (ctx, prev, curr, alpha) => {
     const x = lin(lastPlayer?.x, player.x, alpha);
     const y = lin(lastPlayer?.y, player.y, alpha);
     ctx.fillStyle = "red";
-    ctx.fillRect(x, y, 1, 1);
+    ctx.fillRect(x, y, PLAYER_WIDTH, PLAYER_HEIGHT);
   }
 
   ctx.restore();
