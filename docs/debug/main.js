@@ -113,7 +113,11 @@ inputs.addListener((inputs) => {
 
       game.tick++;
 
-      tick(game, inputs[game.tick] ?? fail());
+      try {
+        tick(game, inputs[game.tick] ?? fail());
+      } catch (error) {
+        console.error(error);
+      }
       snapshots[t] = game;
     }
   }

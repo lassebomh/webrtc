@@ -10,6 +10,8 @@ const PLAYER = {
   WIDTH: 0.9,
   HEIGHT: 1.2,
   JUMP: 0.4,
+  JUMP_EASE_BOUNCE_TICKS: 3,
+  JUMP_EASE_EDGE_TICKS: 6,
 };
 
 export const init = () => ({
@@ -48,16 +50,41 @@ export const tick = (game, inputs) => {
         wallLeft: false,
         wallRight: false,
         wallTop: false,
+        jumpAttempts: 0,
+        jumpHeld: 0,
+        fallingTicks: 0,
       };
     }
 
     const player = game.players[deviceID];
     const device = inputs[deviceID] ?? fail();
 
+    if (device[" "] || device["w"]) {
+      player.jumpHeld += 1;
+    } else {
+      player.jumpHeld = 0;
+    }
+
+    if (player.wallBottom) {
+      player.fallingTicks = 0;
+    } else {
+      player.fallingTicks++;
+    }
+
     if (!player.wallBottom) {
       player.dy += PLAYER.GRAVITY;
-      player.y += player.dy;
     }
+    if (
+      player.fallingTicks <= PLAYER.JUMP_EASE_EDGE_TICKS &&
+      player.jumpHeld !== 0 &&
+      player.jumpHeld < PLAYER.JUMP_EASE_BOUNCE_TICKS &&
+      player.dy >= 0
+    ) {
+      console.log("jump");
+
+      player.dy = -PLAYER.JUMP;
+    }
+    player.y += player.dy;
 
     const bottom = player.y + PLAYER.HEIGHT;
     const left = player.x;
@@ -71,13 +98,7 @@ export const tick = (game, inputs) => {
 
     if (player.wallBottom) {
       player.y = Math.floor(player.y + PLAYER.HEIGHT) - PLAYER.HEIGHT;
-
-      if (device[" "]) {
-        player.dy = -PLAYER.JUMP;
-        player.y += player.dy;
-      } else {
-        player.dy = 0;
-      }
+      player.dy = 0;
     }
   }
 

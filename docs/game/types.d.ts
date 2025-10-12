@@ -7,6 +7,9 @@ type Player = {
   wallRight: boolean;
   wallBottom: boolean;
   wallTop: boolean;
+  jumpAttempts: number;
+  jumpHeld: number;
+  fallingTicks: number;
 };
 
 type Level = {
