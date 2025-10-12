@@ -22,8 +22,12 @@ const mimeTypes = {
 };
 
 const server = http.createServer((req, res) => {
-  const safePath = decodeURIComponent((req.url ?? "").split("?")[0]);
-  const filePath = join(PUBLIC_DIR, safePath === "/" ? "/index.html" : safePath);
+  let safePath = decodeURIComponent((req.url ?? "").split("?")[0]);
+  if (safePath.endsWith("/")) {
+    safePath += "index.html";
+  }
+
+  const filePath = join(PUBLIC_DIR, safePath);
 
   try {
     const stat = statSync(filePath);

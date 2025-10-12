@@ -1,7 +1,7 @@
 import { fail, now, tabID, setupCanvas, sleep } from "./utils.js";
 import { setupConnection } from "./conn.js";
 
-export let debug = false;
+export const TICK_RATE = 1000 / 60;
 
 /**
  * @template {IGame} TGame
@@ -10,14 +10,12 @@ export let debug = false;
 export async function run({ tick, render, init }) {
   const roomID = (window.location.search ||= "?" + crypto.randomUUID().slice(0, 5).toUpperCase()).slice(1);
 
-  const TICK_RATE = 1000 / 60;
   const DELAY_TICKS = 2;
   const TICKS_PER_SNAPSHOT = 10;
   const MAX_SNAPSHOTS = 20;
 
   const ctx = setupCanvas(document.getElementById("canvas"));
 
-  const jsonElement = document.getElementById("json") ?? fail();
   const fpsElement = document.getElementById("fps") ?? fail();
   const fpsLogs = new Array(16).fill(0);
   let fpsCounter = 0;
@@ -112,14 +110,10 @@ export async function run({ tick, render, init }) {
     };
     addInputEntry(inputEntry);
     send({ type: "input", data: inputEntry });
-
-    if (event.key === "F1") {
-      debug = !debug;
-    }
   }
 
-  window.addEventListener("keydown", onkey);
-  window.addEventListener("keyup", onkey);
+  ctx.canvas.addEventListener("keydown", onkey);
+  ctx.canvas.addEventListener("keyup", onkey);
 
   let lastTime = 0;
 
@@ -134,7 +128,6 @@ export async function run({ tick, render, init }) {
       const fps = 1000 / (fpsLogs.reduce((acc, x) => acc + x, 0) / fpsLogs.length);
 
       fpsElement.textContent = `${fps.toFixed(2)} FPS`;
-      jsonElement.textContent = JSON.stringify(game, undefined, 2);
     }
 
     while (game.tick < (currentTime - game.originTime) / TICK_RATE - DELAY_TICKS) {

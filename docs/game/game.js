@@ -1,5 +1,4 @@
-import { fail, now, lin } from "../lib/utils.js";
-import { run } from "../lib/rollback.js";
+import { fail, lin, now } from "../lib/utils.js";
 import { levels } from "./levels.js";
 
 const EPSILON = 1e-5;
@@ -13,8 +12,19 @@ const PLAYER = {
   JUMP: 0.4,
 };
 
+export const init = () => ({
+  tick: 0,
+  originTime: now(),
+  players: {},
+  camera: {
+    x: 0,
+    y: 0,
+  },
+  level: 0,
+});
+
 /** @type {GameFunc<Game>} */
-const tick = (game, inputs) => {
+export const tick = (game, inputs) => {
   const level = levels[game.level] ?? fail();
 
   for (const deviceID in inputs) {
@@ -113,7 +123,7 @@ const tick = (game, inputs) => {
 };
 
 /** @type {RenderFunc<Game>} */
-const render = (ctx, prev, curr, alpha) => {
+export const render = (ctx, prev, curr, alpha) => {
   const { width, height } = ctx.canvas;
   ctx.clearRect(0, 0, width, height);
 
@@ -138,18 +148,3 @@ const render = (ctx, prev, curr, alpha) => {
 
   ctx.restore();
 };
-
-run({
-  tick,
-  render,
-  init: () => ({
-    tick: 0,
-    originTime: now(),
-    players: {},
-    camera: {
-      x: 0,
-      y: 0,
-    },
-    level: 0,
-  }),
-});

@@ -26,8 +26,9 @@ export const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
 
 /**
  * @param {HTMLElement | null | undefined} canvas
+ * @param {() => void} onresize
  */
-export function setupCanvas(canvas) {
+export function setupCanvas(canvas, onresize = () => {}) {
   assert(canvas && canvas instanceof HTMLCanvasElement);
   const ctx = canvas.getContext("2d") ?? fail();
 
@@ -35,10 +36,11 @@ export function setupCanvas(canvas) {
     for (const { contentRect } of entries) {
       canvas.width = contentRect.width;
       canvas.height = contentRect.height;
+      onresize();
     }
   });
 
-  observer.observe(canvas);
+  observer.observe(canvas.parentElement ?? fail());
 
   return ctx;
 }
