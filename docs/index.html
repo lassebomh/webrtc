@@ -20,13 +20,21 @@
         image-rendering: pixelated;
       }
 
-      #fps {
+      #fps,
+      #json {
         position: fixed;
         bottom: 0;
         left: 0;
         font-family: monospace;
-        background-color: #0008;
+        background-color: #000a;
         color: white;
+      }
+
+      #json {
+        right: 0;
+        left: auto;
+        top: 0;
+        width: 400px;
       }
     </style>
   </head>
@@ -34,5 +42,6 @@
     <canvas id="canvas"></canvas>
     <script src="./game/game.js" type="module"></script>
     <div id="fps"></div>
+    <pre id="json">hello</pre>
   </body>
 </html>

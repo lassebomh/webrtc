@@ -1,4 +1,13 @@
-type Player = { x: number; y: number; dx: number; dy: number };
+type Player = {
+  x: number;
+  y: number;
+  dx: number;
+  dy: number;
+  wallLeft: boolean;
+  wallRight: boolean;
+  wallBottom: boolean;
+  wallTop: boolean;
+};
 
 type Level = {
   width: number;

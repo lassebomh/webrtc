@@ -2,12 +2,16 @@ import { fail, now, lin } from "../lib/utils.js";
 import { run } from "../lib/rollback.js";
 import { levels } from "./levels.js";
 
+const EPSILON = 1e-5;
 const CANVAS_SCALE = 30;
-
-const PLAYER_SPEED = 0.04;
-const PLAYER_FRICTION = 1.2;
-const PLAYER_WIDTH = 0.9;
-const PLAYER_HEIGHT = 1.2;
+const PLAYER = {
+  SPEED: 0.04,
+  FRICTION: 1.2,
+  GRAVITY: 0.02,
+  WIDTH: 0.9,
+  HEIGHT: 1.2,
+  JUMP: 0.4,
+};
 
 /** @type {GameFunc<Game>} */
 const tick = (game, inputs) => {
@@ -25,30 +29,62 @@ const tick = (game, inputs) => {
 
       const safestSpawnPoint = spawnPointPlayerDistances[0]?.[0] ?? fail();
 
-      game.players[deviceID] = { x: safestSpawnPoint.x, y: safestSpawnPoint.y, dx: 0, dy: 0 };
+      game.players[deviceID] = {
+        x: safestSpawnPoint.x,
+        y: safestSpawnPoint.y,
+        dx: 0,
+        dy: 0,
+        wallBottom: false,
+        wallLeft: false,
+        wallRight: false,
+        wallTop: false,
+      };
     }
 
     const player = game.players[deviceID];
     const device = inputs[deviceID] ?? fail();
 
-    if (device.a) {
-      player.dx -= PLAYER_SPEED;
-    }
-    if (device.d) {
-      player.dx += PLAYER_SPEED;
-    }
-    if (device.w) {
-      player.dy -= PLAYER_SPEED;
-    }
-    if (device.s) {
-      player.dy += PLAYER_SPEED;
+    if (!player.wallBottom) {
+      player.dy += PLAYER.GRAVITY;
+      player.y += player.dy;
     }
 
-    player.dx /= PLAYER_FRICTION;
-    player.dy /= PLAYER_FRICTION;
+    const bottom = player.y + PLAYER.HEIGHT;
+    const left = player.x;
+    const right = player.x + PLAYER.WIDTH;
+    const top = player.y;
 
+    const bl = level.tiles[Math.floor(bottom)]?.[Math.floor(left)] ?? fail();
+    const br = level.tiles[Math.floor(bottom)]?.[Math.floor(right)] ?? fail();
+
+    player.wallBottom = bl === 1 || br === 1;
+
+    if (player.wallBottom) {
+      player.y = Math.floor(player.y + PLAYER.HEIGHT) - PLAYER.HEIGHT;
+
+      if (device[" "]) {
+        player.dy = -PLAYER.JUMP;
+        player.y += player.dy;
+      } else {
+        player.dy = 0;
+      }
+    }
+  }
+
+  for (const deviceID in game.players) {
+    const player = game.players[deviceID] ?? fail();
+
+    const device = inputs[deviceID];
+
+    if (device?.a) {
+      player.dx -= PLAYER.SPEED;
+    }
+    if (device?.d) {
+      player.dx += PLAYER.SPEED;
+    }
+
+    player.dx /= PLAYER.FRICTION;
     player.x += player.dx;
-    player.y += player.dy;
   }
 
   if (game.tick === 1) {
@@ -70,8 +106,8 @@ const tick = (game, inputs) => {
       meanX /= count;
       meanY /= count;
 
-      game.camera.x -= (game.camera.x - meanX) / 16;
-      game.camera.y -= (game.camera.y - meanY) / 16;
+      game.camera.x -= (game.camera.x - meanX) / 32;
+      game.camera.y -= (game.camera.y - meanY) / 32;
     }
   }
 };
@@ -97,7 +133,7 @@ const render = (ctx, prev, curr, alpha) => {
     const x = lin(lastPlayer?.x, player.x, alpha);
     const y = lin(lastPlayer?.y, player.y, alpha);
     ctx.fillStyle = "red";
-    ctx.fillRect(x, y, PLAYER_WIDTH, PLAYER_HEIGHT);
+    ctx.fillRect(x, y, PLAYER.WIDTH, PLAYER.HEIGHT);
   }
 
   ctx.restore();
