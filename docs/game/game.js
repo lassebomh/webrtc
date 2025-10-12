@@ -6,11 +6,13 @@ const CANVAS_SCALE = 30;
 const PLAYER = {
   SPEED: 0.04,
   FRICTION: 1.2,
-  GRAVITY: 0.02,
+  HELD_GRAVITY: 0.02,
+  GRAVITY: 0.06,
+  MAX_FALL_SPEED: 0.9,
   WIDTH: 0.9,
   HEIGHT: 1.2,
   JUMP: 0.4,
-  JUMP_EASE_BOUNCE_TICKS: 3,
+  JUMP_EASE_BOUNCE_TICKS: 6,
   JUMP_EASE_EDGE_TICKS: 6,
 };
 
@@ -72,16 +74,17 @@ export const tick = (game, inputs) => {
     }
 
     if (!player.wallBottom) {
-      player.dy += PLAYER.GRAVITY;
+      player.dy += player.jumpHeld || player.dy >= 0 ? PLAYER.HELD_GRAVITY : PLAYER.GRAVITY;
+      if (player.dy >= PLAYER.MAX_FALL_SPEED) {
+        player.dy = PLAYER.MAX_FALL_SPEED;
+      }
     }
     if (
       player.fallingTicks <= PLAYER.JUMP_EASE_EDGE_TICKS &&
       player.jumpHeld !== 0 &&
-      player.jumpHeld < PLAYER.JUMP_EASE_BOUNCE_TICKS &&
+      player.jumpHeld <= PLAYER.JUMP_EASE_BOUNCE_TICKS &&
       player.dy >= 0
     ) {
-      console.log("jump");
-
       player.dy = -PLAYER.JUMP;
     }
     player.y += player.dy;
