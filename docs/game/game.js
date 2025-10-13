@@ -15,11 +15,13 @@ const PLAYER = {
   JUMP: 0.4,
   JUMP_EASE_BOUNCE_TICKS: 6,
   JUMP_EASE_EDGE_TICKS: 6,
+  COLORS: ["red", "blue", "green", "orange"],
 };
 
 export const init = () => ({
   tick: 0,
   originTime: now(),
+  playerCount: 0,
   players: {},
   camera: {
     x: 0,
@@ -53,6 +55,8 @@ export const tick = (game, inputs) => {
 
       const safestSpawnPoint = spawnPointPlayerDistances[0]?.[0] ?? fail();
 
+      const color = PLAYER.COLORS[++game.playerCount % PLAYER.COLORS.length] ?? fail();
+
       game.players[deviceID] = {
         x: safestSpawnPoint.x,
         y: safestSpawnPoint.y,
@@ -64,6 +68,21 @@ export const tick = (game, inputs) => {
         wallTop: false,
         jumpHeld: 0,
         fallingTicks: 0,
+        color,
+        body: {
+          angle: 0,
+          x: safestSpawnPoint.x,
+          y: safestSpawnPoint.y,
+          dx: 0,
+          dy: 0,
+        },
+        gun: {
+          angle: 0,
+          x: safestSpawnPoint.x,
+          y: safestSpawnPoint.y,
+          dx: 0,
+          dy: 0,
+        },
       };
     }
 
@@ -177,6 +196,14 @@ export const tick = (game, inputs) => {
         player.dy = 0;
       }
     }
+    player.body.dx -= (player.body.dx - player.dx * 2) / 3;
+    player.body.dy -= (player.body.dy - player.dy * 2) / 3;
+
+    player.body.x += player.body.dx;
+    player.body.y += player.body.dy;
+
+    player.body.x -= (player.body.x - (player.x + PLAYER.WIDTH / 2 - player.dx)) / 3;
+    player.body.y -= (player.body.y - (player.y + PLAYER.HEIGHT / 2 - player.dy)) / 3;
 
     player.x += player.dx;
     player.y += player.dy;
@@ -225,10 +252,22 @@ export const render = (ctx, prev, curr, alpha) => {
   for (const deviceID in curr.players) {
     const player = curr.players[deviceID] ?? fail();
     const lastPlayer = prev.players[deviceID];
-    const x = lin(lastPlayer?.x, player.x, alpha);
-    const y = lin(lastPlayer?.y, player.y, alpha);
-    ctx.fillStyle = "red";
-    ctx.fillRect(x, y, PLAYER.WIDTH, PLAYER.HEIGHT);
+
+    // const x = lin(lastPlayer?.x, player.x, alpha);
+    // const y = lin(lastPlayer?.y, player.y, alpha);
+    // ctx.fillStyle = "red";
+    // ctx.fillRect(x, y, PLAYER.WIDTH, PLAYER.HEIGHT);
+
+    ctx.fillStyle = player.color;
+    ctx.beginPath();
+    ctx.arc(
+      lin(lastPlayer?.body.x, player.body.x, alpha),
+      lin(lastPlayer?.body.y, player.body.y, alpha),
+      PLAYER.WIDTH / 1.9,
+      0,
+      Math.PI * 2
+    );
+    ctx.fill();
   }
 
   ctx.restore();

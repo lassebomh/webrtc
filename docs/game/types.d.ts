@@ -9,6 +9,23 @@ type Player = {
   wallTop: boolean;
   jumpHeld: number;
   fallingTicks: number;
+
+  color: string;
+
+  gun: {
+    angle: number;
+    x: number;
+    y: number;
+    dx: number;
+    dy: number;
+  };
+  body: {
+    angle: number;
+    x: number;
+    y: number;
+    dx: number;
+    dy: number;
+  };
 };
 
 type Level = {
@@ -21,6 +38,7 @@ type Level = {
 
 interface Game extends IGame {
   players: Record<DeviceID, Player>;
+  playerCount: number;
   camera: {
     x: number;
     y: number;
