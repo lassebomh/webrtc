@@ -31,6 +31,15 @@ export const init = () => ({
 export const tick = (game, inputs) => {
   const level = levels[game.level] ?? fail();
 
+  /**
+   * @param {number} y
+   * @param {number} x
+   * @returns {number}
+   */
+  function getTile(y, x) {
+    return level.tiles[Math.floor(y)]?.[Math.floor(x)] ?? fail();
+  }
+
   for (const deviceID in inputs) {
     if (game.players[deviceID] === undefined) {
       const spawnPointPlayerDistances = level.spawnPoints
@@ -87,38 +96,73 @@ export const tick = (game, inputs) => {
     ) {
       player.dy = -PLAYER.JUMP;
     }
-    player.y += player.dy;
 
-    const bottom = player.y + PLAYER.HEIGHT;
-    const left = player.x;
-    const right = player.x + PLAYER.WIDTH;
-    const top = player.y;
-
-    const bl = level.tiles[Math.floor(bottom)]?.[Math.floor(left)] ?? fail();
-    const br = level.tiles[Math.floor(bottom)]?.[Math.floor(right)] ?? fail();
-
-    player.wallBottom = bl === 1 || br === 1;
-
-    if (player.wallBottom) {
-      player.y = Math.floor(player.y + PLAYER.HEIGHT) - PLAYER.HEIGHT;
-      player.dy = 0;
-    }
-  }
-
-  for (const deviceID in game.players) {
-    const player = game.players[deviceID] ?? fail();
-
-    const device = inputs[deviceID];
-
-    if (device?.a) {
+    if (!player.wallLeft && device?.a) {
       player.dx -= PLAYER.SPEED;
     }
-    if (device?.d) {
+    if (!player.wallRight && device?.d) {
       player.dx += PLAYER.SPEED;
     }
 
     player.dx /= PLAYER.FRICTION;
+
+    {
+      const l = player.x - EPSILON + player.dx;
+      const tl = getTile(player.y + EPSILON, l);
+      const ml = getTile(player.y + PLAYER.HEIGHT / 2, l);
+      const bl = getTile(player.y + PLAYER.HEIGHT - EPSILON, l);
+
+      player.wallLeft = ml === 1 || bl === 1 || tl === 1;
+
+      if (player.wallLeft) {
+        player.x = Math.ceil(l);
+        player.dx = 0;
+      }
+    }
+
+    {
+      const r = player.x + PLAYER.WIDTH + player.dx + EPSILON;
+
+      const tr = getTile(player.y + EPSILON, r);
+      const mr = getTile(player.y + PLAYER.HEIGHT / 2, r);
+      const br = getTile(player.y + PLAYER.HEIGHT - EPSILON, r);
+
+      player.wallRight = mr === 1 || br === 1 || tr === 1;
+
+      if (player.wallRight) {
+        player.x = Math.floor(r) - PLAYER.WIDTH;
+        player.dx = 0;
+      }
+    }
+
+    {
+      const b = player.y + PLAYER.HEIGHT + EPSILON + player.dy;
+      const bl = getTile(b, player.x + EPSILON);
+      const br = getTile(b, player.x + PLAYER.WIDTH - EPSILON);
+
+      player.wallBottom = bl === 1 || br === 1;
+
+      if (player.wallBottom) {
+        player.y = Math.floor(b) - PLAYER.HEIGHT;
+        player.dy = 0;
+      }
+    }
+
+    {
+      const t = player.y - EPSILON + player.dy;
+      const tl = getTile(t, player.x + EPSILON);
+      const tr = getTile(t, player.x + PLAYER.WIDTH - EPSILON);
+
+      player.wallTop = tl === 1 || tr === 1;
+
+      if (player.wallTop) {
+        player.y = Math.ceil(t);
+        player.dy = 0;
+      }
+    }
+
     player.x += player.dx;
+    player.y += player.dy;
   }
 
   if (game.tick === 1) {

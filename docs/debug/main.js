@@ -128,6 +128,16 @@ inputs.addListener((inputs) => {
   }
 });
 
+let pointerDown = false;
+
+document.addEventListener("pointerdown", () => {
+  pointerDown = true;
+});
+
+document.addEventListener("pointerup", () => {
+  pointerDown = false;
+});
+
 currentTick.addListener((value) => {
   tickInputElement.valueAsNumber = currentTick.value;
 
@@ -142,7 +152,10 @@ currentTick.addListener((value) => {
   const currentButton = /** @type {HTMLButtonElement} */ (timelineElement.children.item(value));
 
   currentButton.dataset.current = "true";
-  currentButton.scrollIntoView({ behavior: "instant", block: "center", inline: "center" });
+
+  if (!pointerDown) {
+    currentButton.scrollIntoView({ behavior: "instant", block: "center", inline: "center" });
+  }
 
   renderCurrentGame();
 });
