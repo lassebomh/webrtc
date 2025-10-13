@@ -23,6 +23,9 @@ export async function run({ tick, render, init }) {
   /** @type {InputEntry[]} */
   let inputEntries = [];
 
+  /** @type {TickInputMap} */
+  let baseTickInputMap = {};
+
   /** @type {Array<TGame>} */
   let snapshots = [];
 
@@ -77,13 +80,14 @@ export async function run({ tick, render, init }) {
             game = message.data.game;
             prevGame = undefined;
             inputEntries = message.data.inputEntries;
+            baseTickInputMap = message.data.baseTickInputMap;
           }
           break;
 
         case "syncRequest":
           send({
             type: "syncResponse",
-            data: { game, inputEntries },
+            data: { game, inputEntries, baseTickInputMap },
           });
           break;
       }
@@ -139,7 +143,7 @@ export async function run({ tick, render, init }) {
       const inputEntriesInTimeWindow = inputEntries.filter((x) => x.time < tickEndTime);
 
       /** @type {TickInputMap} */
-      const combinedInputs = {};
+      const combinedInputs = structuredClone(baseTickInputMap);
 
       for (const inputEntry of inputEntriesInTimeWindow) {
         const combinedInput = (combinedInputs[inputEntry.deviceID] ??= {});
@@ -158,7 +162,10 @@ export async function run({ tick, render, init }) {
           const time = discardedSnapshot.originTime + discardedSnapshot.tick * TICK_RATE;
 
           while (inputEntries[0] && inputEntries[0].time < time) {
-            inputEntries.shift();
+            const input = inputEntries.shift() ?? fail();
+
+            const deviceInputs = (baseTickInputMap[input.deviceID] ??= {});
+            deviceInputs[input.key] = input.value;
           }
         }
       }

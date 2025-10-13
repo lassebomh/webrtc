@@ -5,7 +5,8 @@ const EPSILON = 1e-5;
 const CANVAS_SCALE = 30;
 const PLAYER = {
   SPEED: 0.04,
-  FRICTION: 1.2,
+  HORIZONTAL_FRICTION: 1.2,
+  VERTICAL_FRICTION: 1.2,
   HELD_GRAVITY: 0.02,
   GRAVITY: 0.06,
   MAX_FALL_SPEED: 0.9,
@@ -61,7 +62,6 @@ export const tick = (game, inputs) => {
         wallLeft: false,
         wallRight: false,
         wallTop: false,
-        jumpAttempts: 0,
         jumpHeld: 0,
         fallingTicks: 0,
       };
@@ -70,13 +70,17 @@ export const tick = (game, inputs) => {
     const player = game.players[deviceID];
     const device = inputs[deviceID] ?? fail();
 
-    if (device[" "] || device["w"]) {
-      player.jumpHeld += 1;
+    const pressingJump = device[" "] || device["w"];
+
+    if (pressingJump) {
+      if (player.jumpHeld !== -1) {
+        player.jumpHeld += 1;
+      }
     } else {
       player.jumpHeld = 0;
     }
 
-    if (player.wallBottom) {
+    if (player.wallBottom || player.wallLeft || player.wallRight) {
       player.fallingTicks = 0;
     } else {
       player.fallingTicks++;
@@ -88,13 +92,22 @@ export const tick = (game, inputs) => {
         player.dy = PLAYER.MAX_FALL_SPEED;
       }
     }
-    if (
-      player.fallingTicks <= PLAYER.JUMP_EASE_EDGE_TICKS &&
-      player.jumpHeld !== 0 &&
+
+    const canJump =
+      player.jumpHeld > 0 &&
       player.jumpHeld <= PLAYER.JUMP_EASE_BOUNCE_TICKS &&
-      player.dy >= 0
-    ) {
+      player.fallingTicks <= PLAYER.JUMP_EASE_EDGE_TICKS;
+
+    if (canJump) {
       player.dy = -PLAYER.JUMP;
+
+      if (player.wallLeft) {
+        player.dx = PLAYER.JUMP;
+      } else if (player.wallRight) {
+        player.dx = -PLAYER.JUMP;
+      }
+
+      player.jumpHeld = -1;
     }
 
     if (!player.wallLeft && device?.a) {
@@ -104,7 +117,11 @@ export const tick = (game, inputs) => {
       player.dx += PLAYER.SPEED;
     }
 
-    player.dx /= PLAYER.FRICTION;
+    player.dx /= PLAYER.HORIZONTAL_FRICTION;
+
+    if ((player.wallLeft || player.wallRight) && player.dy > 0) {
+      player.dy /= PLAYER.VERTICAL_FRICTION;
+    }
 
     {
       const l = player.x - EPSILON + player.dx;

@@ -29,6 +29,7 @@ type Message<TGame extends IGame> = TaggedUnion<{
   syncRequest: true;
   syncResponse: {
     game: TGame;
+    baseTickInputMap: TickInputMap;
     inputEntries: InputEntry[];
   };
 }>;
