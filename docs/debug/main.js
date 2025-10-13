@@ -96,6 +96,11 @@ inputs.addListener((inputs) => {
       const button = document.createElement("button");
       button.textContent = `${t}`;
       button.dataset.current = "false";
+      button.addEventListener("mouseenter", (event) => {
+        if (event.buttons) {
+          currentTick.value = t;
+        }
+      });
       button.addEventListener("click", () => {
         currentTick.value = t;
       });
