@@ -11,6 +11,23 @@ type Player = {
   fallingTicks: number;
 
   color: string;
+  facing: number;
+
+  feet: {
+    angle: number;
+    leftX: number;
+    leftY: number;
+    leftStartX: number;
+    leftStartY: number;
+    leftKneeX: number;
+    leftKneeY: number;
+    rightX: number;
+    rightY: number;
+    rightStartX: number;
+    rightStartY: number;
+    rightKneeX: number;
+    rightKneeY: number;
+  };
 
   gun: {
     angle: number;

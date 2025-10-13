@@ -11,7 +11,8 @@ const PLAYER = {
   GRAVITY: 0.06,
   MAX_FALL_SPEED: 0.9,
   WIDTH: 0.9,
-  HEIGHT: 1.2,
+  HEIGHT: 1.1,
+  LEG_LENGTH: 0.6,
   JUMP: 0.4,
   JUMP_EASE_BOUNCE_TICKS: 6,
   JUMP_EASE_EDGE_TICKS: 6,
@@ -69,6 +70,23 @@ export const tick = (game, inputs) => {
         jumpHeld: 0,
         fallingTicks: 0,
         color,
+        facing: 1,
+        feet: {
+          angle: 0,
+          leftX: safestSpawnPoint.x,
+          leftY: safestSpawnPoint.y,
+          rightX: safestSpawnPoint.x,
+          rightY: safestSpawnPoint.y,
+          leftStartX: safestSpawnPoint.x,
+          leftStartY: safestSpawnPoint.y,
+
+          rightStartX: safestSpawnPoint.x,
+          rightStartY: safestSpawnPoint.y,
+          leftKneeX: safestSpawnPoint.x,
+          leftKneeY: safestSpawnPoint.y,
+          rightKneeX: safestSpawnPoint.x,
+          rightKneeY: safestSpawnPoint.y,
+        },
         body: {
           angle: 0,
           x: safestSpawnPoint.x,
@@ -196,6 +214,11 @@ export const tick = (game, inputs) => {
         player.dy = 0;
       }
     }
+
+    if (player.dx !== 0) {
+      player.facing = Math.sign(player.dx);
+    }
+
     player.body.dx -= (player.body.dx - player.dx * 2) / 3;
     player.body.dy -= (player.body.dy - player.dy * 2) / 3;
 
@@ -203,7 +226,63 @@ export const tick = (game, inputs) => {
     player.body.y += player.body.dy;
 
     player.body.x -= (player.body.x - (player.x + PLAYER.WIDTH / 2 - player.dx)) / 3;
-    player.body.y -= (player.body.y - (player.y + PLAYER.HEIGHT / 2 - player.dy)) / 3;
+    player.body.y -= (player.body.y - (player.y + PLAYER.WIDTH / 2 - player.dy)) / 3;
+
+    const movingLegAlpha = Math.max(0, Math.min(Math.abs(player.dx * 5) - player.fallingTicks, 1));
+
+    const baseLeftX = player.x + PLAYER.WIDTH / 5;
+    const baseLeftY = player.y + PLAYER.HEIGHT;
+
+    player.feet.leftX = lin(baseLeftX, baseLeftX + Math.cos(player.x * 2) / 4, movingLegAlpha);
+    player.feet.leftY = Math.min(baseLeftY, lin(baseLeftY, baseLeftY + Math.sin(player.x * 2) / 4, movingLegAlpha));
+
+    player.feet.leftStartX = player.body.x - PLAYER.WIDTH / 3;
+    player.feet.leftStartY = player.body.y + PLAYER.WIDTH / 3;
+
+    const baseRightX = player.x + PLAYER.WIDTH * (4 / 5);
+    const baseRightY = player.y + PLAYER.HEIGHT;
+
+    player.feet.rightX = lin(baseRightX, baseRightX + Math.cos(Math.PI + player.x * 2) / 4, movingLegAlpha);
+    player.feet.rightY = Math.min(
+      baseRightY,
+      lin(baseRightY, baseRightY + Math.sin(Math.PI + player.x * 2) / 4, movingLegAlpha)
+    );
+
+    player.feet.rightStartX = player.body.x + PLAYER.WIDTH / 3;
+    player.feet.rightStartY = player.body.y + PLAYER.WIDTH / 3;
+
+    if (player.facing === 1) {
+      [player.feet.leftKneeX, player.feet.leftKneeY] = getPointAtDistance(
+        player.feet.leftX,
+        player.feet.leftY,
+        player.feet.leftStartX,
+        player.feet.leftStartY,
+        PLAYER.LEG_LENGTH
+      );
+
+      [player.feet.rightKneeX, player.feet.rightKneeY] = getPointAtDistance(
+        player.feet.rightX,
+        player.feet.rightY,
+        player.feet.rightStartX,
+        player.feet.rightStartY,
+        PLAYER.LEG_LENGTH
+      );
+    } else {
+      [player.feet.leftKneeX, player.feet.leftKneeY] = getPointAtDistance(
+        player.feet.leftStartX,
+        player.feet.leftStartY,
+        player.feet.leftX,
+        player.feet.leftY,
+        PLAYER.LEG_LENGTH
+      );
+      [player.feet.rightKneeX, player.feet.rightKneeY] = getPointAtDistance(
+        player.feet.rightStartX,
+        player.feet.rightStartY,
+        player.feet.rightX,
+        player.feet.rightY,
+        PLAYER.LEG_LENGTH
+      );
+    }
 
     player.x += player.dx;
     player.y += player.dy;
@@ -233,6 +312,48 @@ export const tick = (game, inputs) => {
     }
   }
 };
+/**
+ * @param {number} startX
+ * @param {number} startY
+ * @param {number} endX
+ * @param {number} endY
+ * @param {number} value
+ * @returns {[number, number]}
+ */
+function getPointAtDistance(startX, startY, endX, endY, value) {
+  const halfDist = value / 2;
+
+  // Midpoint between start and end
+  const midX = (startX + endX) / 2;
+  const midY = (startY + endY) / 2;
+
+  // Distance between start and end
+  const dx = endX - startX;
+  const dy = endY - startY;
+  const segmentLength = Math.hypot(dx, dy);
+
+  if (segmentLength === 0) {
+    // Start and end are the same point
+    return [startX + halfDist, startY];
+  }
+
+  // The distance from the midpoint to the desired point
+  let offset = Math.sqrt(Math.pow(halfDist, 2) - Math.pow(segmentLength / 2, 2));
+
+  if (!Number.isFinite(offset)) {
+    offset = 0;
+  }
+
+  // Perpendicular direction (normalized)
+  let orthoX = -dy / segmentLength;
+  let orthoY = dx / segmentLength;
+
+  // Move along the perpendicular direction
+  const pointX = midX + orthoX * offset;
+  const pointY = midY + orthoY * offset;
+
+  return [pointX, pointY];
+}
 
 /** @type {RenderFunc<Game>} */
 export const render = (ctx, prev, curr, alpha) => {
@@ -251,7 +372,7 @@ export const render = (ctx, prev, curr, alpha) => {
 
   for (const deviceID in curr.players) {
     const player = curr.players[deviceID] ?? fail();
-    const lastPlayer = prev.players[deviceID];
+    const prevPlayer = prev.players[deviceID];
 
     // const x = lin(lastPlayer?.x, player.x, alpha);
     // const y = lin(lastPlayer?.y, player.y, alpha);
@@ -261,13 +382,42 @@ export const render = (ctx, prev, curr, alpha) => {
     ctx.fillStyle = player.color;
     ctx.beginPath();
     ctx.arc(
-      lin(lastPlayer?.body.x, player.body.x, alpha),
-      lin(lastPlayer?.body.y, player.body.y, alpha),
+      lin(prevPlayer?.body.x, player.body.x, alpha),
+      lin(prevPlayer?.body.y, player.body.y, alpha),
       PLAYER.WIDTH / 1.9,
       0,
       Math.PI * 2
     );
     ctx.fill();
+
+    ctx.strokeStyle = player.color;
+    ctx.lineWidth = 0.1;
+    {
+      const leftStartX = lin(prevPlayer?.feet.leftStartX, player.feet.leftStartX, alpha);
+      const leftStartY = lin(prevPlayer?.feet.leftStartY, player.feet.leftStartY, alpha);
+      const leftEndX = lin(prevPlayer?.feet.leftX, player.feet.leftX, alpha);
+      const leftEndY = lin(prevPlayer?.feet.leftY, player.feet.leftY, alpha);
+      const leftKneeX = lin(prevPlayer?.feet.leftKneeX, player.feet.leftKneeX, alpha);
+      const leftKneeY = lin(prevPlayer?.feet.leftKneeY, player.feet.leftKneeY, alpha);
+
+      ctx.beginPath();
+      ctx.moveTo(leftStartX, leftStartY);
+      ctx.quadraticCurveTo(leftKneeX, leftKneeY, leftEndX, leftEndY);
+      ctx.stroke();
+    }
+    {
+      const rightStartX = lin(prevPlayer?.feet.rightStartX, player.feet.rightStartX, alpha);
+      const rightStartY = lin(prevPlayer?.feet.rightStartY, player.feet.rightStartY, alpha);
+      const rightEndX = lin(prevPlayer?.feet.rightX, player.feet.rightX, alpha);
+      const rightEndY = lin(prevPlayer?.feet.rightY, player.feet.rightY, alpha);
+      const rightKneeX = lin(prevPlayer?.feet.rightKneeX, player.feet.rightKneeX, alpha);
+      const rightKneeY = lin(prevPlayer?.feet.rightKneeY, player.feet.rightKneeY, alpha);
+
+      ctx.beginPath();
+      ctx.moveTo(rightStartX, rightStartY);
+      ctx.quadraticCurveTo(rightKneeX, rightKneeY, rightEndX, rightEndY);
+      ctx.stroke();
+    }
   }
 
   ctx.restore();
