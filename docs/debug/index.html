@@ -16,17 +16,21 @@
       main {
         display: grid;
         grid-template-rows: 1fr 25px 70px;
-        height: 100%;
+        height: 100vh;
         color: white;
       }
 
       #center {
         display: flex;
+        /* height: 100%; */
       }
 
       #sidebar {
-        width: 300px;
+        width: 400px;
         color: #ffffff;
+        margin: 0;
+        height: 90vh;
+        overflow-y: scroll;
       }
 
       #canvas-container {

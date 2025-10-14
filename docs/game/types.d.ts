@@ -13,6 +13,11 @@ type Player = {
   color: string;
   facing: number;
 
+  face: string;
+  faceTicks: number;
+
+  health: number;
+
   feet: {
     angle: number;
     leftX: number;
@@ -33,8 +38,9 @@ type Player = {
     angle: number;
     x: number;
     y: number;
-    dx: number;
-    dy: number;
+    dm: number;
+    da: number;
+    cooldown: number;
   };
   body: {
     angle: number;
@@ -43,6 +49,13 @@ type Player = {
     dx: number;
     dy: number;
   };
+};
+
+type Bullet = {
+  x: number;
+  y: number;
+  dx: number;
+  dy: number;
 };
 
 type Level = {
@@ -54,11 +67,15 @@ type Level = {
 };
 
 interface Game extends IGame {
+  autoid: number;
+
   players: Record<DeviceID, Player>;
+  bullets: Record<string, Bullet>;
   playerCount: number;
   camera: {
     x: number;
     y: number;
   };
   level: number;
+  debug_points: [number, number][];
 }

@@ -25,7 +25,7 @@ type RenderFunc<TGame extends IGame> = (
 ) => void;
 
 type Message<TGame extends IGame> = TaggedUnion<{
-  input: InputEntry;
+  input: InputEntry[];
   syncRequest: true;
   syncResponse: {
     game: TGame;

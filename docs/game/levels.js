@@ -55,15 +55,15 @@ function createLevelFromText(text) {
       const offset = (y * width + x) * 4;
 
       if (value === 1) {
-        const v = ((x + y) & 1) === 0 ? 90 : 70;
+        const v = 80; // ((x + y) & 1) === 0 ? 90 : 70;
         image.data[offset + 0] = v;
         image.data[offset + 1] = v;
         image.data[offset + 2] = v;
         image.data[offset + 3] = 255;
       } else {
-        image.data[offset + 0] = 255;
-        image.data[offset + 1] = 255;
-        image.data[offset + 2] = 255;
+        image.data[offset + 0] = 0;
+        image.data[offset + 1] = 0;
+        image.data[offset + 2] = 0;
         image.data[offset + 3] = 255;
       }
     }
@@ -86,6 +86,16 @@ function createLevelFromText(text) {
 export const levels = [
   `\
 #########################################
+#                                       #
+#                                       #
+#                                       #
+#                                       #
+#                                       #
+#                                       #
+#                                       #
+#                                       #
+#                                       #
+#                                       #
 #                                       #
 #                                       #
 #                                       #

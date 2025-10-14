@@ -36,32 +36,34 @@ export async function run({ tick, render, init }) {
   let prevGame;
 
   /**
-   * @param {InputEntry} inputEntry
+   * @param {InputEntry[]} addInputEntries
    */
-  function addInputEntry(inputEntry) {
-    inputEntries.push(inputEntry);
+  function addInputEntry(...addInputEntries) {
+    inputEntries.push(...addInputEntries);
     inputEntries.sort((a, b) => a.time - b.time);
 
-    if (inputEntry.time < game.originTime + game.tick * TICK_RATE) {
-      console.warn("trying to recover. behind:", now() - inputEntry.time);
+    for (const inputEntry of addInputEntries) {
+      if (inputEntry.time < game.originTime + game.tick * TICK_RATE) {
+        console.warn("trying to recover. behind:", now() - inputEntry.time);
 
-      if (prevGame !== undefined) {
-        snapshots.push(prevGame);
-      }
-      prevGame = undefined;
-
-      /** @type {TGame} */
-      let snapshot;
-
-      while (true) {
-        snapshot = snapshots.pop() ?? fail("cannot recover");
-
-        if (inputEntry.time > snapshot.originTime + snapshot.tick * TICK_RATE) {
-          break;
+        if (prevGame !== undefined) {
+          snapshots.push(prevGame);
         }
-      }
+        prevGame = undefined;
 
-      game = snapshot;
+        /** @type {TGame} */
+        let snapshot;
+
+        while (true) {
+          snapshot = snapshots.pop() ?? fail("cannot recover");
+
+          if (inputEntry.time > snapshot.originTime + snapshot.tick * TICK_RATE) {
+            break;
+          }
+        }
+
+        game = snapshot;
+      }
     }
   }
 
@@ -71,7 +73,7 @@ export async function run({ tick, render, init }) {
     (/** @type {Message<TGame>} */ message) => {
       switch (message.type) {
         case "input":
-          addInputEntry(message.data);
+          addInputEntry(...message.data);
           break;
 
         case "syncResponse":
@@ -113,11 +115,60 @@ export async function run({ tick, render, init }) {
       value: Number(event.type === "keydown"),
     };
     addInputEntry(inputEntry);
-    send({ type: "input", data: inputEntry });
+    send({ type: "input", data: [inputEntry] });
   }
 
   ctx.canvas.addEventListener("keydown", onkey);
   ctx.canvas.addEventListener("keyup", onkey);
+
+  let mouseX = 0;
+  let mouseY = 0;
+
+  ctx.canvas.addEventListener("pointermove", (event) => {
+    mouseX = event.clientX - window.innerWidth / 2;
+    mouseY = event.clientY - window.innerHeight / 2;
+  });
+  ctx.canvas.addEventListener("pointerdown", (event) => {
+    /** @type {InputEntry} */
+    const inputEntry = {
+      time: now(),
+      key: "mouseleftbutton",
+      deviceID: tabID,
+      value: 1,
+    };
+    addInputEntry(inputEntry);
+    send({ type: "input", data: [inputEntry] });
+  });
+  ctx.canvas.addEventListener("pointerup", (event) => {
+    /** @type {InputEntry} */
+    const inputEntry = {
+      time: now(),
+      key: "mouseleftbutton",
+      deviceID: tabID,
+      value: 0,
+    };
+    addInputEntry(inputEntry);
+    send({ type: "input", data: [inputEntry] });
+  });
+
+  setInterval(() => {
+    /** @type {InputEntry} */
+    const inputEntryX = {
+      time: now(),
+      key: "mousex",
+      deviceID: tabID,
+      value: mouseX,
+    };
+    /** @type {InputEntry} */
+    const inputEntryY = {
+      time: now(),
+      key: "mousey",
+      deviceID: tabID,
+      value: mouseY,
+    };
+    addInputEntry(inputEntryX, inputEntryY);
+    send({ type: "input", data: [inputEntryX, inputEntryY] });
+  }, TICK_RATE);
 
   let lastTime = 0;
 

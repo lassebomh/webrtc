@@ -79,10 +79,15 @@ const clearElement = /** @type {HTMLElement} */ (document.getElementById("clear"
 
 function renderCurrentGame() {
   const game = snapshots[currentTick.value];
+  const prevGame = snapshots[currentTick.value - 1];
   sidebarElement.textContent =
     JSON.stringify(game, undefined, 2) + "\n" + JSON.stringify(inputs.value[currentTick.value], undefined, 2);
   if (game) {
-    render(ctx, game, game, 1);
+    if (prevGame) {
+      render(ctx, prevGame, game, 0.5);
+    } else {
+      render(ctx, game, game, 1);
+    }
   }
 }
 
@@ -183,6 +188,18 @@ function play(deviceID) {
       stopPlayer?.();
     }
   }
+  /**
+   * @param {PointerEvent} event
+   */
+  function onpointer(event) {
+    combinedInputs["mousex"] = event.clientX - window.innerWidth / 2;
+    combinedInputs["mousey"] = event.clientY - window.innerHeight / 2;
+    combinedInputs["mouseleftbutton"] = Number(event.buttons > 0);
+  }
+
+  ctx.canvas.addEventListener("pointermove", onpointer);
+  ctx.canvas.addEventListener("pointerdown", onpointer);
+  ctx.canvas.addEventListener("pointerup", onpointer);
 
   ctx.canvas.addEventListener("keydown", onkey);
   ctx.canvas.addEventListener("keyup", onkey);
@@ -204,6 +221,11 @@ function play(deviceID) {
   stopPlayer = () => {
     ctx.canvas.removeEventListener("keydown", onkey);
     ctx.canvas.removeEventListener("keyup", onkey);
+
+    ctx.canvas.removeEventListener("pointermove", onpointer);
+    ctx.canvas.removeEventListener("pointerdown", onpointer);
+    ctx.canvas.removeEventListener("pointerup", onpointer);
+
     clearInterval(interval);
   };
 }
