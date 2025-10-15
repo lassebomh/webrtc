@@ -9,6 +9,9 @@ type Player = {
   wallTop: boolean;
   jumpHeld: number;
   fallingTicks: number;
+  crouching: boolean;
+  width: number;
+  height: number;
 
   color: string;
   facing: number;
@@ -68,6 +71,7 @@ type Level = {
 
 interface Game extends IGame {
   autoid: number;
+  random: number;
 
   players: Record<DeviceID, Player>;
   bullets: Record<string, Bullet>;

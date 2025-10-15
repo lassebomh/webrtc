@@ -55,4 +55,4 @@ export function lin(start, end, alpha) {
 }
 
 /** @type {DeviceID} */
-export const tabID = (sessionStorage.tabId ??= crypto.randomUUID());
+export const defaultDeviceID = (sessionStorage.tabId ??= crypto.randomUUID());

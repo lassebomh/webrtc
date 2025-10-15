@@ -7,11 +7,13 @@ const PLAYER = {
   SPEED: 0.04,
   HORIZONTAL_FRICTION: 1.2,
   VERTICAL_FRICTION: 1.2,
+  CROUCH_GRAVITY: 0.06,
   HELD_GRAVITY: 0.02,
-  GRAVITY: 0.06,
-  MAX_FALL_SPEED: 0.9,
-  WIDTH: 0.9,
+  GRAVITY: 0.05,
+  MAX_FALL_SPEED: 0.8,
+  WIDTH: 0.85,
   HEIGHT: 1.1,
+  CROUCH_HEIGHT: 0.9,
   LEG_LENGTH: 0.5,
   ARM_LENGTH: 1.1,
   JUMP: 0.4,
@@ -37,6 +39,7 @@ export const init = () =>
     players: {},
     bullets: {},
     autoid: 0,
+    random: 0,
     camera: {
       x: 0,
       y: 0,
@@ -82,6 +85,19 @@ export const tick = (game, inputs) => {
     return level.tiles[Math.floor(y)]?.[Math.floor(x)] ?? fail("did you swap x and y?");
   }
 
+  /**
+   * @param {number} a
+   * @param {number} b
+   * @returns {number}
+   */
+  function random(a = 0, b = 1) {
+    let t = (game.random += 0x6d2b79f5);
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    const r = ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    return a + (b - a) * r;
+  }
+
   bulletLoop: for (const bulletId in game.bullets) {
     const bullet = game.bullets[bulletId] ?? fail();
     bullet.dy += BULLET.GRAVITY;
@@ -104,9 +120,9 @@ export const tick = (game, inputs) => {
 
       if (
         player.x <= bullet.x &&
-        player.x + PLAYER.WIDTH >= bullet.x &&
+        player.x + player.width >= bullet.x &&
         player.y <= bullet.y &&
-        player.y + PLAYER.HEIGHT >= bullet.y
+        player.y + player.height >= bullet.y
       ) {
         player.body.dx += bullet.dx;
         player.body.dy += bullet.dy;
@@ -154,6 +170,9 @@ export const tick = (game, inputs) => {
         face: PLAYER.FACE.PASSIVE,
         faceTicks: -1,
         health: 8,
+        crouching: false,
+        width: PLAYER.WIDTH,
+        height: PLAYER.HEIGHT,
         feet: {
           angle: 0,
           leftX: safestSpawnPoint.x,
@@ -196,6 +215,16 @@ export const tick = (game, inputs) => {
 
     const pressingJump = device[" "] || device["w"];
 
+    const pressingCrouch = device.s;
+
+    const targetHeight = pressingCrouch ? PLAYER.CROUCH_HEIGHT : PLAYER.HEIGHT;
+    const heightDiff = player.height - targetHeight;
+
+    if (heightDiff !== 0) {
+      player.height = targetHeight;
+      player.y += heightDiff;
+    }
+
     if (pressingJump) {
       if (player.jumpHeld !== -1) {
         player.jumpHeld += 1;
@@ -211,8 +240,13 @@ export const tick = (game, inputs) => {
     }
 
     if (!player.wallBottom) {
-      player.dy += player.jumpHeld || player.dy >= 0 ? PLAYER.HELD_GRAVITY : PLAYER.GRAVITY;
-      if (player.dy >= PLAYER.MAX_FALL_SPEED) {
+      if (!pressingCrouch && (player.jumpHeld || player.dy >= 0)) {
+        player.dy += PLAYER.HELD_GRAVITY;
+      } else {
+        player.dy += PLAYER.GRAVITY;
+      }
+
+      if (player.dy > PLAYER.MAX_FALL_SPEED) {
         player.dy = PLAYER.MAX_FALL_SPEED;
       }
     }
@@ -243,15 +277,15 @@ export const tick = (game, inputs) => {
 
     player.dx /= PLAYER.HORIZONTAL_FRICTION;
 
-    if (!device.s && (player.wallLeft || player.wallRight) && player.dy > 0) {
+    if (!pressingCrouch && (player.wallLeft || player.wallRight) && player.dy > 0) {
       player.dy /= PLAYER.VERTICAL_FRICTION;
     }
 
     {
       const l = player.x - EPSILON + player.dx;
       const tl = getTile(player.y + EPSILON, l);
-      const ml = getTile(player.y + PLAYER.HEIGHT / 2, l);
-      const bl = getTile(player.y + PLAYER.HEIGHT - EPSILON, l);
+      const ml = getTile(player.y + player.height / 2, l);
+      const bl = getTile(player.y + player.height - EPSILON, l);
 
       player.wallLeft = ml === 1 || bl === 1 || tl === 1;
 
@@ -262,29 +296,29 @@ export const tick = (game, inputs) => {
     }
 
     {
-      const r = player.x + PLAYER.WIDTH + player.dx + EPSILON;
+      const r = player.x + player.width + player.dx + EPSILON;
 
       const tr = getTile(player.y + EPSILON, r);
-      const mr = getTile(player.y + PLAYER.HEIGHT / 2, r);
-      const br = getTile(player.y + PLAYER.HEIGHT - EPSILON, r);
+      const mr = getTile(player.y + player.height / 2, r);
+      const br = getTile(player.y + player.height - EPSILON, r);
 
       player.wallRight = mr === 1 || br === 1 || tr === 1;
 
       if (player.wallRight) {
-        player.x = Math.floor(r) - PLAYER.WIDTH;
+        player.x = Math.floor(r) - player.width;
         player.dx = 0;
       }
     }
 
     {
-      const b = player.y + PLAYER.HEIGHT + EPSILON + player.dy;
+      const b = player.y + player.height + EPSILON + player.dy;
       const bl = getTile(b, player.x + EPSILON);
-      const br = getTile(b, player.x + PLAYER.WIDTH - EPSILON);
+      const br = getTile(b, player.x + player.width - EPSILON);
 
       player.wallBottom = bl === 1 || br === 1;
 
       if (player.wallBottom) {
-        player.y = Math.floor(b) - PLAYER.HEIGHT;
+        player.y = Math.floor(b) - player.height;
         player.dy = 0;
       }
     }
@@ -292,7 +326,7 @@ export const tick = (game, inputs) => {
     {
       const t = player.y - EPSILON + player.dy;
       const tl = getTile(t, player.x + EPSILON);
-      const tr = getTile(t, player.x + PLAYER.WIDTH - EPSILON);
+      const tr = getTile(t, player.x + player.width - EPSILON);
 
       player.wallTop = tl === 1 || tr === 1;
 
@@ -312,8 +346,8 @@ export const tick = (game, inputs) => {
     player.body.x += player.body.dx;
     player.body.y += player.body.dy;
 
-    player.body.x -= (player.body.x - (player.x + PLAYER.WIDTH / 2 - player.dx)) / 3;
-    player.body.y -= (player.body.y - (player.y + PLAYER.WIDTH / 2 - player.dy)) / 3;
+    player.body.x -= (player.body.x - (player.x + player.width / 2 - player.dx)) / 3;
+    player.body.y -= (player.body.y - (player.y + player.width / 2 - player.dy)) / 3;
 
     const gaitAngle = player.x * 2;
     const gaitMagnitudeHorizontal = 0.3;
@@ -322,8 +356,8 @@ export const tick = (game, inputs) => {
 
     const movingLegAlpha = Math.max(0, Math.min(Math.abs(player.dx * 5) - player.fallingTicks / 15, 1));
 
-    const baseLeftX = player.x + PLAYER.WIDTH * legStartDistanceFromBody;
-    const baseLeftY = player.y + PLAYER.HEIGHT;
+    const baseLeftX = player.x + player.width * legStartDistanceFromBody;
+    const baseLeftY = player.y + player.height;
 
     player.body.y += lin(0, Math.cos(gaitAngle) / 50, movingLegAlpha);
 
@@ -333,11 +367,11 @@ export const tick = (game, inputs) => {
       lin(baseLeftY, baseLeftY + Math.sin(gaitAngle) * gaitMagnitudeVertical, movingLegAlpha)
     );
 
-    player.feet.leftStartX = player.body.x - PLAYER.WIDTH / 3;
-    player.feet.leftStartY = player.body.y + PLAYER.WIDTH / 3;
+    player.feet.leftStartX = player.body.x - player.width / 3;
+    player.feet.leftStartY = player.body.y + player.width / 3;
 
-    const baseRightX = player.x + PLAYER.WIDTH * (1 - legStartDistanceFromBody);
-    const baseRightY = player.y + PLAYER.HEIGHT;
+    const baseRightX = player.x + player.width * (1 - legStartDistanceFromBody);
+    const baseRightY = player.y + player.height;
 
     player.feet.rightX = lin(
       baseRightX,
@@ -349,8 +383,8 @@ export const tick = (game, inputs) => {
       lin(baseRightY, baseRightY + Math.sin(Math.PI + gaitAngle) * gaitMagnitudeVertical, movingLegAlpha)
     );
 
-    player.feet.rightStartX = player.body.x + PLAYER.WIDTH / 3;
-    player.feet.rightStartY = player.body.y + PLAYER.WIDTH / 3;
+    player.feet.rightStartX = player.body.x + player.width / 3;
+    player.feet.rightStartY = player.body.y + player.width / 3;
 
     if (player.facing === 1) {
       [player.feet.leftKneeX, player.feet.leftKneeY] = getPointAtDistance(
@@ -499,14 +533,14 @@ export const render = (ctx, prev, curr, alpha) => {
     // const x = lin(prevPlayer?.x, player.x, alpha);
     // const y = lin(prevPlayer?.y, player.y, alpha);
     // ctx.fillStyle = "red";
-    // ctx.fillRect(x, y, PLAYER.WIDTH, PLAYER.HEIGHT);
+    // ctx.fillRect(x, y, player.width, player.height);
 
     ctx.fillStyle = player.color;
     ctx.beginPath();
     ctx.arc(
       lin(prevPlayer?.body.x, player.body.x, alpha),
       lin(prevPlayer?.body.y, player.body.y, alpha),
-      PLAYER.WIDTH / 1.9,
+      player.width / 1.9,
       0,
       Math.PI * 2
     );
@@ -557,8 +591,8 @@ export const render = (ctx, prev, curr, alpha) => {
     const downX = Math.sin(gunAngle - Math.PI / 2);
     const downY = Math.cos(gunAngle - Math.PI / 2);
     {
-      const armStartX = lin(prevPlayer?.body.x, player.body.x, alpha) + forwardX * (PLAYER.WIDTH / 3);
-      const armStartY = lin(prevPlayer?.body.y, player.body.y, alpha) + forwardY * (PLAYER.WIDTH / 3);
+      const armStartX = lin(prevPlayer?.body.x, player.body.x, alpha) + forwardX * (player.width / 3);
+      const armStartY = lin(prevPlayer?.body.y, player.body.y, alpha) + forwardY * (player.width / 3);
       const armEndX = lin(prevPlayer?.gun.x, player.gun.x, alpha);
       const armEndY = lin(prevPlayer?.gun.y, player.gun.y, alpha);
 

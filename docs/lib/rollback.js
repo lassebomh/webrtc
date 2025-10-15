@@ -1,4 +1,4 @@
-import { fail, now, tabID, setupCanvas, sleep } from "./utils.js";
+import { fail, now, defaultDeviceID, setupCanvas, sleep } from "./utils.js";
 import { setupConnection } from "./conn.js";
 
 export const TICK_RATE = 1000 / 60;
@@ -111,7 +111,7 @@ export async function run({ tick, render, init }) {
     const inputEntry = {
       time: now(),
       key: event.key.toLowerCase(),
-      deviceID: tabID,
+      deviceID: defaultDeviceID,
       value: Number(event.type === "keydown"),
     };
     addInputEntry(inputEntry);
@@ -133,7 +133,7 @@ export async function run({ tick, render, init }) {
     const inputEntry = {
       time: now(),
       key: "mouseleftbutton",
-      deviceID: tabID,
+      deviceID: defaultDeviceID,
       value: 1,
     };
     addInputEntry(inputEntry);
@@ -144,7 +144,7 @@ export async function run({ tick, render, init }) {
     const inputEntry = {
       time: now(),
       key: "mouseleftbutton",
-      deviceID: tabID,
+      deviceID: defaultDeviceID,
       value: 0,
     };
     addInputEntry(inputEntry);
@@ -156,14 +156,14 @@ export async function run({ tick, render, init }) {
     const inputEntryX = {
       time: now(),
       key: "mousex",
-      deviceID: tabID,
+      deviceID: defaultDeviceID,
       value: mouseX,
     };
     /** @type {InputEntry} */
     const inputEntryY = {
       time: now(),
       key: "mousey",
-      deviceID: tabID,
+      deviceID: defaultDeviceID,
       value: mouseY,
     };
     addInputEntry(inputEntryX, inputEntryY);
