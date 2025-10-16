@@ -6,64 +6,76 @@ import { getTile } from "./levels.js";
  * @param {Box} box
  */
 export function boxLevelTick(level, box) {
-  let dx = box.dx;
-  let dy = box.dy;
+  const steps = Math.ceil(Math.hypot(box.dx, box.dy) * 2);
+  let dx = box.dx / steps;
+  let dy = box.dy / steps;
 
-  {
-    const l = box.x - EPSILON + box.dx;
-    const tl = getTile(level, l, box.y + EPSILON);
-    const ml = getTile(level, l, box.y + box.height / 2);
-    const bl = getTile(level, l, box.y + box.height - EPSILON);
+  for (let i = 0; i < steps; i++) {
+    const l = box.x - EPSILON + dx;
+    {
+      const tl = getTile(level, l, box.y + EPSILON);
+      const ml = getTile(level, l, box.y + box.height / 2);
+      const bl = getTile(level, l, box.y + box.height - EPSILON);
 
-    box.wallLeft = ml === 1 || bl === 1 || tl === 1;
-
-    if (box.wallLeft) {
-      box.x = Math.ceil(l);
-      box.dx = box.dx * -box.bounce;
+      box.wallLeft = ml === 1 || bl === 1 || tl === 1;
+      if (box.wallLeft) {
+        dx = 0;
+        box.x = Math.ceil(l);
+      }
     }
-  }
 
-  {
-    const r = box.x + box.width + box.dx + EPSILON;
+    const r = box.x + box.width + dx + EPSILON;
+    {
+      const tr = getTile(level, r, box.y + EPSILON);
+      const mr = getTile(level, r, box.y + box.height / 2);
+      const br = getTile(level, r, box.y + box.height - EPSILON);
 
-    const tr = getTile(level, r, box.y + EPSILON);
-    const mr = getTile(level, r, box.y + box.height / 2);
-    const br = getTile(level, r, box.y + box.height - EPSILON);
-
-    box.wallRight = mr === 1 || br === 1 || tr === 1;
-
-    if (box.wallRight) {
-      box.x = Math.floor(r) - box.width;
-      box.dx = box.dx * -box.bounce;
+      box.wallRight = mr === 1 || br === 1 || tr === 1;
+      if (box.wallRight) {
+        dx = 0;
+        box.x = Math.floor(r) - box.width;
+      }
     }
-  }
 
-  {
-    const b = box.y + box.height + EPSILON + box.dy;
-    const bl = getTile(level, box.x + EPSILON, b);
-    const br = getTile(level, box.x + box.width - EPSILON, b);
+    const b = box.y + box.height + EPSILON + dy;
+    {
+      const bl = getTile(level, box.x + EPSILON, b);
+      const br = getTile(level, box.x + box.width - EPSILON, b);
 
-    box.wallBottom = bl === 1 || br === 1;
-
-    if (box.wallBottom) {
-      box.y = Math.floor(b) - box.height;
-      box.dy = box.dy * -box.bounce;
+      box.wallBottom = bl === 1 || br === 1;
+      if (box.wallBottom) {
+        dy = 0;
+        box.y = Math.floor(b) - box.height;
+      }
     }
-  }
 
-  {
-    const t = box.y - EPSILON + box.dy;
-    const tl = getTile(level, box.x + EPSILON, t);
-    const tr = getTile(level, box.x + box.width - EPSILON, t);
+    const t = box.y - EPSILON + dy;
+    {
+      const tl = getTile(level, box.x + EPSILON, t);
+      const tr = getTile(level, box.x + box.width - EPSILON, t);
 
-    box.wallTop = tl === 1 || tr === 1;
-
-    if (box.wallTop) {
-      box.y = Math.ceil(t);
-      box.dy = box.dy * -box.bounce;
+      box.wallTop = tl === 1 || tr === 1;
+      if (box.wallTop) {
+        dy = 0;
+        box.y = Math.ceil(t);
+      }
     }
-  }
 
+    box.x += dx;
+    box.y += dy;
+  }
+  if (box.wallLeft) {
+    box.dx = box.dx * -box.bounce;
+  }
+  if (box.wallRight) {
+    box.dx = box.dx * -box.bounce;
+  }
+  if (box.wallBottom) {
+    box.dy = box.dy * -box.bounce;
+  }
+  if (box.wallTop) {
+    box.dy = box.dy * -box.bounce;
+  }
   // if (!(box.wallBottom || box.wallTop || box.wallLeft || box.wallRight)) {
   //   box.airTime++;
   //   // box.dx /= box.airFriction;
@@ -84,9 +96,6 @@ export function boxLevelTick(level, box) {
   //   box.dx *= scale;
   //   box.dy *= scale;
   // }
-
-  box.x += box.dx;
-  box.y += box.dy;
 
   // box.dy += box.gravity;
 }

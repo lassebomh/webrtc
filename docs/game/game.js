@@ -1,8 +1,9 @@
 import { fail, lin, now } from "../lib/utils.js";
-import { boxLevelTick, boxOnBoxCollision, boxOnPointCollision, boxRender } from "./collision.js";
+import { boxLevelTick, boxOnBoxCollision, boxOnPointCollision } from "./collision.js";
+import { renderGun } from "./guns.js";
 import { getTile, levels } from "./levels.js";
 
-const CANVAS_SCALE = 30;
+const CANVAS_SCALE = 50;
 const PLAYER = {
   SPEED: 0.04,
   HORIZONTAL_FRICTION: 1.2,
@@ -44,7 +45,7 @@ export const init = () =>
       x: 0,
       y: 0,
     },
-    level: 0,
+    level: 1,
     guns: {},
     debug_points: [],
   });
@@ -59,37 +60,38 @@ export const tick = (game, inputs) => {
 
     game.guns[game.autoid++] = {
       box: {
-        x: 3,
+        x: 7,
         y: 3,
         dx: 0,
         dy: 0,
-        width: 0.5,
-        height: 0.4,
-        bounce: 0.2,
+        width: 0.7,
+        height: 0.7,
+        bounce: 0.5,
         wallBottom: false,
         wallLeft: false,
         wallRight: false,
         wallTop: false,
       },
+      cooldown: 0,
       ticksUntilPickup: 0,
       type: 0,
     };
   } else {
-    // let meanX = 0;
-    // let meanY = 0;
-    // let count = 0;
-    // for (const deviceID in game.players) {
-    //   const player = game.players[deviceID] ?? fail();
-    //   meanX += player.x;
-    //   meanY += player.y;
-    //   count += 1;
-    // }
-    // if (count) {
-    //   meanX /= count;
-    //   meanY /= count;
-    //   game.camera.x -= (game.camera.x - meanX) / 32;
-    //   game.camera.y -= (game.camera.y - meanY) / 32;
-    // }
+    let meanX = 0;
+    let meanY = 0;
+    let count = 0;
+    for (const deviceID in game.players) {
+      const player = game.players[deviceID] ?? fail();
+      meanX += player.box.x;
+      meanY += player.box.y;
+      count += 1;
+    }
+    if (count) {
+      meanX /= count;
+      meanY /= count;
+      game.camera.x -= (game.camera.x - meanX) / 32;
+      game.camera.y -= (game.camera.y - meanY) / 32;
+    }
   }
 
   /**
@@ -212,14 +214,6 @@ export const tick = (game, inputs) => {
           dx: 0,
           dy: 0,
         },
-        // gun: {
-        //   cooldown: 0,
-        //   angle: 0,
-        //   x: safestSpawnPoint.x,
-        //   y: safestSpawnPoint.y,
-        //   da: 0,
-        //   dm: 0,
-        // },
       };
     }
 
@@ -380,44 +374,48 @@ export const tick = (game, inputs) => {
       );
     }
 
-    // const gunDistance = 0.8;
-    // let firing = false;
-    // if (device.mouseleftbutton && player.gun.cooldown === 0) {
-    //   player.gun.da += Math.sign(Math.sin(player.gun.angle));
-    //   player.gun.dm += 0.6;
-    //   player.gun.cooldown = 10;
-    //   firing = true;
-    // }
-
-    // if (player.gun.cooldown > 1) {
-    //   player.gun.cooldown--;
-    // } else if (player.gun.cooldown === 1 && !device.mouseleftbutton) {
-    //   player.gun.cooldown = 0;
-    // }
-
-    // if (firing) {
-    //   game.bullets[game.autoid++] = {
-    //     x: player.gun.x,
-    //     y: player.gun.y,
-    //     dx: Math.sin(player.gun.angle) * BULLET.SPEED,
-    //     dy: Math.cos(player.gun.angle) * BULLET.SPEED,
-    //   };
-    // }
-    // player.gun.angle = Math.atan2(mouseX - player.body.x, mouseY - player.body.y) + player.gun.da;
-
-    // player.gun.x -=
-    //   (player.gun.x - (player.body.x + Math.sin(player.gun.angle) * (gunDistance - player.gun.dm))) / 3 - player.dx / 3;
-    // player.gun.y -=
-    //   (player.gun.y - (player.body.y + Math.cos(player.gun.angle) * (gunDistance - player.gun.dm))) / 3 - player.dy / 3;
-
-    // player.gun.da /= 1.5;
-    // player.gun.dm /= 1.5;
-
     const primaryArmAngle = Math.atan2(mouseX - player.body.x, mouseY - player.body.y);
-    const primaryArmDistance = Math.hypot(mouseX - player.body.x, mouseY - player.body.y);
+    const primaryArmDistance = player.gun !== undefined ? 0.8 : 0;
+
+    if (player.gun) {
+      let firing = false;
+      if (device.mouseleftbutton && player.gun.cooldown === 0) {
+        player.primaryArm.dangle += Math.sign(Math.sin(player.primaryArm.angle)) * random(0.5, 1.5);
+        player.primaryArm.ddistance -= random(0.5, 0.5);
+        player.gun.cooldown = 10;
+        firing = true;
+      }
+
+      if (player.gun.cooldown > 1) {
+        player.gun.cooldown--;
+      } else if (player.gun.cooldown === 1 && !device.mouseleftbutton) {
+        player.gun.cooldown = 0;
+      }
+
+      if (firing) {
+        game.bullets[game.autoid++] = {
+          x: player.body.x + Math.sin(player.primaryArm.angle) * player.primaryArm.distance,
+          y: player.body.y + Math.cos(player.primaryArm.angle) * player.primaryArm.distance,
+          dx: Math.sin(player.primaryArm.angle) * BULLET.SPEED,
+          dy: Math.cos(player.primaryArm.angle) * BULLET.SPEED,
+        };
+      }
+      // player.gun.angle = Math.atan2(mouseX - player.body.x, mouseY - player.body.y) + player.gun.da;
+
+      // player.gun.x -=
+      //   (player.gun.x - (player.body.x + Math.sin(player.gun.angle) * (gunDistance - player.gun.dm))) / 3 - player.dx / 3;
+      // player.gun.y -=
+      //   (player.gun.y - (player.body.y + Math.cos(player.gun.angle) * (gunDistance - player.gun.dm))) / 3 - player.dy / 3;
+
+      // player.gun.da /= 1.5;
+      // player.gun.dm /= 1.5;
+    }
 
     player.primaryArm.angle = primaryArmAngle;
-    player.primaryArm.distance = primaryArmDistance;
+    player.primaryArm.distance -= (player.primaryArm.distance - primaryArmDistance) / 4;
+
+    player.primaryArm.ddistance /= 1.3;
+    player.primaryArm.dangle /= 1.3;
 
     // player.x += player.dx;
     // player.y += player.dy;
@@ -431,11 +429,23 @@ export const tick = (game, inputs) => {
       player.faceTicks--;
     }
 
-    if (player.gun === undefined) {
-      for (const gunID in game.guns) {
-        const gun = game.guns[gunID] ?? fail();
-        if (gun.ticksUntilPickup !== 0) continue;
-        if (boxOnBoxCollision(player.box, gun.box)) {
+    for (const gunID in game.guns) {
+      const gun = game.guns[gunID] ?? fail();
+      if (gun.ticksUntilPickup !== 0) continue;
+
+      if (boxOnBoxCollision(player.box, gun.box)) {
+        if (Math.hypot(gun.box.dx, gun.box.dy) > 0.6) {
+          player.body.dx += gun.box.dx;
+          player.body.dy += gun.box.dy;
+          player.box.dx += gun.box.dx / 4;
+          player.box.dy += gun.box.dy / 4;
+          if (Math.abs(gun.box.dx) > Math.abs(gun.box.dy)) {
+            gun.box.dx *= -gun.box.bounce;
+          } else {
+            gun.box.dy *= -gun.box.bounce;
+          }
+          gun.ticksUntilPickup = 10;
+        } else if (player.gun === undefined) {
           player.gun = gun;
           delete game.guns[gunID];
         }
@@ -444,11 +454,11 @@ export const tick = (game, inputs) => {
 
     if (player.gun !== undefined && device.r) {
       game.guns[game.autoid++] = player.gun;
-      player.gun.box.x = player.body.x;
-      player.gun.box.y = player.body.y;
-      player.gun.box.dx = Math.sin(player.primaryArm.angle);
-      player.gun.box.dy = Math.cos(player.primaryArm.angle);
-      player.gun.ticksUntilPickup = 30;
+      player.gun.box.x = player.box.x + (player.box.width - player.gun.box.width) / 2;
+      player.gun.box.y = player.box.y + (player.box.height - player.gun.box.height) / 2;
+      player.gun.box.dx = Math.sin(player.primaryArm.angle) / 1.3;
+      player.gun.box.dy = Math.cos(player.primaryArm.angle) / 1.3;
+      player.gun.ticksUntilPickup = 3;
       player.gun = undefined;
     }
   }
@@ -523,20 +533,29 @@ export const render = (ctx, prev, curr, alpha) => {
   for (const gunID in curr.guns) {
     const prevGun = prev.guns[gunID];
     const gun = curr.guns[gunID] ?? fail();
+    const x = lin(prevGun?.box.x, gun.box.x, alpha);
+    const y = lin(prevGun?.box.y, gun.box.y, alpha);
+    // const width = lin(prevGun?.box.width, gun.box.width, alpha)
+    // const height = lin(prevGun?.box.height, gun.box.height, alpha)
 
-    boxRender(ctx, prevGun?.box, gun.box, "orange", alpha);
+    // boxRender(ctx, prevGun?.box, gun.box, "orange", alpha);
+    renderGun(ctx, x + gun.box.width / 2, y + gun.box.height / 2, -x);
   }
 
   for (const deviceID in curr.players) {
     const player = curr.players[deviceID] ?? fail();
     const prevPlayer = prev.players[deviceID];
 
-    boxRender(ctx, prevPlayer?.box, player.box, "red", alpha);
+    // boxRender(ctx, prevPlayer?.box, player.box, "red", alpha);
 
     const bodyX = lin(prevPlayer?.body.x, player.body.x, alpha);
     const bodyY = lin(prevPlayer?.body.y, player.body.y, alpha);
-    const primaryArmAngle = lin(prevPlayer?.primaryArm.angle, player.primaryArm.angle, 1);
-    const primaryArmDistance = lin(prevPlayer?.primaryArm.distance, player.primaryArm.distance, 1);
+    const primaryArmAngle =
+      lin(prevPlayer?.primaryArm.angle, player.primaryArm.angle, 1) +
+      lin(prevPlayer?.primaryArm.dangle, player.primaryArm.dangle, alpha);
+    const primaryArmDistance =
+      lin(prevPlayer?.primaryArm.distance, player.primaryArm.distance, 1) +
+      lin(prevPlayer?.primaryArm.ddistance, player.primaryArm.ddistance, alpha);
 
     const feetLeftStartX = lin(prevPlayer?.feet.leftStartX, player.feet.leftStartX, alpha);
     const feetLeftStartY = lin(prevPlayer?.feet.leftStartY, player.feet.leftStartY, alpha);
@@ -570,86 +589,28 @@ export const render = (ctx, prev, curr, alpha) => {
     ctx.quadraticCurveTo(feetRightKneeX, feetRightKneeY, feetRightEndX, feetRightEndY);
     ctx.stroke();
 
-    {
-      const primaryArmVecX = Math.sin(primaryArmAngle);
-      const primaryArmVecY = Math.cos(primaryArmAngle);
-      const armStartX = bodyX + primaryArmVecX * (player.box.width / 4);
-      const armStartY = bodyY + primaryArmVecY * (player.box.width / 4);
-      const armEndX = bodyX + primaryArmVecX * primaryArmDistance;
-      const armEndY = bodyY + primaryArmVecY * primaryArmDistance;
+    const primaryArmVecX = Math.sin(primaryArmAngle);
+    const primaryArmVecY = Math.cos(primaryArmAngle);
+    const armStartX = bodyX + primaryArmVecX * (player.box.width / 4);
+    const armStartY = bodyY + primaryArmVecY * (player.box.width / 4);
+    const armEndX = bodyX + primaryArmVecX * primaryArmDistance;
+    const armEndY = bodyY + primaryArmVecY * primaryArmDistance;
 
-      let armElbowX;
-      let armElbowY;
+    let armElbowX;
+    let armElbowY;
 
-      const armLength = PLAYER.ARM_LENGTH * primaryArmVecX;
+    const armLength = PLAYER.ARM_LENGTH * primaryArmVecX;
 
-      if (primaryArmAngle < 0) {
-        [armElbowX, armElbowY] = getPointAtDistance(armEndX, armEndY, armStartX, armStartY, armLength);
-      } else {
-        [armElbowX, armElbowY] = getPointAtDistance(armStartX, armStartY, armEndX, armEndY, armLength);
-      }
-
-      ctx.beginPath();
-      ctx.moveTo(armStartX, armStartY);
-      ctx.quadraticCurveTo(armElbowX, armElbowY, armEndX, armEndY);
-      ctx.stroke();
+    if (primaryArmAngle < 0) {
+      [armElbowX, armElbowY] = getPointAtDistance(armEndX, armEndY, armStartX, armStartY, armLength);
+    } else {
+      [armElbowX, armElbowY] = getPointAtDistance(armStartX, armStartY, armEndX, armEndY, armLength);
     }
 
-    // const gunX = lin(prevPlayer?.gun.x, player.gun.x, alpha);
-    // const gunY = lin(prevPlayer?.gun.y, player.gun.y, alpha);
-    // let gunAngle;
-
-    // if (prevPlayer?.gun.angle && Math.abs(prevPlayer.gun.angle - player.gun.angle) < Math.PI / 2) {
-    //   gunAngle = lin(prevPlayer?.gun.angle, player.gun.angle, alpha);
-    // } else {
-    //   gunAngle = player.gun.angle;
-    // }
-
-    // const forwardX = Math.sin(gunAngle);
-    // const forwardY = Math.cos(gunAngle);
-    // const downX = Math.sin(gunAngle - Math.PI / 2);
-    // const downY = Math.cos(gunAngle - Math.PI / 2);
-    // {
-    // const armStartX = bodyX + forwardX * (player.width / 3);
-    // const armStartY = bodyY + forwardY * (player.width / 3);
-    // const armEndX = lin(prevPlayer?.gun.x, player.gun.x, alpha);
-    // const armEndY = lin(prevPlayer?.gun.y, player.gun.y, alpha);
-
-    // let armElbowX;
-    // let armElbowY;
-
-    // const armLength = PLAYER.ARM_LENGTH * Math.sin(player.gun.angle);
-
-    // if (player.gun.angle < 0) {
-    //   [armElbowX, armElbowY] = getPointAtDistance(armEndX, armEndY, armStartX, armStartY, armLength);
-    // } else {
-    //   [armElbowX, armElbowY] = getPointAtDistance(armStartX, armStartY, armEndX, armEndY, armLength);
-    // }
-
-    // ctx.beginPath();
-    // ctx.moveTo(armStartX, armStartY);
-    // ctx.quadraticCurveTo(armElbowX, armElbowY, armEndX, armEndY);
-    // ctx.stroke();
-
-    //   ctx.lineWidth = 0.2;
-
-    //   const gunLength = 0.4;
-
-    //   ctx.strokeStyle = "#999";
-    //   ctx.beginPath();
-    //   ctx.moveTo(
-    //     gunX + forwardX * (ctx.lineWidth / 2) - forwardX * 0.1,
-    //     gunY + forwardY * (ctx.lineWidth / 2) - forwardY * 0.1
-    //   );
-    //   ctx.lineTo(
-    //     gunX + downX * gunLength * 0.6 * forwardX + forwardX * (ctx.lineWidth / 2) - forwardX * 0.1,
-    //     gunY + downY * gunLength * 0.6 * forwardX + forwardY * (ctx.lineWidth / 2) - forwardY * 0.1
-    //   );
-
-    //   ctx.moveTo(gunX - forwardX * 0.1, gunY - forwardY * 0.1);
-    //   ctx.lineTo(gunX + forwardX * gunLength - forwardX * 0.1, gunY + forwardY * gunLength - forwardY * 0.1);
-    //   ctx.stroke();
-    // }
+    ctx.beginPath();
+    ctx.moveTo(armStartX, armStartY);
+    ctx.quadraticCurveTo(armElbowX, armElbowY, armEndX, armEndY);
+    ctx.stroke();
 
     ctx.save();
     ctx.textAlign = "end";
@@ -659,6 +620,10 @@ export const render = (ctx, prev, curr, alpha) => {
     ctx.fillStyle = "black";
     ctx.fillText(player.face, 0, 0);
     ctx.restore();
+
+    if (player.gun) {
+      renderGun(ctx, armEndX, armEndY, primaryArmAngle);
+    }
   }
 
   for (const bulletId in curr.bullets) {

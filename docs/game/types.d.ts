@@ -76,6 +76,7 @@ type Gun = {
   ticksUntilPickup: number;
   type: number;
   box: Box;
+  cooldown: number;
 };
 
 type Level = {

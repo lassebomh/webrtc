@@ -56,7 +56,7 @@ let snapshots = [init()];
 
 let inputs = new PersistedValue("inputs", () => [{}]);
 
-let currentTick = new PersistedValue("currentTick", () => ({ tick: 0, alpha: 0 }));
+let currentTick = new PersistedValue("currentTick", () => ({ tick: 0, alpha: 1 }));
 
 let tickRateMult = new PersistedValue("tickRateMult", () => 1);
 
