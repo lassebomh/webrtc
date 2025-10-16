@@ -117,3 +117,13 @@ export const levels = [
 #                                       #
 #########################################`,
 ].map(createLevelFromText);
+
+/**
+ * @param {Level} level
+ * @param {number} x
+ * @param {number} y
+ * @returns {number}
+ */
+export function getTile(level, x, y) {
+  return level.tiles[Math.floor(y)]?.[Math.floor(x)] ?? 0;
+}

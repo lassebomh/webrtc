@@ -1,17 +1,19 @@
 type Player = {
-  x: number;
-  y: number;
-  dx: number;
-  dy: number;
-  wallLeft: boolean;
-  wallRight: boolean;
-  wallBottom: boolean;
-  wallTop: boolean;
+  box: Box;
+
+  // x: number;
+  // y: number;
+  // dx: number;
+  // dy: number;
+  // wallLeft: boolean;
+  // wallRight: boolean;
+  // wallBottom: boolean;
+  // wallTop: boolean;
   jumpHeld: number;
   fallingTicks: number;
   crouching: boolean;
-  width: number;
-  height: number;
+  // width: number;
+  // height: number;
 
   color: string;
   facing: number;
@@ -37,14 +39,23 @@ type Player = {
     rightKneeY: number;
   };
 
-  gun: {
+  primaryArm: {
     angle: number;
-    x: number;
-    y: number;
-    dm: number;
-    da: number;
-    cooldown: number;
+    distance: number;
+    dangle: number;
+    ddistance: number;
   };
+
+  gun: Gun | undefined;
+
+  // gun: {
+  //   angle: number;
+  //   x: number;
+  //   y: number;
+  //   dm: number;
+  //   da: number;
+  //   cooldown: number;
+  // };
   body: {
     angle: number;
     x: number;
@@ -59,6 +70,12 @@ type Bullet = {
   y: number;
   dx: number;
   dy: number;
+};
+
+type Gun = {
+  ticksUntilPickup: number;
+  type: number;
+  box: Box;
 };
 
 type Level = {
@@ -81,5 +98,27 @@ interface Game extends IGame {
     y: number;
   };
   level: number;
+  guns: Record<string, Gun>;
   debug_points: [number, number][];
+}
+
+interface Box {
+  x: number;
+  y: number;
+  dx: number;
+  dy: number;
+  width: number;
+  height: number;
+
+  // maxSpeed: number;
+  bounce: number;
+  // gravity: number;
+  // airFriction: number;
+  // wallFriction: number;
+
+  wallTop: boolean;
+  wallBottom: boolean;
+  wallLeft: boolean;
+  wallRight: boolean;
+  // airTime: number;
 }

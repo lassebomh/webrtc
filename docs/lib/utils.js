@@ -56,3 +56,5 @@ export function lin(start, end, alpha) {
 
 /** @type {DeviceID} */
 export const defaultDeviceID = (sessionStorage.tabId ??= crypto.randomUUID());
+
+export const EPSILON = 1e-5;

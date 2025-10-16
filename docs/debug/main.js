@@ -56,7 +56,7 @@ let snapshots = [init()];
 
 let inputs = new PersistedValue("inputs", () => [{}]);
 
-let currentTick = new PersistedValue("currentTick", () => 0);
+let currentTick = new PersistedValue("currentTick", () => ({ tick: 0, alpha: 0 }));
 
 let tickRateMult = new PersistedValue("tickRateMult", () => 1);
 
@@ -70,6 +70,7 @@ const loopElement = /** @type {HTMLInputElement} */ (document.getElementById("lo
 const loopFromElement = /** @type {HTMLInputElement} */ (document.getElementById("loop-from") ?? fail());
 const loopTicksElement = /** @type {HTMLInputElement} */ (document.getElementById("loop-ticks") ?? fail());
 const tickInputElement = /** @type {HTMLInputElement} */ (document.getElementById("tick-input") ?? fail());
+const alphaInputElement = /** @type {HTMLInputElement} */ (document.getElementById("alpha-input") ?? fail());
 const playElement = /** @type {HTMLInputElement} */ (document.getElementById("tick-play") ?? fail());
 const deviceSelectElement = /** @type {HTMLSelectElement} */ (document.getElementById("device-select") ?? fail());
 const tickRateMultElement = /** @type {HTMLSelectElement} */ (document.getElementById("tick-rate-select") ?? fail());
@@ -78,13 +79,13 @@ const timelineElement = /** @type {HTMLElement} */ (document.getElementById("tim
 const clearElement = /** @type {HTMLElement} */ (document.getElementById("clear") ?? fail());
 
 function renderCurrentGame() {
-  const game = snapshots[currentTick.value];
-  const prevGame = snapshots[currentTick.value - 1];
+  const game = snapshots[currentTick.value.tick];
+  const prevGame = snapshots[currentTick.value.tick - 1];
   sidebarElement.textContent =
-    JSON.stringify(game, undefined, 2) + "\n" + JSON.stringify(inputs.value[currentTick.value], undefined, 2);
+    JSON.stringify(game, undefined, 2) + "\n" + JSON.stringify(inputs.value[currentTick.value.tick], undefined, 2);
   if (game) {
     if (prevGame) {
-      render(ctx, prevGame, game, 0.5);
+      render(ctx, prevGame, game, currentTick.value.alpha);
     } else {
       render(ctx, game, game, 1);
     }
@@ -103,11 +104,13 @@ inputs.addListener((inputs) => {
       button.dataset.current = "false";
       button.addEventListener("mouseenter", (event) => {
         if (event.buttons) {
-          currentTick.value = t;
+          currentTick.value = { tick: t, alpha: currentTick.value.alpha };
+          // currentTick.value.tick = t;
         }
       });
       button.addEventListener("click", () => {
-        currentTick.value = t;
+        currentTick.value = { tick: t, alpha: currentTick.value.alpha };
+        // currentTick.value.tick = t;
       });
       button.addEventListener("contextmenu", (e) => {
         e.preventDefault();
@@ -144,7 +147,7 @@ document.addEventListener("pointerup", () => {
 });
 
 currentTick.addListener((value) => {
-  tickInputElement.valueAsNumber = currentTick.value;
+  tickInputElement.valueAsNumber = currentTick.value.tick;
 
   const prevButton = /** @type {HTMLButtonElement | null} */ (
     timelineElement.querySelector("button[data-current='true']")
@@ -154,7 +157,7 @@ currentTick.addListener((value) => {
     prevButton.dataset.current = "false";
   }
 
-  const currentButton = /** @type {HTMLButtonElement} */ (timelineElement.children.item(value));
+  const currentButton = /** @type {HTMLButtonElement} */ (timelineElement.children.item(value.tick));
 
   currentButton.dataset.current = "true";
 
@@ -206,7 +209,7 @@ function play(deviceID) {
   ctx.canvas.focus();
 
   const interval = setInterval(() => {
-    const newTick = currentTick.value + 1;
+    const newTick = currentTick.value.tick + 1;
 
     while (snapshots.at(-1)?.tick ?? -1 >= newTick) {
       snapshots.pop();
@@ -215,7 +218,7 @@ function play(deviceID) {
     inputs.value[newTick] = structuredClone({ ...(inputs.value[newTick] ?? {}), [deviceID]: combinedInputs });
     inputs.update();
 
-    currentTick.value = newTick;
+    currentTick.value = { tick: newTick, alpha: currentTick.value.alpha };
   }, TICK_RATE / tickRateMult.value);
 
   stopPlayer = () => {
@@ -232,7 +235,10 @@ function play(deviceID) {
 
 function loopFunc() {
   if (loop.value) {
-    currentTick.value = loopFrom.value + ((currentTick.value - loopFrom.value + 1) % loopTicks.value);
+    currentTick.value = {
+      tick: loopFrom.value + ((currentTick.value.tick - loopFrom.value + 1) % loopTicks.value),
+      alpha: currentTick.value.alpha,
+    };
   }
 
   setTimeout(loopFunc, TICK_RATE / tickRateMult.value);
@@ -254,7 +260,11 @@ tickRateMultElement.addEventListener("change", () => {
 });
 
 tickInputElement.addEventListener("input", () => {
-  currentTick.value = tickInputElement.valueAsNumber;
+  currentTick.value = { tick: tickInputElement.valueAsNumber, alpha: currentTick.value.alpha };
+});
+
+alphaInputElement.addEventListener("input", () => {
+  currentTick.value = { tick: currentTick.value.tick, alpha: alphaInputElement.valueAsNumber };
 });
 
 loopElement.checked = loop.value;
