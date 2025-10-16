@@ -17,9 +17,9 @@ export async function run({ tick, render, init }) {
   const ctx = setupCanvas(document.getElementById("canvas"));
 
   const statusElement = document.getElementById("fps") ?? fail();
-  const fpsLogs = new Array(16).fill(0);
+  const fpsLogs = new Array(64).fill(0);
   let fpsCounter = 0;
-  const pingLogs = new Array(16).fill(0);
+  const pingLogs = new Array(64).fill(0);
   let pingCounter = 0;
 
   /** @type {InputEntry[]} */
@@ -77,7 +77,7 @@ export async function run({ tick, render, init }) {
         case "input":
           const firstEntry = message.data.at(0);
           if (firstEntry) {
-            pingLogs[pingCounter++ & 15] = now() - firstEntry.time;
+            pingLogs[pingCounter++ & 63] = now() - firstEntry.time;
           }
           addInputEntry(...message.data);
           break;
@@ -181,17 +181,6 @@ export async function run({ tick, render, init }) {
   function mainloop() {
     const currentTime = now();
 
-    fpsCounter++;
-
-    fpsLogs[fpsCounter & 15] = currentTime - lastTime;
-
-    if ((fpsCounter & 15) === 0) {
-      const fps = 1000 / (fpsLogs.reduce((acc, x) => acc + x, 0) / fpsLogs.length);
-      const ping = fpsLogs.reduce((acc, x) => acc + x, 0) / fpsLogs.length;
-
-      statusElement.textContent = `${fps.toFixed(2)} FPS ${ping.toFixed(2)} PING`;
-    }
-
     while (game.tick < (currentTime - game.originTime) / TICK_RATE - DELAY_TICKS) {
       prevGame = game;
 
@@ -227,6 +216,15 @@ export async function run({ tick, render, init }) {
           }
         }
       }
+    }
+
+    fpsLogs[fpsCounter++ & 63] = currentTime - lastTime;
+
+    if ((fpsCounter & 15) === 0) {
+      const fps = 1000 / (fpsLogs.reduce((acc, x) => acc + x, 0) / fpsLogs.length);
+      const ping = pingLogs.reduce((acc, x) => acc + x, 0) / pingLogs.length;
+
+      statusElement.textContent = `${fps.toFixed(2)} FPS ${ping.toFixed(2)} PING`;
     }
 
     const currentTimeTick = (now() - game.originTime) / TICK_RATE - DELAY_TICKS;
