@@ -2,6 +2,7 @@ import { fail, lin } from "../lib/utils.js";
 import { BULLET } from "./bullet.js";
 import { boxLevelTick, boxOnBoxCollision } from "./collision.js";
 import { renderGun } from "./guns.js";
+import { particleCreate } from "./particle.js";
 import { getPointAtDistance, random } from "./utils.js";
 
 export const AVATAR = {
@@ -242,14 +243,15 @@ export function avatarTick(game, level, avatar, moveX, moveY, aimX, aimY, jump, 
       if (Math.hypot(gun.box.dx, gun.box.dy) > 0.6) {
         avatar.body.dx += gun.box.dx;
         avatar.body.dy += gun.box.dy;
-        avatar.box.dx += gun.box.dx / 4;
-        avatar.box.dy += gun.box.dy / 4;
+        avatar.box.dx += gun.box.dx / 2;
+        avatar.box.dy += gun.box.dy / 2;
+        avatarTakeDamage(game, avatar, 1, gun.box.dx, gun.box.dy);
         if (Math.abs(gun.box.dx) > Math.abs(gun.box.dy)) {
           gun.box.dx *= -gun.box.bounce;
         } else {
           gun.box.dy *= -gun.box.bounce;
         }
-        avatar.health -= 2;
+        avatar.health -= 4;
         gun.ticksUntilPickup = 10;
       } else if (avatar.gun === undefined) {
         avatar.gun = gun;
@@ -352,4 +354,140 @@ export function avatarRender(ctx, prevAvatar, avatar, alpha) {
   if (avatar.gun) {
     renderGun(ctx, armEndX, armEndY, primaryArmAngle);
   }
+}
+
+/**
+ * @param {Game} game
+ * @param {Avatar} avatar
+ * @param {number} damage
+ * @param {number} dx
+ * @param {number} dy
+ */
+export function avatarTakeDamage(game, avatar, damage, dx, dy) {
+  avatar.face = AVATAR.FACE.DAMAGE;
+  avatar.faceTicks = 30;
+  avatar.health -= damage;
+
+  if (avatar.health <= 0) {
+    for (const deviceID in game.players) {
+      const player = game.players[deviceID] ?? fail();
+      if (player.avatarID === avatar.id) {
+        player.avatarID = undefined;
+        break;
+      }
+    }
+    for (let i = 0; i < 15; i++) {
+      const angle = random(game, 0, Math.PI * 2);
+      const radius = random(game, 0.5, 1.2) * (AVATAR.WIDTH / 2);
+      particleCreate(
+        game,
+        avatar.body.x + Math.cos(angle) * (AVATAR.WIDTH / 2 - radius),
+        avatar.body.y + Math.sin(angle) * (AVATAR.WIDTH / 2 - radius),
+        random(game, -0.2, 0.2) + dx,
+        random(game, -0.2, 0.2) + dy,
+        radius,
+        1.05,
+        1.1,
+        0.35,
+        avatar.color
+      );
+    }
+    if (avatar.gun) {
+      const gun = avatar.gun;
+      avatar.gun = undefined;
+      game.guns[game.autoid++] = gun;
+      gun.box.x = avatar.body.x + avatar.primaryArm.vx * avatar.primaryArm.distance;
+      gun.box.y = avatar.body.y + avatar.primaryArm.vy * avatar.primaryArm.distance;
+      gun.box.dx = dx + random(game, -0.2, 0.2);
+      gun.box.dy = dy / 2 - random(game, 0.2, 0.5);
+    }
+    delete game.avatars[avatar.id];
+  } else {
+    for (let i = 0; i < 3; i++) {
+      const angle = random(game, 0, Math.PI * 2);
+      const radius = random(game, 0.3, 0.5) * (AVATAR.WIDTH / 2);
+      particleCreate(
+        game,
+        avatar.body.x + Math.cos(angle) * (AVATAR.WIDTH / 2 - radius),
+        avatar.body.y + Math.sin(angle) * (AVATAR.WIDTH / 2 - radius),
+        random(game, -0.2, 0.2) + dx,
+        random(game, -0.2, 0.2) + dy,
+        radius,
+        1.05,
+        1.1,
+        0.02,
+        avatar.color
+      );
+    }
+  }
+}
+
+/**
+ *
+ * @param {Game} game
+ * @param {number} x
+ * @param {number} y
+ * @param {string} color
+ * @returns {Avatar}
+ */
+export function createAvatar(game, x, y, color) {
+  return {
+    id: (game.autoid++).toString(),
+    box: {
+      x: x,
+      y: y,
+      dx: 0,
+      dy: 0,
+      width: AVATAR.WIDTH,
+      height: AVATAR.HEIGHT,
+
+      bounce: 0,
+
+      wallTop: false,
+      wallBottom: false,
+      wallLeft: false,
+      wallRight: false,
+    },
+    gun: undefined,
+
+    jumpHeld: 0,
+    fallingTicks: 0,
+    color,
+    facing: 1,
+    face: AVATAR.FACE.PASSIVE,
+    faceTicks: -1,
+    health: 5,
+    crouching: false,
+
+    feet: {
+      angle: 0,
+      leftX: x,
+      leftY: y,
+      rightX: x,
+      rightY: y,
+      leftStartX: x,
+      leftStartY: y,
+
+      rightStartX: x,
+      rightStartY: y,
+      leftKneeX: x,
+      leftKneeY: y,
+      rightKneeX: x,
+      rightKneeY: y,
+    },
+    primaryArm: {
+      vx: 1,
+      vy: 0,
+      dangle: 0,
+      ddistance: 0,
+      distance: 0,
+    },
+    body: {
+      angle: 0,
+      x: x,
+      y: y,
+      dx: 0,
+      dy: 0,
+    },
+  };
 }

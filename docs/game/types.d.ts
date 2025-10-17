@@ -1,8 +1,10 @@
 type Player = {
   color: string;
+  avatarID: string | undefined;
 };
 
 type Avatar = {
+  id: string;
   color: string;
 
   box: Box;
@@ -68,10 +70,24 @@ type Level = {
   spawnPoints: { x: number; y: number }[];
 };
 
+type Particle = {
+  id: string;
+  x: number;
+  y: number;
+  dx: number;
+  dy: number;
+  size: number;
+  sizeDiv: number;
+  speedDiv: number;
+  speedRandom: number;
+  color: string;
+};
+
 interface Game extends IGame {
   autoid: number;
   random: number;
-  avatars: Record<DeviceID, Avatar>;
+  players: Record<DeviceID, Player>;
+  avatars: Record<string, Avatar>;
   bullets: Record<string, Bullet>;
   avatarCount: number;
   camera: {
@@ -80,6 +96,8 @@ interface Game extends IGame {
   };
   level: number;
   guns: Record<string, Gun>;
+  particles: Record<string, Particle>;
+
   debug_points: [number, number][];
 }
 

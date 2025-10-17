@@ -276,8 +276,6 @@ export async function run({ tick, render, init }) {
             }
           );
         }
-
-        console.log(gamepad.buttons.map((x) => x.value));
       }
     }
 
