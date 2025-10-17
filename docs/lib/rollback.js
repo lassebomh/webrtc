@@ -113,10 +113,21 @@ export async function run({ tick, render, init }) {
   function onkey(event) {
     event.preventDefault();
     if (event.repeat) return;
+    /** @type {InputKey} */
+    let key;
+    switch (event.key) {
+      case " ":
+        key = "space";
+        break;
+
+      default:
+        key = /** @type {InputKey} */ (event.key.toLowerCase());
+        break;
+    }
     /** @type {InputEntry} */
     const inputEntry = {
       time: now(),
-      key: event.key.toLowerCase(),
+      key,
       deviceID: defaultDeviceID,
       value: Number(event.type === "keydown"),
     };
@@ -157,23 +168,121 @@ export async function run({ tick, render, init }) {
     send({ type: "input", data: [inputEntry] });
   });
 
+  window.addEventListener("gamepadconnected", (ev) => {
+    const deviceID = defaultDeviceID + "-gp-" + ev.gamepad.index.toString();
+    /** @type {InputEntry} */
+    const inputEntry = {
+      time: now(),
+      deviceID,
+      key: "is_gamepad",
+      value: 1,
+    };
+    addInputEntry(inputEntry);
+    send({ type: "input", data: [inputEntry] });
+  });
+
   setInterval(() => {
-    /** @type {InputEntry} */
-    const inputEntryX = {
-      time: now(),
-      key: "mousex",
-      deviceID: defaultDeviceID,
-      value: mouseX,
-    };
-    /** @type {InputEntry} */
-    const inputEntryY = {
-      time: now(),
-      key: "mousey",
-      deviceID: defaultDeviceID,
-      value: mouseY,
-    };
-    addInputEntry(inputEntryX, inputEntryY);
-    send({ type: "input", data: [inputEntryX, inputEntryY] });
+    const time = now();
+    /** @type {InputEntry[]} */
+    const inputEntries = [
+      {
+        time,
+        key: "mousex",
+        deviceID: defaultDeviceID,
+        value: mouseX,
+      },
+
+      {
+        time,
+        key: "mousey",
+        deviceID: defaultDeviceID,
+        value: mouseY,
+      },
+    ];
+
+    for (const gamepad of navigator.getGamepads()) {
+      if (gamepad) {
+        const deviceID = defaultDeviceID + "-gp-" + gamepad.index.toString();
+        if (gamepad.axes.length >= 4) {
+          const [lstickx, lsticky, rstickx, rsticky] = /** @type {[number,number,number,number]} */ (gamepad.axes);
+
+          inputEntries.push(
+            {
+              time,
+              deviceID,
+              key: "lstickx",
+              value: lstickx,
+            },
+            {
+              time,
+              deviceID,
+              key: "lsticky",
+              value: lsticky,
+            },
+            {
+              time,
+              deviceID,
+              key: "rstickx",
+              value: rstickx,
+            },
+            {
+              time,
+              deviceID,
+              key: "rsticky",
+              value: rsticky,
+            }
+          );
+        }
+
+        if (gamepad.buttons.length >= 6) {
+          const [buttona, buttonb, buttony, buttonx, lt, rt] =
+            /** @type {[number,number,number,number,number,number]} */ (gamepad.buttons.map((x) => x.value));
+          inputEntries.push(
+            {
+              time,
+              deviceID,
+              key: "buttona",
+              value: buttona,
+            },
+            {
+              time,
+              deviceID,
+              key: "buttonb",
+              value: buttonb,
+            },
+            {
+              time,
+              deviceID,
+              key: "buttony",
+              value: buttony,
+            },
+            {
+              time,
+              deviceID,
+              key: "buttonx",
+              value: buttonx,
+            },
+            {
+              time,
+              deviceID,
+              key: "lt",
+              value: lt,
+            },
+            {
+              time,
+              deviceID,
+              key: "rt",
+              value: rt,
+            }
+          );
+        }
+
+        console.log(gamepad.buttons.map((x) => x.value));
+      }
+    }
+
+    addInputEntry(...inputEntries);
+    send({ type: "input", data: inputEntries });
   }, TICK_RATE);
 
   let lastTime = 0;

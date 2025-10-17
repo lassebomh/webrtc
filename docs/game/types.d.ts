@@ -1,28 +1,18 @@
 type Player = {
-  box: Box;
+  color: string;
+};
 
-  // x: number;
-  // y: number;
-  // dx: number;
-  // dy: number;
-  // wallLeft: boolean;
-  // wallRight: boolean;
-  // wallBottom: boolean;
-  // wallTop: boolean;
+type Avatar = {
+  color: string;
+
+  box: Box;
   jumpHeld: number;
   fallingTicks: number;
   crouching: boolean;
-  // width: number;
-  // height: number;
-
-  color: string;
   facing: number;
-
   face: string;
   faceTicks: number;
-
   health: number;
-
   feet: {
     angle: number;
     leftX: number;
@@ -40,22 +30,13 @@ type Player = {
   };
 
   primaryArm: {
-    angle: number;
+    vx: number;
+    vy: number;
     distance: number;
     dangle: number;
     ddistance: number;
   };
-
   gun: Gun | undefined;
-
-  // gun: {
-  //   angle: number;
-  //   x: number;
-  //   y: number;
-  //   dm: number;
-  //   da: number;
-  //   cooldown: number;
-  // };
   body: {
     angle: number;
     x: number;
@@ -90,10 +71,9 @@ type Level = {
 interface Game extends IGame {
   autoid: number;
   random: number;
-
-  players: Record<DeviceID, Player>;
+  avatars: Record<DeviceID, Avatar>;
   bullets: Record<string, Bullet>;
-  playerCount: number;
+  avatarCount: number;
   camera: {
     x: number;
     y: number;

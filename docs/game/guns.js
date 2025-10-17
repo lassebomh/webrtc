@@ -6,10 +6,10 @@
  * @param {number} angle
  */
 export function renderGun(ctx, x, y, angle) {
-  const forwardX = Math.sin(angle);
-  const forwardY = Math.cos(angle);
-  const downX = Math.sin(angle - Math.PI / 2);
-  const downY = Math.cos(angle - Math.PI / 2);
+  const forwardX = Math.cos(angle);
+  const forwardY = Math.sin(angle);
+  const downX = Math.cos(angle + Math.PI / 2);
+  const downY = Math.sin(angle + Math.PI / 2);
 
   ctx.lineWidth = 0.2;
 

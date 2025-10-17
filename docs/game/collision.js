@@ -76,28 +76,6 @@ export function boxLevelTick(level, box) {
   if (box.wallTop) {
     box.dy = box.dy * -box.bounce;
   }
-  // if (!(box.wallBottom || box.wallTop || box.wallLeft || box.wallRight)) {
-  //   box.airTime++;
-  //   // box.dx /= box.airFriction;
-  //   // box.dy /= box.airFriction;
-  // } else {
-  //   box.airTime = 0;
-  //   // box.dx /= box.wallFriction;
-  //   // box.dy /= box.wallFriction;
-  // }
-
-  // const speed = Math.hypot(box.dx, box.dy);
-
-  // if (speed > box.maxSpeed) {
-  //   const reduction = (speed - box.maxSpeed) / 4;
-  //   const targetSpeed = speed - reduction;
-  //   const scale = targetSpeed / speed;
-
-  //   box.dx *= scale;
-  //   box.dy *= scale;
-  // }
-
-  // box.dy += box.gravity;
 }
 
 /**

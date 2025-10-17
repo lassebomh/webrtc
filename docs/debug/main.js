@@ -169,7 +169,7 @@ currentTick.addListener((value) => {
 });
 
 /** @type {Function | undefined} */
-let stopPlayer;
+let stopAvatar;
 
 /**
  * @param {DeviceID} deviceID
@@ -184,11 +184,22 @@ function play(deviceID) {
   function onkey(event) {
     event.preventDefault();
     if (event.repeat) return;
+    /** @type {InputKey} */
+    let key;
+    switch (event.key) {
+      case " ":
+        key = "space";
+        break;
 
-    combinedInputs[event.key.toLocaleLowerCase()] = Number(event.type === "keydown");
+      default:
+        key = /** @type {InputKey} */ (event.key.toLowerCase());
+        break;
+    }
+
+    combinedInputs[key] = Number(event.type === "keydown");
 
     if (event.key === "Escape") {
-      stopPlayer?.();
+      stopAvatar?.();
     }
   }
   /**
@@ -221,7 +232,7 @@ function play(deviceID) {
     currentTick.value = { tick: newTick, alpha: currentTick.value.alpha };
   }, TICK_RATE / tickRateMult.value);
 
-  stopPlayer = () => {
+  stopAvatar = () => {
     ctx.canvas.removeEventListener("keydown", onkey);
     ctx.canvas.removeEventListener("keyup", onkey);
 

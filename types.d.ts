@@ -1,3 +1,46 @@
+type InputKey =
+  | "a"
+  | "b"
+  | "c"
+  | "d"
+  | "e"
+  | "f"
+  | "g"
+  | "h"
+  | "i"
+  | "j"
+  | "k"
+  | "l"
+  | "m"
+  | "n"
+  | "o"
+  | "p"
+  | "q"
+  | "r"
+  | "s"
+  | "t"
+  | "u"
+  | "v"
+  | "w"
+  | "x"
+  | "y"
+  | "z"
+  | "space"
+  | "mousex"
+  | "mousey"
+  | "mouseleftbutton"
+  | "lstickx"
+  | "lsticky"
+  | "rstickx"
+  | "rsticky"
+  | "lt"
+  | "rt"
+  | "buttona"
+  | "buttonb"
+  | "buttonx"
+  | "buttony"
+  | "is_gamepad";
+
 type Prettify<T> = {
   [K in keyof T]: T[K];
 } & unknown;
@@ -9,9 +52,9 @@ interface IGame {
   originTime: number;
 }
 
-type InputEntry = { deviceID: DeviceID; key: string; value: number; time: number };
+type InputEntry = { deviceID: DeviceID; key: InputKey; value: number; time: number };
 
-type TickInput = Record<string, number>;
+type TickInput = { [K in InputKey]?: number };
 type TickInputMap = Record<DeviceID, TickInput>;
 
 type DeviceID = string & {};
