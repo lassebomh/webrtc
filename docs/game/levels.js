@@ -14,6 +14,9 @@ function createLevelFromText(text) {
   /** @type {Level['spawnPoints']} */
   const spawnPoints = [];
 
+  /** @type {Level['gunLocations']} */
+  const gunLocations = [];
+
   /** @type {Level['tiles']} */
   const tiles = [];
 
@@ -32,6 +35,9 @@ function createLevelFromText(text) {
         lineTiles.push(1);
       } else if (tileString === "s") {
         spawnPoints.push({ x, y });
+        lineTiles.push(0);
+      } else if (tileString === "g") {
+        gunLocations.push({ x, y });
         lineTiles.push(0);
       } else if (tileString === " ") {
         lineTiles.push(0);
@@ -89,6 +95,7 @@ function createLevelFromText(text) {
     tiles,
     canvas,
     spawnPoints,
+    gunLocations,
   };
 
   return level;
@@ -102,7 +109,7 @@ export const levels = [
 #                  #
 #                  #
 #                  #
-#                  #
+#        g         #
 #        #         #
 #                  #
 #                  #
@@ -122,26 +129,21 @@ export const levels = [
 #                                       #
 #                                       #
 #                                       #
-#                                       #
-#                                       #
-#                                       #
-#                                       #
-#                                       #
-#                                       #
 #      s                         s      #
 #                                       #
 #    ###########         ###########    #
-#                                       #
-#      s                         s      #
-#                                       #
-#    #####          #          #####    #
+#    #                             #    #
+#    #                             #    #
+#    #                             #    #
+#    #                             #    #
+#                   #                   #
 #                   #                   #
 #      s            #            s      #
 #                   #                   #
 #    ###########    #    ###########    #
-#                                       #
-#      s                         s      #
-#                                       #
+#                   #                   #
+#      g            #            g      #
+#                   #                   #
 #########################################`,
 ].map(createLevelFromText);
 

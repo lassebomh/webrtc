@@ -1,4 +1,4 @@
 export const BULLET = {
-  SPEED: 0.8,
-  GRAVITY: 0.03,
+  SPEED: 1.5,
+  GRAVITY: 0.01,
 };

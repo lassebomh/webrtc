@@ -80,6 +80,7 @@ type Level = {
   tiles: number[][];
   canvas: OffscreenCanvas;
   spawnPoints: { x: number; y: number }[];
+  gunLocations: { x: number; y: number }[];
 };
 
 type Particle = {

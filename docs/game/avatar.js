@@ -1,7 +1,7 @@
 import { fail, lin } from "../lib/utils.js";
 import { BULLET } from "./bullet.js";
 import { boxLevelTick, boxOnBoxCollision } from "./collision.js";
-import { renderGun } from "./guns.js";
+import { pistolRender } from "./guns.js";
 import { particleCreate } from "./particle.js";
 import { getPointAtDistance, random } from "./utils.js";
 
@@ -117,11 +117,11 @@ export function avatarTick(game, level, avatar, moveX, moveY, aimX, aimY, jump, 
     }
   }
 
-  if (avatar.box.wallBottom) {
-    avatar.box.dx /= 1.15;
-  }
+  // if (avatar.box.wallBottom) {
+  //   avatar.box.dx /= 1.15;
+  // }
 
-  avatar.box.dx /= 1.05;
+  avatar.box.dx /= 1.2;
 
   if (!pressingCrouch && (avatar.box.wallLeft || avatar.box.wallRight) && avatar.box.dy > 0) {
     avatar.box.dy /= AVATAR.VERTICAL_FRICTION;
@@ -201,8 +201,19 @@ export function avatarTick(game, level, avatar, moveX, moveY, aimX, aimY, jump, 
   }
 
   if (!avatar.rope.active) {
-    avatar.rope.box.x -= (avatar.rope.box.x - (avatar.box.x + avatar.box.width / 2 - avatar.rope.box.width / 2)) / 2;
-    avatar.rope.box.y -= (avatar.rope.box.y - (avatar.box.y + avatar.box.height / 2 - avatar.rope.box.height / 2)) / 2;
+    if (
+      Math.hypot(
+        avatar.body.x - (avatar.rope.box.x + avatar.rope.box.width / 2),
+        avatar.body.y - (avatar.rope.box.y + avatar.rope.box.height / 2)
+      ) > 2
+    ) {
+      avatar.rope.box.x -= (avatar.rope.box.x - (avatar.box.x + avatar.box.width / 2 - avatar.rope.box.width / 2)) / 4;
+      avatar.rope.box.y -=
+        (avatar.rope.box.y - (avatar.box.y + avatar.box.height / 2 - avatar.rope.box.height / 2)) / 4;
+    } else {
+      avatar.rope.box.x = avatar.box.x + avatar.box.width / 2 - avatar.rope.box.width / 2;
+      avatar.rope.box.y = avatar.box.y + avatar.box.width / 2 - avatar.rope.box.height / 2;
+    }
   } else if (avatar.rope.grabbingAvatarID) {
     const otherAvatar = game.avatars[avatar.rope.grabbingAvatarID];
     if (!otherAvatar) {
@@ -224,8 +235,8 @@ export function avatarTick(game, level, avatar, moveX, moveY, aimX, aimY, jump, 
           otherAvatar.box.dy += dy / dist;
         }
 
-        avatar.rope.box.x = otherAvatar.body.x - avatar.rope.box.width / 2;
-        avatar.rope.box.y = otherAvatar.body.y - avatar.rope.box.height / 2;
+        avatar.rope.box.x = otherAvatar.body.x - avatar.rope.box.width / 2 + 0.2;
+        avatar.rope.box.y = otherAvatar.body.y - avatar.rope.box.height / 2 + 0.2;
       }
     }
   } else if (avatar.rope.grabbingGunID) {
@@ -235,8 +246,8 @@ export function avatarTick(game, level, avatar, moveX, moveY, aimX, aimY, jump, 
       avatar.rope.grabbingGunID = undefined;
       avatar.rope.active = false;
     } else {
-      let dx = avatar.body.x - gun.box.x + gun.box.width / 2 - gun.box.dx * 5;
-      let dy = avatar.body.y - gun.box.y + gun.box.height / 2 - gun.box.dy * 5;
+      let dx = avatar.body.x - gun.box.x + gun.box.width / 2 - gun.box.dx * 2;
+      let dy = avatar.body.y - gun.box.y + gun.box.height / 2 - gun.box.dy * 2;
       const dist = (Math.hypot(dx, dy) + 1) * 10;
 
       if (dist !== 0) {
@@ -248,8 +259,8 @@ export function avatarTick(game, level, avatar, moveX, moveY, aimX, aimY, jump, 
       avatar.rope.box.y = gun.box.y - gun.box.height / 2 + avatar.rope.box.height / 2;
     }
   } else if (avatar.rope.grabbingWall) {
-    let dx = avatar.rope.box.x + avatar.rope.box.width / 2 - avatar.body.x - avatar.box.dx * 9;
-    let dy = avatar.rope.box.y + avatar.rope.box.height / 2 - avatar.body.y - avatar.box.dy * 9;
+    let dx = avatar.rope.box.x + avatar.rope.box.width / 2 - avatar.body.x - avatar.box.dx * 2;
+    let dy = avatar.rope.box.y + avatar.rope.box.height / 2 - avatar.body.y - avatar.box.dy * 2;
     const dist = (Math.hypot(dx, dy) + 1) * 10;
 
     if (dist !== 0) {
@@ -301,6 +312,18 @@ export function avatarTick(game, level, avatar, moveX, moveY, aimX, aimY, jump, 
         }
       }
     }
+
+    if (
+      !avatar.rope.grabbingWall &&
+      !avatar.rope.grabbingGunID &&
+      !avatar.rope.grabbingAvatarID &&
+      Math.hypot(
+        avatar.body.x - (avatar.rope.box.x + avatar.rope.box.width / 2),
+        avatar.body.y - (avatar.rope.box.y + avatar.rope.box.height / 2)
+      ) > 12
+    ) {
+      avatar.rope.active = false;
+    }
   }
 
   if (avatar.primaryArm.damage) {
@@ -321,7 +344,7 @@ export function avatarTick(game, level, avatar, moveX, moveY, aimX, aimY, jump, 
 
         const distance = Math.min(distanceToArm, distanceToBody);
 
-        if (distance < 0.5) {
+        if (distance < 0.75) {
           avatarTakeDamage(game, otherAvatar, 1, avatar.primaryArm.vx, avatar.primaryArm.vy);
           otherAvatar.box.dx += avatar.primaryArm.vx / 2;
           otherAvatar.box.dy += avatar.primaryArm.vy / 2;
@@ -329,8 +352,8 @@ export function avatarTick(game, level, avatar, moveX, moveY, aimX, aimY, jump, 
           otherAvatar.body.dy += avatar.primaryArm.vy * 2;
           avatar.box.dx -= avatar.primaryArm.vx / 3;
           avatar.box.dy -= avatar.primaryArm.vy / 3;
-          avatar.body.dx -= avatar.primaryArm.vx;
-          avatar.body.dy -= avatar.primaryArm.vy;
+          // avatar.body.dx -= avatar.primaryArm.vx * 2;
+          // avatar.body.dy -= avatar.primaryArm.vy * 2;
           avatar.primaryArm.damage = 0;
         }
       }
@@ -500,8 +523,9 @@ export function avatarRender(ctx, game, prevAvatar, avatar, alpha) {
   const armEndX = bodyX + primaryArmVX * primaryArmDistance;
   const armEndY = bodyY + primaryArmVY * primaryArmDistance;
 
-  // boxRender(ctx, avatar.box, avatar.box, "blue", 1);
+  // boxRender(ctx, avatar.box, avatar.box, "green", 1);
   // boxRender(ctx, avatar.rope.box, avatar.rope.box, "white", 1);
+
   const ropeX = lin(prevAvatar?.rope?.box.x, avatar.rope.box.x, alpha) + avatar.rope.box.width / 2;
   const ropeY = lin(prevAvatar?.rope?.box.y, avatar.rope.box.y, alpha) + avatar.rope.box.height / 2;
   const angle = Math.atan2(ropeY - bodyY, ropeX - bodyX);
@@ -517,8 +541,8 @@ export function avatarRender(ctx, game, prevAvatar, avatar, alpha) {
   ctx.strokeStyle = "#fff5";
   ctx.setLineDash([0.05, 0.05]);
   ctx.beginPath();
-  ctx.moveTo(bodyX + primaryArmVX * (avatar.box.width / 2 + 0.8), bodyY + primaryArmVY * (avatar.box.width / 2 + 0.8));
-  ctx.lineTo(bodyX + primaryArmVX * (avatar.box.width / 2 + 1), bodyY + primaryArmVY * (avatar.box.width / 2 + 1));
+  ctx.moveTo(bodyX + primaryArmVX * (avatar.box.width / 2 + 2), bodyY + primaryArmVY * (avatar.box.width / 2 + 2));
+  ctx.lineTo(bodyX + primaryArmVX * (avatar.box.width / 2 + 2.2), bodyY + primaryArmVY * (avatar.box.width / 2 + 2.2));
   ctx.stroke();
   ctx.setLineDash([]);
 
@@ -528,7 +552,7 @@ export function avatarRender(ctx, game, prevAvatar, avatar, alpha) {
     avatar.rope.grabbingAvatarID ||
     avatar.rope.grabbingGunID
   ) {
-    const width = Math.max(Math.min(5 / distance - 0.3, 3), 0);
+    const width = Math.max(Math.min(3 / distance - 0.3, 3), 0);
     const leftX = ropeStartX + vx * (distance / 3) + ox * width;
     const leftY = ropeStartY + vy * (distance / 3) + oy * width;
     const rightX = ropeStartX + vx * (distance * (2 / 3)) - ox * width;
@@ -611,7 +635,7 @@ export function avatarRender(ctx, game, prevAvatar, avatar, alpha) {
   }
 
   if (avatar.gun) {
-    renderGun(ctx, armEndX, armEndY, primaryArmAngle);
+    pistolRender(ctx, armEndX, armEndY, primaryArmAngle);
   }
 }
 
@@ -655,7 +679,7 @@ export function avatarTakeDamage(game, avatar, damage, dx, dy) {
       random(game, -0.2, 0.2) + dx,
       random(game, -0.2, 0.2) + dy,
       radius,
-      1.1,
+      1.2,
       1.1,
       0.01,
       avatar.color

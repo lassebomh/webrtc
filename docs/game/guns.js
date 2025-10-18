@@ -1,11 +1,10 @@
 /**
- *
  * @param {CanvasRenderingContext2D} ctx
  * @param {number} x
  * @param {number} y
  * @param {number} angle
  */
-export function renderGun(ctx, x, y, angle) {
+export function pistolRender(ctx, x, y, angle) {
   const forwardX = Math.cos(angle);
   const forwardY = Math.sin(angle);
   const downX = Math.cos(angle + Math.PI / 2);
@@ -26,4 +25,32 @@ export function renderGun(ctx, x, y, angle) {
   ctx.moveTo(x - forwardX * 0.1, y - forwardY * 0.1);
   ctx.lineTo(x + forwardX * gunLength - forwardX * 0.1, y + forwardY * gunLength - forwardY * 0.1);
   ctx.stroke();
+}
+
+/**
+ * @param {Game} game
+ * @param {number} x
+ * @param {number} y
+ * @returns {Gun}
+ */
+export function gunCreate(game, x, y) {
+  return (game.guns[game.autoid++] = {
+    box: {
+      x: x,
+      y: y,
+      dx: 0,
+      dy: 0,
+      width: 0.7,
+      height: 0.7,
+      bounce: 0.5,
+      wallBottom: false,
+      wallLeft: false,
+      wallRight: false,
+      wallTop: false,
+    },
+    bullets: 8,
+    cooldown: 10,
+    ticksUntilPickup: 0,
+    type: 0,
+  });
 }

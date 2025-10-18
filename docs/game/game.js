@@ -2,7 +2,7 @@ import { fail, lin, now } from "../lib/utils.js";
 import { AVATAR, avatarRender, avatarTakeDamage, avatarTick, createAvatar } from "./avatar.js";
 import { BULLET } from "./bullet.js";
 import { boxLevelTick, boxOnBoxCollision, boxOnPointCollision } from "./collision.js";
-import { renderGun as renderPistol } from "./guns.js";
+import { gunCreate, pistolRender } from "./guns.js";
 import { getTile, levels } from "./levels.js";
 import { particleCreate, particleRender, particleTick } from "./particle.js";
 import { random } from "./utils.js";
@@ -23,7 +23,7 @@ export const init = () =>
       y: 0,
       scale: 30,
     },
-    level: 0,
+    level: 1,
     guns: {},
     debug_points: [],
   });
@@ -35,7 +35,13 @@ export const tick = (game, inputs) => {
   if (game.tick === 1) {
     game.camera.x = level.box.width / 2 + 0.1;
     game.camera.y = level.box.height / 2 + 0.1;
-    game.camera.scale = 900 / level.box.height;
+    game.camera.scale = 1000 / level.box.height;
+  }
+
+  if (Object.keys(game.guns).length === 0) {
+    for (const { x, y } of level.gunLocations) {
+      gunCreate(game, x, y);
+    }
   }
 
   let avatarMeanX = 0;
@@ -57,44 +63,46 @@ export const tick = (game, inputs) => {
   bulletLoop: for (const bulletId in game.bullets) {
     const bullet = game.bullets[bulletId] ?? fail();
     bullet.dy += BULLET.GRAVITY;
-    bullet.x += bullet.dx;
-    bullet.y += bullet.dy;
+    for (let i = 0; i < 3; i++) {
+      bullet.x += bullet.dx / 3;
+      bullet.y += bullet.dy / 3;
 
-    if (
-      Math.floor(bullet.x) <= 0 ||
-      Math.floor(bullet.x) >= level.box.width - 1 ||
-      Math.floor(bullet.y) <= 0 ||
-      Math.floor(bullet.y) >= level.box.height - 1 ||
-      getTile(level, bullet.x, bullet.y) === 1
-    ) {
-      for (let i = 0; i < 2; i++) {
-        particleCreate(
-          game,
-          bullet.x,
-          bullet.y,
-          -bullet.dx + random(game, -0.1, 0.1),
-          -bullet.dy + random(game, -0.1, 0.1),
-          0.05,
-          1.15,
-          1.15,
-          0.1,
-          "white"
-        );
-      }
-      delete game.bullets[bulletId];
-      continue;
-    }
-
-    for (const avatarID in game.avatars) {
-      const avatar = game.avatars[avatarID] ?? fail();
-
-      if (boxOnPointCollision(avatar.box, bullet.x, bullet.y)) {
-        avatar.body.dx += bullet.dx;
-        avatar.body.dy += bullet.dy;
-
-        avatarTakeDamage(game, avatar, 1, bullet.dx / 3, bullet.dy / 3);
+      if (
+        Math.floor(bullet.x) <= 0 ||
+        Math.floor(bullet.x) >= level.box.width - 1 ||
+        Math.floor(bullet.y) <= 0 ||
+        Math.floor(bullet.y) >= level.box.height - 1 ||
+        getTile(level, bullet.x, bullet.y) === 1
+      ) {
+        for (let i = 0; i < 2; i++) {
+          particleCreate(
+            game,
+            bullet.x,
+            bullet.y,
+            -bullet.dx / 4 + random(game, -0.1, 0.1),
+            -bullet.dy / 4 + random(game, -0.1, 0.1),
+            0.05,
+            1.3,
+            1.15,
+            0.1,
+            "white"
+          );
+        }
         delete game.bullets[bulletId];
-        continue bulletLoop;
+        continue;
+      }
+
+      for (const avatarID in game.avatars) {
+        const avatar = game.avatars[avatarID] ?? fail();
+
+        if (boxOnPointCollision(avatar.box, bullet.x, bullet.y)) {
+          avatar.body.dx += bullet.dx;
+          avatar.body.dy += bullet.dy;
+
+          avatarTakeDamage(game, avatar, 1, bullet.dx / 3, bullet.dy / 3);
+          delete game.bullets[bulletId];
+          continue bulletLoop;
+        }
       }
     }
   }
@@ -121,26 +129,6 @@ export const tick = (game, inputs) => {
 
       avatar = createAvatar(game, safestSpawnPoint.x, safestSpawnPoint.y, player.color);
       player.avatarID = avatar.id;
-
-      // game.guns[game.autoid++] = {
-      //   box: {
-      //     x: safestSpawnPoint.x,
-      //     y: safestSpawnPoint.y,
-      //     dx: 0,
-      //     dy: 0,
-      //     width: 0.7,
-      //     height: 0.7,
-      //     bounce: 0.5,
-      //     wallBottom: false,
-      //     wallLeft: false,
-      //     wallRight: false,
-      //     wallTop: false,
-      //   },
-      //   bullets: 8,
-      //   cooldown: 10,
-      //   ticksUntilPickup: 0,
-      //   type: 0,
-      // };
     }
 
     if (!avatar) continue;
@@ -184,8 +172,8 @@ export const tick = (game, inputs) => {
         aimX = avatar.primaryArm.vx;
         aimY = avatar.primaryArm.vy;
       }
-      if (Math.abs(aimY) < 0.1) {
-        aimY = 0;
+      if (Math.abs(aimY) <= 0.1) {
+        aimY /= 3;
       }
 
       jump = device.buttona === 1 || device.lshoulder === 1;
@@ -263,7 +251,7 @@ export const render = (ctx, prev, curr, alpha) => {
     const y = lin(prevGun?.box.y, gun.box.y, alpha);
 
     // boxRender(ctx, prevGun?.box, gun.box, "red", alpha);
-    renderPistol(ctx, x + gun.box.width / 2, y + gun.box.height / 2, x);
+    pistolRender(ctx, x + gun.box.width / 2, y + gun.box.height / 2, x);
   }
 
   for (const avatarID in curr.avatars) {
