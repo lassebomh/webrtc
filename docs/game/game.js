@@ -107,7 +107,8 @@ export const tick = (game, inputs) => {
 
     let avatar = player.avatarID ? game.avatars[player.avatarID] ?? fail() : undefined;
 
-    if (player.avatarID === undefined && start) {
+    if (player.avatarID === undefined) {
+      // && start) {
       const spawnPointAvatarDistances = level.spawnPoints
         .map((spawnPoint) => {
           const avatars = Object.values(game.avatars);
@@ -119,28 +120,27 @@ export const tick = (game, inputs) => {
       const safestSpawnPoint = spawnPointAvatarDistances[0]?.[0] ?? fail();
 
       avatar = createAvatar(game, safestSpawnPoint.x, safestSpawnPoint.y, player.color);
-      game.avatars[avatar.id] = avatar;
       player.avatarID = avatar.id;
 
-      // game.guns[game.autoid++] = {
-      //   box: {
-      //     x: safestSpawnPoint.x,
-      //     y: safestSpawnPoint.y,
-      //     dx: 0,
-      //     dy: 0,
-      //     width: 0.7,
-      //     height: 0.7,
-      //     bounce: 0.5,
-      //     wallBottom: false,
-      //     wallLeft: false,
-      //     wallRight: false,
-      //     wallTop: false,
-      //   },
-      //   bullets: 8,
-      //   cooldown: 10,
-      //   ticksUntilPickup: 0,
-      //   type: 0,
-      // };
+      game.guns[game.autoid++] = {
+        box: {
+          x: safestSpawnPoint.x,
+          y: safestSpawnPoint.y,
+          dx: 0,
+          dy: 0,
+          width: 0.7,
+          height: 0.7,
+          bounce: 0.5,
+          wallBottom: false,
+          wallLeft: false,
+          wallRight: false,
+          wallTop: false,
+        },
+        bullets: 8,
+        cooldown: 10,
+        ticksUntilPickup: 0,
+        type: 0,
+      };
     }
 
     if (!avatar) continue;

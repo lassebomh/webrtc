@@ -333,9 +333,8 @@ export function avatarTick(game, level, avatar, moveX, moveY, aimX, aimY, jump, 
   } else if (avatar.rope.grabbingAvatarID) {
   } else if (avatar.rope.grabbingGunID) {
   } else if (avatar.rope.grabbingWall) {
-    let dx = avatar.rope.box.x + avatar.rope.box.width / 2 - (avatar.box.x + avatar.box.width / 2) - avatar.box.dx * 9;
-    let dy =
-      avatar.rope.box.y + avatar.rope.box.height / 2 - (avatar.box.y + avatar.box.height / 2) - avatar.box.dy * 9;
+    let dx = avatar.rope.box.x + avatar.rope.box.width / 2 - avatar.body.x - avatar.box.dx * 9;
+    let dy = avatar.rope.box.y + avatar.rope.box.height / 2 - avatar.body.y - avatar.box.dy * 9;
     const dist = Math.hypot(dx, dy) + 1;
 
     if (dist !== 0) {
@@ -526,6 +525,23 @@ export function avatarTakeDamage(game, avatar, damage, dx, dy) {
   avatar.faceTicks = 30;
   avatar.health -= damage;
 
+  for (let i = 0; i < 3; i++) {
+    const angle = random(game, 0, Math.PI * 2);
+    const radius = random(game, 0.2, 0.5) * (AVATAR.WIDTH / 2);
+    particleCreate(
+      game,
+      avatar.body.x + dx,
+      avatar.body.y + dy,
+      random(game, -0.2, 0.2) + dx,
+      random(game, -0.2, 0.2) + dy,
+      radius,
+      1.1,
+      1.1,
+      0.01,
+      avatar.color
+    );
+  }
+
   if (avatar.health <= 0) {
     for (const deviceID in game.players) {
       const player = game.players[deviceID] ?? fail();
@@ -534,19 +550,19 @@ export function avatarTakeDamage(game, avatar, damage, dx, dy) {
         break;
       }
     }
-    for (let i = 0; i < 15; i++) {
+    for (let i = 0; i < 10; i++) {
       const angle = random(game, 0, Math.PI * 2);
-      const radius = random(game, 0.5, 1.2) * (AVATAR.WIDTH / 2);
+      const radius = random(game, 0.3, 0.7) * (AVATAR.WIDTH / 2);
       particleCreate(
         game,
         avatar.body.x + Math.cos(angle) * (AVATAR.WIDTH / 2 - radius),
         avatar.body.y + Math.sin(angle) * (AVATAR.WIDTH / 2 - radius),
-        random(game, -0.2, 0.2) + dx,
-        random(game, -0.2, 0.2) + dy,
+        random(game, -0.3, 0.3) + dx / 4,
+        random(game, -0.3, 0.3) + dy / 4,
         radius,
         1.05,
         1.1,
-        0.35,
+        0.05,
         avatar.color
       );
     }
@@ -554,23 +570,6 @@ export function avatarTakeDamage(game, avatar, damage, dx, dy) {
       avatarDropWeapon(game, avatar, dx / 3 + random(game, -0.2, 0.2), dy / 3 - random(game, 0.2, 0.5));
     }
     delete game.avatars[avatar.id];
-  } else {
-    for (let i = 0; i < 3; i++) {
-      const angle = random(game, 0, Math.PI * 2);
-      const radius = random(game, 0.3, 0.5) * (AVATAR.WIDTH / 2);
-      particleCreate(
-        game,
-        avatar.body.x + Math.cos(angle) * (AVATAR.WIDTH / 2 - radius),
-        avatar.body.y + Math.sin(angle) * (AVATAR.WIDTH / 2 - radius),
-        random(game, -0.2, 0.2) + dx,
-        random(game, -0.2, 0.2) + dy,
-        radius,
-        1.05,
-        1.1,
-        0.02,
-        avatar.color
-      );
-    }
   }
 }
 
@@ -582,7 +581,8 @@ export function avatarTakeDamage(game, avatar, damage, dx, dy) {
  * @returns {Avatar}
  */
 export function createAvatar(game, x, y, color) {
-  return {
+  /** @type {Avatar} */
+  const avatar = {
     id: (game.autoid++).toString(),
     box: {
       x: x,
@@ -652,4 +652,7 @@ export function createAvatar(game, x, y, color) {
       dy: 0,
     },
   };
+
+  game.avatars[avatar.id] = avatar;
+  return avatar;
 }
