@@ -145,7 +145,7 @@ export async function run({ tick, render, init }) {
     mouseX = event.clientX - window.innerWidth / 2;
     mouseY = event.clientY - window.innerHeight / 2;
   });
-  ctx.canvas.addEventListener("pointerdown", (event) => {
+  ctx.canvas.addEventListener("mousedown", (event) => {
     /** @type {InputEntry} */
     const inputEntry = {
       time: now(),
@@ -156,7 +156,7 @@ export async function run({ tick, render, init }) {
     addInputEntry(inputEntry);
     send({ type: "input", data: [inputEntry] });
   });
-  ctx.canvas.addEventListener("pointerup", (event) => {
+  ctx.canvas.addEventListener("mouseup", (event) => {
     /** @type {InputEntry} */
     const inputEntry = {
       time: now(),

@@ -55,7 +55,8 @@ type Avatar = {
     dx: number;
     dy: number;
   };
-  cooldown: number;
+  primaryCooldown: number;
+  secondaryCooldown: number;
 };
 
 type Bullet = {
