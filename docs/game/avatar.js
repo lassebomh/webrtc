@@ -43,6 +43,18 @@ export const AVATAR = {
  * @param {boolean} secondary
  */
 export function avatarTick(game, level, avatar, moveX, moveY, aimX, aimY, jump, primary, secondary) {
+  const aimDist = Math.hypot(aimX, aimY);
+  if (aimDist !== 0) {
+    aimX /= aimDist;
+    aimY /= aimDist;
+  }
+
+  const moveDist = Math.hypot(moveX, moveY);
+  if (moveDist !== 0) {
+    moveX /= moveDist;
+    moveY /= moveDist;
+  }
+
   const pressingCrouch = moveY > 0.6;
 
   const targetHeight = lin(AVATAR.HEIGHT, AVATAR.CROUCH_HEIGHT, Math.min(1, Math.max(0, (moveY - 0.6) / (1 - 0.6))));
@@ -500,6 +512,16 @@ export function avatarRender(ctx, game, prevAvatar, avatar, alpha) {
   const ropeStartX = bodyX;
   const ropeStartY = bodyY;
   const distance = Math.hypot(ropeY - ropeStartY, ropeX - ropeStartX);
+
+  ctx.lineWidth = 0.05;
+  ctx.strokeStyle = "#fff5";
+  ctx.setLineDash([0.05, 0.05]);
+  ctx.beginPath();
+  ctx.moveTo(bodyX + primaryArmVX * (avatar.box.width / 2 + 0.8), bodyY + primaryArmVY * (avatar.box.width / 2 + 0.8));
+  ctx.lineTo(bodyX + primaryArmVX * (avatar.box.width / 2 + 1), bodyY + primaryArmVY * (avatar.box.width / 2 + 1));
+  ctx.stroke();
+  ctx.setLineDash([]);
+
   if (
     distance > avatar.box.width * 2 ||
     avatar.rope.grabbingWall ||

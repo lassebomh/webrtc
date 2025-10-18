@@ -184,6 +184,9 @@ export const tick = (game, inputs) => {
         aimX = avatar.primaryArm.vx;
         aimY = avatar.primaryArm.vy;
       }
+      if (Math.abs(aimY) < 0.1) {
+        aimY = 0;
+      }
 
       jump = device.buttona === 1 || device.lshoulder === 1;
       secondary = device.buttonb === 1 || (device.ltrigger ?? 0) > 0.5;
@@ -197,10 +200,6 @@ export const tick = (game, inputs) => {
 
       aimX = mouseX - avatar.body.x;
       aimY = mouseY - avatar.body.y;
-      const aimDist = Math.hypot(aimX, aimY);
-
-      aimX /= aimDist;
-      aimY /= aimDist;
 
       jump = Boolean(device.space || device.w);
       secondary = Boolean(device.r || device.mouserightbutton);
