@@ -23,7 +23,7 @@ export const init = () =>
       y: 0,
       scale: 30,
     },
-    level: 1,
+    level: 0,
     guns: {},
     debug_points: [],
   });
@@ -122,25 +122,25 @@ export const tick = (game, inputs) => {
       game.avatars[avatar.id] = avatar;
       player.avatarID = avatar.id;
 
-      game.guns[game.autoid++] = {
-        box: {
-          x: safestSpawnPoint.x,
-          y: safestSpawnPoint.y,
-          dx: 0,
-          dy: 0,
-          width: 0.7,
-          height: 0.7,
-          bounce: 0.5,
-          wallBottom: false,
-          wallLeft: false,
-          wallRight: false,
-          wallTop: false,
-        },
-        bullets: 8,
-        cooldown: 0,
-        ticksUntilPickup: 0,
-        type: 0,
-      };
+      // game.guns[game.autoid++] = {
+      //   box: {
+      //     x: safestSpawnPoint.x,
+      //     y: safestSpawnPoint.y,
+      //     dx: 0,
+      //     dy: 0,
+      //     width: 0.7,
+      //     height: 0.7,
+      //     bounce: 0.5,
+      //     wallBottom: false,
+      //     wallLeft: false,
+      //     wallRight: false,
+      //     wallTop: false,
+      //   },
+      //   bullets: 8,
+      //   cooldown: 10,
+      //   ticksUntilPickup: 0,
+      //   type: 0,
+      // };
     }
 
     if (!avatar) continue;

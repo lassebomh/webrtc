@@ -112,16 +112,94 @@ export function avatarTick(game, level, avatar, moveX, moveY, aimX, aimY, jump, 
     avatar.facing = Math.sign(avatar.box.dx);
   }
 
+  avatar.primaryArm.vx -= (avatar.primaryArm.vx - aimX) / 2;
+  avatar.primaryArm.vy -= (avatar.primaryArm.vy - aimY) / 2;
+
+  const primaryArmDistance = avatar.gun !== undefined ? 0.8 : 0;
+
+  let firing = false;
+  if (fire && avatar.cooldown === 0) {
+    avatar.cooldown = avatar.gun?.cooldown ?? 10;
+    firing = true;
+  }
+
+  if (avatar.cooldown > 1) {
+    avatar.cooldown--;
+  } else if (avatar.cooldown === 1 && !fire) {
+    avatar.cooldown = 0;
+  }
+
+  if (firing) {
+    if (avatar.gun) {
+      avatar.primaryArm.dangle -= Math.sign(aimX) * random(game, 0.5, 1.5);
+      avatar.primaryArm.ddistance -= random(game, 0.5, 0.5);
+
+      game.bullets[game.autoid++] = {
+        x: avatar.body.x + aimX * avatar.primaryArm.distance,
+        y: avatar.body.y + aimY * avatar.primaryArm.distance,
+        dx: aimX * BULLET.SPEED,
+        dy: aimY * BULLET.SPEED,
+      };
+      avatar.gun.bullets--;
+      if (avatar.gun.bullets <= 0) {
+        avatarDropWeapon(game, avatar, random(game, -0.1, 0.1), -random(game, 0.2, 0.3));
+      }
+    } else {
+      avatar.primaryArm.ddistance += 2;
+      avatar.box.dx += avatar.primaryArm.vx / 10;
+      avatar.box.dy += avatar.primaryArm.vy / 10;
+      avatar.body.dx += avatar.primaryArm.vx;
+      avatar.body.dy += avatar.primaryArm.vy / (avatar.box.wallBottom ? 1 : 3);
+      avatar.primaryArm.damage = 1;
+      // avatar.primaryArm.dangle += random(game, -1.5, 1.5);
+    }
+  }
+
+  if (avatar.primaryArm.damage) {
+    if (avatar.cooldown === 1) {
+      avatar.primaryArm.damage = 0;
+    } else {
+      for (const otherAvatarID in game.avatars) {
+        if (otherAvatarID === avatar.id) continue;
+        const otherAvatar = game.avatars[otherAvatarID] ?? fail();
+
+        const primaryArmDistance = avatar.primaryArm.distance + avatar.primaryArm.ddistance;
+
+        const armEndX = avatar.body.x + avatar.primaryArm.vx * primaryArmDistance;
+        const armEndY = avatar.body.y + avatar.primaryArm.vy * primaryArmDistance;
+
+        const distanceToArm = Math.hypot(otherAvatar.body.x - armEndX, otherAvatar.body.y - armEndY);
+        const distanceToBody = Math.hypot(otherAvatar.body.x - avatar.body.x, otherAvatar.body.y - avatar.body.y);
+
+        const distance = Math.min(distanceToArm, distanceToBody);
+
+        if (distance < 0.5) {
+          avatarTakeDamage(game, otherAvatar, 1, avatar.primaryArm.vx, avatar.primaryArm.vy);
+          otherAvatar.box.dx += avatar.primaryArm.vx / 2;
+          otherAvatar.box.dy += avatar.primaryArm.vy / 2;
+          otherAvatar.body.dx += avatar.primaryArm.vx * 2;
+          otherAvatar.body.dy += avatar.primaryArm.vy * 2;
+          avatar.primaryArm.damage = 0;
+        }
+      }
+    }
+  }
+
+  avatar.primaryArm.distance -= (avatar.primaryArm.distance - primaryArmDistance) / 4;
+
+  avatar.primaryArm.ddistance /= 1.3;
+  avatar.primaryArm.dangle /= 1.3;
+
   avatar.body.dx -= (avatar.body.dx - avatar.box.dx * 2) / 3;
   avatar.body.dy -= (avatar.body.dy - avatar.box.dy * 2) / 3;
 
   avatar.body.x += avatar.body.dx;
   avatar.body.y += avatar.body.dy;
 
-  avatar.body.x -= (avatar.body.x - (avatar.box.x + avatar.box.width / 2 - avatar.box.dx)) / 3;
-  avatar.body.y -= (avatar.body.y - (avatar.box.y + avatar.box.width / 2 - avatar.box.dy)) / 3;
+  avatar.body.x -= (avatar.body.x - (avatar.box.x + avatar.box.width / 2 - avatar.box.dx)) / 2.5;
+  avatar.body.y -= (avatar.body.y - (avatar.box.y + avatar.box.width / 2 - avatar.box.dy)) / 2.5;
 
-  const gaitAngle = avatar.box.x * 2;
+  const gaitAngle = avatar.body.x * 2.5;
   const gaitMagnitudeHorizontal = 0.3;
   const gaitMagnitudeVertical = 0.2;
   const legStartDistanceFromBody = 1 / 4;
@@ -191,45 +269,6 @@ export function avatarTick(game, level, avatar, moveX, moveY, aimX, aimY, jump, 
     );
   }
 
-  avatar.primaryArm.vx -= (avatar.primaryArm.vx - aimX) / 2;
-  avatar.primaryArm.vy -= (avatar.primaryArm.vy - aimY) / 2;
-
-  const primaryArmDistance = avatar.gun !== undefined ? 0.8 : 0;
-
-  if (avatar.gun) {
-    let firing = false;
-    if (fire && avatar.gun.cooldown === 0) {
-      avatar.primaryArm.dangle -= Math.sign(aimX) * random(game, 0.5, 1.5);
-      avatar.primaryArm.ddistance -= random(game, 0.5, 0.5);
-      avatar.gun.cooldown = 10;
-      firing = true;
-    }
-
-    if (avatar.gun.cooldown > 1) {
-      avatar.gun.cooldown--;
-    } else if (avatar.gun.cooldown === 1 && !fire) {
-      avatar.gun.cooldown = 0;
-    }
-
-    if (firing) {
-      game.bullets[game.autoid++] = {
-        x: avatar.body.x + aimX * avatar.primaryArm.distance,
-        y: avatar.body.y + aimY * avatar.primaryArm.distance,
-        dx: aimX * BULLET.SPEED,
-        dy: aimY * BULLET.SPEED,
-      };
-      avatar.gun.bullets--;
-      if (avatar.gun.bullets <= 0) {
-        avatarDropWeapon(game, avatar, random(game, -0.1, 0.1), -random(game, 0.2, 0.3));
-      }
-    }
-  }
-
-  avatar.primaryArm.distance -= (avatar.primaryArm.distance - primaryArmDistance) / 4;
-
-  avatar.primaryArm.ddistance /= 1.3;
-  avatar.primaryArm.dangle /= 1.3;
-
   boxLevelTick(level, avatar.box);
 
   if (avatar.faceTicks === 0) {
@@ -284,7 +323,7 @@ export function avatarRender(ctx, prevAvatar, avatar, alpha) {
   const primaryArmAngle =
     Math.atan2(primaryArmVY, primaryArmVX) + lin(prevAvatar?.primaryArm.dangle, avatar.primaryArm.dangle, alpha);
   const primaryArmDistance =
-    lin(prevAvatar?.primaryArm.distance, avatar.primaryArm.distance, 1) +
+    lin(prevAvatar?.primaryArm.distance, avatar.primaryArm.distance, alpha) +
     lin(prevAvatar?.primaryArm.ddistance, avatar.primaryArm.ddistance, alpha);
 
   const feetLeftStartX = lin(prevAvatar?.feet.leftStartX, avatar.feet.leftStartX, alpha);
@@ -459,6 +498,7 @@ export function createAvatar(game, x, y, color) {
       wallRight: false,
     },
     gun: undefined,
+    cooldown: 0,
 
     jumpHeld: 0,
     fallingTicks: 0,
@@ -491,6 +531,7 @@ export function createAvatar(game, x, y, color) {
       dangle: 0,
       ddistance: 0,
       distance: 0,
+      damage: 0,
     },
     body: {
       angle: 0,

@@ -37,6 +37,7 @@ type Avatar = {
     distance: number;
     dangle: number;
     ddistance: number;
+    damage: number;
   };
   gun: Gun | undefined;
   body: {
@@ -46,6 +47,7 @@ type Avatar = {
     dx: number;
     dy: number;
   };
+  cooldown: number;
 };
 
 type Bullet = {
