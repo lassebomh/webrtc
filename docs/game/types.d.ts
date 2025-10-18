@@ -47,6 +47,7 @@ type Avatar = {
     grabbingGunID?: string | undefined;
     grabbingWall?: boolean | undefined;
   };
+  grabbedByAvatarID?: string | undefined;
 
   body: {
     angle: number;

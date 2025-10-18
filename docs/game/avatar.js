@@ -170,11 +170,18 @@ export function avatarTick(game, level, avatar, moveX, moveY, aimX, aimY, jump, 
       avatar.rope.active = true;
       avatar.rope.box.dx = aimX;
       avatar.rope.box.dy = aimY;
-      avatar.secondaryCooldown = 1;
+      avatar.secondaryCooldown = 7;
     }
   }
 
   if (!secondary && avatar.rope.active) {
+    if (avatar.rope.grabbingAvatarID) {
+      const otherAvatar = game.avatars[avatar.rope.grabbingAvatarID];
+      if (otherAvatar) {
+        otherAvatar.grabbedByAvatarID = undefined;
+      }
+    }
+
     avatar.rope.active = false;
     avatar.rope.grabbingGunID = undefined;
     avatar.rope.grabbingAvatarID = undefined;
@@ -185,6 +192,30 @@ export function avatarTick(game, level, avatar, moveX, moveY, aimX, aimY, jump, 
     avatar.rope.box.x -= (avatar.rope.box.x - (avatar.box.x + avatar.box.width / 2 - avatar.rope.box.width / 2)) / 2;
     avatar.rope.box.y -= (avatar.rope.box.y - (avatar.box.y + avatar.box.height / 2 - avatar.rope.box.height / 2)) / 2;
   } else if (avatar.rope.grabbingAvatarID) {
+    const otherAvatar = game.avatars[avatar.rope.grabbingAvatarID];
+    if (!otherAvatar) {
+      avatar.rope.grabbingAvatarID = undefined;
+      avatar.rope.active = false;
+    } else {
+      let dx = avatar.body.x - otherAvatar.box.x + otherAvatar.box.width / 2;
+      let dy = avatar.body.y - otherAvatar.box.y + otherAvatar.box.height / 2;
+      const distance = Math.hypot(dx, dy);
+      if (distance < 2) {
+        otherAvatar.grabbedByAvatarID = undefined;
+        avatar.rope.grabbingAvatarID = undefined;
+        avatar.rope.active = false;
+      } else {
+        const dist = (distance + 1) * 10;
+
+        if (dist !== 0) {
+          otherAvatar.box.dx += dx / dist;
+          otherAvatar.box.dy += dy / dist;
+        }
+
+        avatar.rope.box.x = otherAvatar.body.x - avatar.rope.box.width / 2;
+        avatar.rope.box.y = otherAvatar.body.y - avatar.rope.box.height / 2;
+      }
+    }
   } else if (avatar.rope.grabbingGunID) {
     const gun = game.guns[avatar.rope.grabbingGunID];
 
@@ -192,8 +223,8 @@ export function avatarTick(game, level, avatar, moveX, moveY, aimX, aimY, jump, 
       avatar.rope.grabbingGunID = undefined;
       avatar.rope.active = false;
     } else {
-      let dx = avatar.body.x - gun.box.x + gun.box.width / 2 - gun.box.dx * 4;
-      let dy = avatar.body.y - gun.box.y + gun.box.height / 2 - gun.box.dy * 4;
+      let dx = avatar.body.x - gun.box.x + gun.box.width / 2 - gun.box.dx * 5;
+      let dy = avatar.body.y - gun.box.y + gun.box.height / 2 - gun.box.dy * 5;
       const dist = (Math.hypot(dx, dy) + 1) * 10;
 
       if (dist !== 0) {
@@ -233,12 +264,27 @@ export function avatarTick(game, level, avatar, moveX, moveY, aimX, aimY, jump, 
         avatar.rope.box.x += avatar.rope.box.width / 2;
       }
       avatar.rope.grabbingWall = true;
-    } else {
+    }
+
+    if (!avatar.rope.grabbingWall) {
       for (const gunID in game.guns) {
         const gun = game.guns[gunID] ?? fail();
 
         if (boxOnBoxCollision(gun.box, avatar.rope.box)) {
           avatar.rope.grabbingGunID = gunID;
+          break;
+        }
+      }
+    }
+
+    if (!avatar.rope.grabbingWall && !avatar.rope.grabbingGunID) {
+      for (const otherAvatarID in game.avatars) {
+        if (otherAvatarID === avatar.id) continue;
+        const otherAvatar = game.avatars[otherAvatarID] ?? fail();
+
+        if (boxOnBoxCollision(otherAvatar.box, avatar.rope.box)) {
+          avatar.rope.grabbingAvatarID = otherAvatarID;
+          otherAvatar.grabbedByAvatarID = avatar.id;
           break;
         }
       }
@@ -269,6 +315,10 @@ export function avatarTick(game, level, avatar, moveX, moveY, aimX, aimY, jump, 
           otherAvatar.box.dy += avatar.primaryArm.vy / 2;
           otherAvatar.body.dx += avatar.primaryArm.vx * 2;
           otherAvatar.body.dy += avatar.primaryArm.vy * 2;
+          avatar.box.dx -= avatar.primaryArm.vx / 3;
+          avatar.box.dy -= avatar.primaryArm.vy / 3;
+          avatar.body.dx -= avatar.primaryArm.vx;
+          avatar.body.dy -= avatar.primaryArm.vy;
           avatar.primaryArm.damage = 0;
         }
       }
@@ -386,7 +436,13 @@ export function avatarTick(game, level, avatar, moveX, moveY, aimX, aimY, jump, 
         }
         avatar.health -= 4;
         gun.ticksUntilPickup = 10;
-      } else if (avatar.gun === undefined) {
+      } else if (
+        avatar.gun === undefined &&
+        ((avatar.rope.grabbingGunID === undefined &&
+          avatar.rope.grabbingAvatarID === undefined &&
+          avatar.rope.grabbingWall === undefined) ||
+          gunID === avatar.rope.grabbingGunID)
+      ) {
         avatar.gun = gun;
         delete game.guns[gunID];
       }
@@ -397,11 +453,12 @@ export function avatarTick(game, level, avatar, moveX, moveY, aimX, aimY, jump, 
 /**
  *
  * @param {CanvasRenderingContext2D} ctx
+ * @param {Game} game
  * @param {Avatar | undefined} prevAvatar
  * @param {Avatar} avatar
  * @param {number} alpha
  */
-export function avatarRender(ctx, prevAvatar, avatar, alpha) {
+export function avatarRender(ctx, game, prevAvatar, avatar, alpha) {
   const bodyX = lin(prevAvatar?.body.x, avatar.body.x, alpha);
   const bodyY = lin(prevAvatar?.body.y, avatar.body.y, alpha);
   const primaryArmVX = lin(prevAvatar?.primaryArm.vx, avatar.primaryArm.vx, alpha);
@@ -425,6 +482,11 @@ export function avatarRender(ctx, prevAvatar, avatar, alpha) {
   const feetRightEndY = lin(prevAvatar?.feet.rightY, avatar.feet.rightY, alpha);
   const feetRightKneeX = lin(prevAvatar?.feet.rightKneeX, avatar.feet.rightKneeX, alpha);
   const feetRightKneeY = lin(prevAvatar?.feet.rightKneeY, avatar.feet.rightKneeY, alpha);
+
+  const armStartX = bodyX + primaryArmVX * (avatar.box.width / 4);
+  const armStartY = bodyY + primaryArmVY * (avatar.box.width / 4);
+  const armEndX = bodyX + primaryArmVX * primaryArmDistance;
+  const armEndY = bodyY + primaryArmVY * primaryArmDistance;
 
   // boxRender(ctx, avatar.box, avatar.box, "blue", 1);
   // boxRender(ctx, avatar.rope.box, avatar.rope.box, "white", 1);
@@ -450,8 +512,6 @@ export function avatarRender(ctx, prevAvatar, avatar, alpha) {
     const rightX = ropeStartX + vx * (distance * (2 / 3)) - ox * width;
     const rightY = ropeStartY + vy * (distance * (2 / 3)) - oy * width;
 
-    ctx.lineWidth = 0.15;
-    ctx.strokeStyle = "#63351eff";
     ctx.beginPath();
     if (avatar.rope.grabbingWall || avatar.rope.grabbingAvatarID || avatar.rope.grabbingGunID) {
       ctx.moveTo(ropeX, ropeY);
@@ -460,6 +520,8 @@ export function avatarRender(ctx, prevAvatar, avatar, alpha) {
       ctx.moveTo(ropeX, ropeY);
       ctx.bezierCurveTo(rightX, rightY, leftX, leftY, ropeStartX, ropeStartY);
     }
+    ctx.lineWidth = 0.15;
+    ctx.strokeStyle = "#63351eff";
     ctx.stroke();
     ctx.strokeStyle = "#804f37ff";
     ctx.setLineDash([0.5, 0.5]);
@@ -485,11 +547,6 @@ export function avatarRender(ctx, prevAvatar, avatar, alpha) {
   ctx.quadraticCurveTo(feetRightKneeX, feetRightKneeY, feetRightEndX, feetRightEndY);
   ctx.stroke();
 
-  const armStartX = bodyX + primaryArmVX * (avatar.box.width / 4);
-  const armStartY = bodyY + primaryArmVY * (avatar.box.width / 4);
-  const armEndX = bodyX + primaryArmVX * primaryArmDistance;
-  const armEndY = bodyY + primaryArmVY * primaryArmDistance;
-
   let armElbowX;
   let armElbowY;
 
@@ -514,6 +571,22 @@ export function avatarRender(ctx, prevAvatar, avatar, alpha) {
   ctx.fillStyle = "black";
   ctx.fillText(avatar.face, 0, 0);
   ctx.restore();
+
+  if (avatar.grabbedByAvatarID) {
+    const otherAvatar = game.avatars[avatar.grabbedByAvatarID];
+    if (otherAvatar) {
+      const v = avatar.box.width / 2;
+      ctx.beginPath();
+      ctx.moveTo(bodyX - v, bodyY + 0.2);
+      ctx.lineTo(bodyX + v, bodyY + 0.2);
+      ctx.lineWidth = 0.15;
+      ctx.strokeStyle = "#63351eff";
+      ctx.stroke();
+      ctx.strokeStyle = "#804f37ff";
+      ctx.setLineDash([0.5, 0.5]);
+      ctx.stroke();
+    }
+  }
 
   if (avatar.gun) {
     renderGun(ctx, armEndX, armEndY, primaryArmAngle);
@@ -552,7 +625,7 @@ export function avatarTakeDamage(game, avatar, damage, dx, dy) {
   avatar.health -= damage;
 
   for (let i = 0; i < 3; i++) {
-    const radius = random(game, 0.2, 0.5) * (AVATAR.WIDTH / 2);
+    const radius = random(game, 0.2, 0.5) * (avatar.box.width / 2);
     particleCreate(
       game,
       avatar.body.x + dx,
@@ -577,14 +650,28 @@ export function avatarTakeDamage(game, avatar, damage, dx, dy) {
     }
     for (let i = 0; i < 10; i++) {
       const angle = random(game, 0, Math.PI * 2);
-      const radius = random(game, 0.3, 0.7) * (AVATAR.WIDTH / 2);
+      const radius = random(game, 0.3, 0.7) * (avatar.box.width / 2);
       particleCreate(
         game,
-        avatar.body.x + Math.cos(angle) * (AVATAR.WIDTH / 2 - radius),
-        avatar.body.y + Math.sin(angle) * (AVATAR.WIDTH / 2 - radius),
+        avatar.body.x + Math.cos(angle) * (avatar.box.width / 2 - radius),
+        avatar.body.y + Math.sin(angle) * (avatar.box.width / 2 - radius),
         random(game, -0.3, 0.3) + dx / 4,
         random(game, -0.3, 0.3) + dy / 4,
         radius,
+        1.05,
+        1.1,
+        0.05,
+        avatar.color
+      );
+    }
+    for (let i = 0; i < 3; i++) {
+      particleCreate(
+        game,
+        avatar.body.x,
+        avatar.body.y,
+        dx / 4,
+        random(game, -0.2, 0.2) + dy / 4,
+        avatar.box.width / 2,
         1.05,
         1.1,
         0.05,

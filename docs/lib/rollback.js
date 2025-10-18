@@ -203,8 +203,9 @@ export async function run({ tick, render, init }) {
     for (const gamepad of navigator.getGamepads()) {
       if (gamepad) {
         const deviceID = defaultDeviceID + "-gp-" + gamepad.index.toString();
-        if (gamepad.axes.length >= 4) {
-          const [lstickx, lsticky, rstickx, rsticky] = /** @type {[number,number,number,number]} */ (gamepad.axes);
+        if (gamepad.axes.length >= 6) {
+          const [lstickx, lsticky, rstickx, rsticky, ltrigger, rtrigger] =
+            /** @type {[number,number,number,number,number,number]} */ (gamepad.axes);
 
           inputEntries.push(
             {
@@ -230,12 +231,24 @@ export async function run({ tick, render, init }) {
               deviceID,
               key: "rsticky",
               value: rsticky,
+            },
+            {
+              time,
+              deviceID,
+              key: "ltrigger",
+              value: (ltrigger + 1) / 2,
+            },
+            {
+              time,
+              deviceID,
+              key: "rtrigger",
+              value: (rtrigger + 1) / 2,
             }
           );
         }
 
         if (gamepad.buttons.length >= 6) {
-          const [buttona, buttonb, buttony, buttonx, lt, rt] =
+          const [buttona, buttonb, buttony, buttonx, lshoulder, rshoulder] =
             /** @type {[number,number,number,number,number,number]} */ (gamepad.buttons.map((x) => x.value));
           inputEntries.push(
             {
@@ -265,14 +278,14 @@ export async function run({ tick, render, init }) {
             {
               time,
               deviceID,
-              key: "lt",
-              value: lt,
+              key: "lshoulder",
+              value: lshoulder,
             },
             {
               time,
               deviceID,
-              key: "rt",
-              value: rt,
+              key: "rshoulder",
+              value: rshoulder,
             }
           );
         }

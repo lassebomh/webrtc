@@ -122,25 +122,25 @@ export const tick = (game, inputs) => {
       avatar = createAvatar(game, safestSpawnPoint.x, safestSpawnPoint.y, player.color);
       player.avatarID = avatar.id;
 
-      game.guns[game.autoid++] = {
-        box: {
-          x: safestSpawnPoint.x,
-          y: safestSpawnPoint.y,
-          dx: 0,
-          dy: 0,
-          width: 0.7,
-          height: 0.7,
-          bounce: 0.5,
-          wallBottom: false,
-          wallLeft: false,
-          wallRight: false,
-          wallTop: false,
-        },
-        bullets: 8,
-        cooldown: 10,
-        ticksUntilPickup: 0,
-        type: 0,
-      };
+      // game.guns[game.autoid++] = {
+      //   box: {
+      //     x: safestSpawnPoint.x,
+      //     y: safestSpawnPoint.y,
+      //     dx: 0,
+      //     dy: 0,
+      //     width: 0.7,
+      //     height: 0.7,
+      //     bounce: 0.5,
+      //     wallBottom: false,
+      //     wallLeft: false,
+      //     wallRight: false,
+      //     wallTop: false,
+      //   },
+      //   bullets: 8,
+      //   cooldown: 10,
+      //   ticksUntilPickup: 0,
+      //   type: 0,
+      // };
     }
 
     if (!avatar) continue;
@@ -185,9 +185,9 @@ export const tick = (game, inputs) => {
         aimY = avatar.primaryArm.vy;
       }
 
-      jump = device.buttona === 1 || device.lt === 1;
-      secondary = device.buttonb === 1;
-      primary = device.rt === 1;
+      jump = device.buttona === 1 || device.lshoulder === 1;
+      secondary = device.buttonb === 1 || (device.ltrigger ?? 0) > 0.5;
+      primary = device.rshoulder === 1;
     } else {
       moveX = (device?.d ?? 0) - (device?.a ?? 0);
       moveY = (device?.s ?? 0) - (device?.w ?? 0);
@@ -272,7 +272,7 @@ export const render = (ctx, prev, curr, alpha) => {
     const prevAvatar = prev.avatars[avatarID];
 
     // boxRender(ctx, prevAvatar?.box, avatar.box, "red", alpha);
-    avatarRender(ctx, prevAvatar, avatar, alpha);
+    avatarRender(ctx, curr, prevAvatar, avatar, alpha);
   }
 
   for (const bulletId in curr.bullets) {
