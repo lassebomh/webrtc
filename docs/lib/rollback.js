@@ -149,7 +149,7 @@ export async function run({ tick, render, init }) {
     /** @type {InputEntry} */
     const inputEntry = {
       time: now(),
-      key: "mouseleftbutton",
+      key: event.button === 0 ? "mouseleftbutton" : "mouserightbutton",
       deviceID: defaultDeviceID,
       value: 1,
     };
@@ -160,7 +160,7 @@ export async function run({ tick, render, init }) {
     /** @type {InputEntry} */
     const inputEntry = {
       time: now(),
-      key: "mouseleftbutton",
+      key: event.button === 0 ? "mouseleftbutton" : "mouserightbutton",
       deviceID: defaultDeviceID,
       value: 0,
     };

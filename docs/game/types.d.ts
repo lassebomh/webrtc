@@ -39,7 +39,15 @@ type Avatar = {
     ddistance: number;
     damage: number;
   };
-  gun: Gun | undefined;
+  gun?: Gun | undefined;
+  rope: {
+    box: Box;
+    active: boolean;
+    grabbingAvatarID?: string | undefined;
+    grabbingGunID?: string | undefined;
+    grabbingWall?: boolean | undefined;
+  };
+
   body: {
     angle: number;
     x: number;
@@ -111,16 +119,10 @@ interface Box {
   dy: number;
   width: number;
   height: number;
-
-  // maxSpeed: number;
   bounce: number;
-  // gravity: number;
-  // airFriction: number;
-  // wallFriction: number;
 
-  wallTop: boolean;
-  wallBottom: boolean;
-  wallLeft: boolean;
-  wallRight: boolean;
-  // airTime: number;
+  wallTop?: boolean;
+  wallBottom?: boolean;
+  wallLeft?: boolean;
+  wallRight?: boolean;
 }

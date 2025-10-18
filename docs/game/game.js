@@ -156,9 +156,9 @@ export const tick = (game, inputs) => {
     /** @type {boolean} */
     let jump;
     /** @type {boolean} */
-    let drop;
+    let secondary;
     /** @type {boolean} */
-    let fire;
+    let primary;
 
     if (device.is_gamepad) {
       aimX = device.rstickx ?? 0;
@@ -186,8 +186,8 @@ export const tick = (game, inputs) => {
       }
 
       jump = device.buttona === 1 || device.lt === 1;
-      drop = device.buttonb === 1;
-      fire = device.rt === 1;
+      secondary = device.buttonb === 1;
+      primary = device.rt === 1;
     } else {
       moveX = (device?.d ?? 0) - (device?.a ?? 0);
       moveY = (device?.s ?? 0) - (device?.w ?? 0);
@@ -203,11 +203,11 @@ export const tick = (game, inputs) => {
       aimY /= aimDist;
 
       jump = Boolean(device.space || device.w);
-      drop = Boolean(device.r);
-      fire = Boolean(device.mouseleftbutton);
+      secondary = Boolean(device.r || device.mouserightbutton);
+      primary = Boolean(device.mouseleftbutton);
     }
 
-    avatarTick(game, level, avatar, moveX, moveY, aimX, aimY, jump, drop, fire);
+    avatarTick(game, level, avatar, moveX, moveY, aimX, aimY, jump, primary, secondary);
 
     avatarMeanX += avatar.box.x;
     avatarMeanY += avatar.box.y;

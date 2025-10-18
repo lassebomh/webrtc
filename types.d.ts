@@ -29,6 +29,7 @@ type InputKey =
   | "mousex"
   | "mousey"
   | "mouseleftbutton"
+  | "mouserightbutton"
   | "lstickx"
   | "lsticky"
   | "rstickx"

@@ -6,6 +6,7 @@ import { getTile } from "./levels.js";
  * @param {Box} box
  */
 export function boxLevelTick(level, box) {
+  // add optional bounce param. if not set no collisions will be made, if set then its used for bouncing
   const steps = Math.ceil(Math.hypot(box.dx, box.dy) * 2);
   let dx = box.dx / steps;
   let dy = box.dy / steps;
