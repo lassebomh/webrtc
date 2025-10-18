@@ -1,13 +1,11 @@
 import { fail, lin, now } from "../lib/utils.js";
 import { AVATAR, avatarRender, avatarTakeDamage, avatarTick, createAvatar } from "./avatar.js";
 import { BULLET } from "./bullet.js";
-import { boxLevelTick, boxOnPointCollision } from "./collision.js";
+import { boxLevelTick, boxOnBoxCollision, boxOnPointCollision } from "./collision.js";
 import { renderGun as renderPistol } from "./guns.js";
 import { getTile, levels } from "./levels.js";
 import { particleCreate, particleRender, particleTick } from "./particle.js";
 import { random } from "./utils.js";
-
-const CANVAS_SCALE = 60;
 
 export const init = () =>
   /** @type {Game} */ ({
@@ -23,6 +21,7 @@ export const init = () =>
     camera: {
       x: 0,
       y: 0,
+      scale: 30,
     },
     level: 1,
     guns: {},
@@ -34,8 +33,9 @@ export const tick = (game, inputs) => {
   const level = levels[game.level] ?? fail();
 
   if (game.tick === 1) {
-    game.camera.x = level.width / 2 + 0.1;
-    game.camera.y = level.height / 2 + 0.1;
+    game.camera.x = level.box.width / 2 + 0.1;
+    game.camera.y = level.box.height / 2 + 0.1;
+    game.camera.scale = 900 / level.box.height;
   }
 
   let avatarMeanX = 0;
@@ -62,9 +62,9 @@ export const tick = (game, inputs) => {
 
     if (
       Math.floor(bullet.x) <= 0 ||
-      Math.floor(bullet.x) >= level.width - 1 ||
+      Math.floor(bullet.x) >= level.box.width - 1 ||
       Math.floor(bullet.y) <= 0 ||
-      Math.floor(bullet.y) >= level.height - 1 ||
+      Math.floor(bullet.y) >= level.box.height - 1 ||
       getTile(level, bullet.x, bullet.y) === 1
     ) {
       for (let i = 0; i < 2; i++) {
@@ -136,6 +136,7 @@ export const tick = (game, inputs) => {
           wallRight: false,
           wallTop: false,
         },
+        bullets: 8,
         cooldown: 0,
         ticksUntilPickup: 0,
         type: 0,
@@ -191,8 +192,8 @@ export const tick = (game, inputs) => {
       moveX = (device?.d ?? 0) - (device?.a ?? 0);
       moveY = (device?.s ?? 0) - (device?.w ?? 0);
 
-      const mouseX = (device.mousex ?? 0) / CANVAS_SCALE + game.camera.x;
-      const mouseY = (device.mousey ?? 0) / CANVAS_SCALE + game.camera.y;
+      const mouseX = (device.mousex ?? 0) / game.camera.scale + game.camera.x;
+      const mouseY = (device.mousey ?? 0) / game.camera.scale + game.camera.y;
 
       aimX = mouseX - avatar.body.x;
       aimY = mouseY - avatar.body.y;
@@ -225,7 +226,16 @@ export const tick = (game, inputs) => {
       gun.box.dx /= 1.1;
     }
 
-    boxLevelTick(level, gun.box);
+    if (gun.bullets) {
+      boxLevelTick(level, gun.box);
+    } else {
+      gun.box.x += gun.box.dx;
+      gun.box.y += gun.box.dy;
+    }
+
+    if (!boxOnBoxCollision(gun.box, level.box)) {
+      delete game.guns[gunID];
+    }
   }
 };
 
@@ -235,12 +245,15 @@ export const render = (ctx, prev, curr, alpha) => {
   ctx.clearRect(0, 0, width, height);
 
   const level = levels[curr.level] ?? fail();
+  const cameraX = lin(prev.camera.x, curr.camera.x, alpha);
+  const cameraY = lin(prev.camera.y, curr.camera.y, alpha);
+  const cameraScale = lin(prev.camera.scale, curr.camera.scale, alpha);
 
   ctx.save();
   ctx.imageSmoothingEnabled = false;
   ctx.translate(width / 2, height / 2);
-  ctx.scale(CANVAS_SCALE, CANVAS_SCALE);
-  ctx.translate(-lin(prev.camera.x, curr.camera.x, alpha), -lin(prev.camera.y, curr.camera.y, alpha));
+  ctx.scale(cameraScale, cameraScale);
+  ctx.translate(-cameraX, -cameraY);
 
   ctx.drawImage(level.canvas, 0, 0);
 

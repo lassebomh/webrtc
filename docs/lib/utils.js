@@ -41,6 +41,7 @@ export function setupCanvas(canvas, onresize = () => {}) {
   });
 
   observer.observe(canvas.parentElement ?? fail());
+  canvas.addEventListener("contextmenu", (e) => e.preventDefault());
 
   return ctx;
 }

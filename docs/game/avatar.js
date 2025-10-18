@@ -218,6 +218,10 @@ export function avatarTick(game, level, avatar, moveX, moveY, aimX, aimY, jump, 
         dx: aimX * BULLET.SPEED,
         dy: aimY * BULLET.SPEED,
       };
+      avatar.gun.bullets--;
+      if (avatar.gun.bullets <= 0) {
+        avatarDropWeapon(game, avatar, random(game, -0.1, 0.1), -random(game, 0.2, 0.3));
+      }
     }
   }
 
@@ -237,7 +241,7 @@ export function avatarTick(game, level, avatar, moveX, moveY, aimX, aimY, jump, 
 
   for (const gunID in game.guns) {
     const gun = game.guns[gunID] ?? fail();
-    if (gun.ticksUntilPickup !== 0) continue;
+    if (gun.ticksUntilPickup !== 0 || gun.bullets === 0) continue;
 
     if (boxOnBoxCollision(avatar.box, gun.box)) {
       if (Math.hypot(gun.box.dx, gun.box.dy) > 0.6) {
@@ -261,13 +265,7 @@ export function avatarTick(game, level, avatar, moveX, moveY, aimX, aimY, jump, 
   }
 
   if (avatar.gun !== undefined && drop) {
-    game.guns[game.autoid++] = avatar.gun;
-    avatar.gun.box.x = avatar.box.x + (avatar.box.width - avatar.gun.box.width) / 2;
-    avatar.gun.box.y = avatar.box.y + (avatar.box.height - avatar.gun.box.height) / 2;
-    avatar.gun.box.dx = aimX / 1.3;
-    avatar.gun.box.dy = aimY / 1.3;
-    avatar.gun.ticksUntilPickup = 3;
-    avatar.gun = undefined;
+    avatarDropWeapon(game, avatar, aimX / 1.3, aimY / 1.3);
   }
 }
 
@@ -359,6 +357,25 @@ export function avatarRender(ctx, prevAvatar, avatar, alpha) {
 /**
  * @param {Game} game
  * @param {Avatar} avatar
+ * @param {number} dx
+ * @param {number} dy
+ */
+export function avatarDropWeapon(game, avatar, dx, dy) {
+  const gun = avatar.gun;
+  if (gun) {
+    gun.ticksUntilPickup = 3;
+    avatar.gun = undefined;
+    game.guns[game.autoid++] = gun;
+
+    gun.box.x = avatar.box.x + (avatar.box.width - gun.box.width) / 2;
+    gun.box.y = avatar.box.y + (avatar.box.height - gun.box.height) / 2;
+    gun.box.dx = dx;
+    gun.box.dy = dy;
+  }
+}
+/**
+ * @param {Game} game
+ * @param {Avatar} avatar
  * @param {number} damage
  * @param {number} dx
  * @param {number} dy
@@ -393,13 +410,7 @@ export function avatarTakeDamage(game, avatar, damage, dx, dy) {
       );
     }
     if (avatar.gun) {
-      const gun = avatar.gun;
-      avatar.gun = undefined;
-      game.guns[game.autoid++] = gun;
-      gun.box.x = avatar.body.x + avatar.primaryArm.vx * avatar.primaryArm.distance;
-      gun.box.y = avatar.body.y + avatar.primaryArm.vy * avatar.primaryArm.distance;
-      gun.box.dx = dx + random(game, -0.2, 0.2);
-      gun.box.dy = dy / 2 - random(game, 0.2, 0.5);
+      avatarDropWeapon(game, avatar, dx / 3 + random(game, -0.2, 0.2), dy / 3 - random(game, 0.2, 0.5));
     }
     delete game.avatars[avatar.id];
   } else {
@@ -423,7 +434,6 @@ export function avatarTakeDamage(game, avatar, damage, dx, dy) {
 }
 
 /**
- *
  * @param {Game} game
  * @param {number} x
  * @param {number} y

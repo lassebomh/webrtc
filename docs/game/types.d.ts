@@ -57,14 +57,14 @@ type Bullet = {
 
 type Gun = {
   ticksUntilPickup: number;
+  bullets: number;
   type: number;
   box: Box;
   cooldown: number;
 };
 
 type Level = {
-  width: number;
-  height: number;
+  box: Box;
   tiles: number[][];
   canvas: OffscreenCanvas;
   spawnPoints: { x: number; y: number }[];
@@ -93,6 +93,7 @@ interface Game extends IGame {
   camera: {
     x: number;
     y: number;
+    scale: number;
   };
   level: number;
   guns: Record<string, Gun>;

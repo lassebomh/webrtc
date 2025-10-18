@@ -73,8 +73,19 @@ function createLevelFromText(text) {
 
   /** @type {Level} */
   let level = {
-    height,
-    width,
+    box: {
+      x: 0,
+      y: 0,
+      bounce: 0,
+      dx: 0,
+      dy: 0,
+      wallBottom: false,
+      wallTop: false,
+      wallLeft: false,
+      wallRight: false,
+      height,
+      width,
+    },
     tiles,
     canvas,
     spawnPoints,
