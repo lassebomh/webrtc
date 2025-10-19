@@ -1,7 +1,7 @@
 import { fail, lin } from "../lib/utils.js";
 
-import { boxLevelTick, boxOnBoxCollision } from "./collision.js";
-import { BULLET, pistolRender } from "./guns.js";
+import { boxLevelTick, boxOnBoxCollision, boxRender } from "./collision.js";
+import { BULLET, pistolRender, uziRender } from "./guns.js";
 import { particleCreate } from "./particle.js";
 import { getPointAtDistance, random } from "./utils.js";
 
@@ -22,7 +22,14 @@ export const AVATAR = {
   JUMP: 0.42,
   JUMP_EASE_BOUNCE_TICKS: 6,
   JUMP_EASE_EDGE_TICKS: 6,
-  COLORS: ["red", "green", "orange", "blue"],
+  COLORS: [
+    "hsla(7, 70%, 50%, 1.00)",
+    "hsla(217, 70%, 47%, 1.00)",
+    "hsla(135, 81%, 33%, 1.00)",
+    "hsla(44, 92%, 49%, 1.00)",
+    "hsla(265, 83%, 57%, 1.00)",
+    "hsla(24, 100%, 56%, 1.00)",
+  ],
   FACE: {
     PASSIVE: ":|",
     DAMAGE: ":o",
@@ -138,7 +145,7 @@ export function avatarTick(game, level, avatar, moveX, moveY, aimX, aimY, jump, 
 
   if (avatar.primaryCooldown > 1) {
     avatar.primaryCooldown--;
-  } else if (avatar.primaryCooldown === 1 && !primary) {
+  } else if (avatar.primaryCooldown === 1 && (!primary || avatar.gun?.automatic)) {
     avatar.primaryCooldown = 0;
   }
   if (avatar.secondaryCooldown > 1) {
@@ -149,22 +156,32 @@ export function avatarTick(game, level, avatar, moveX, moveY, aimX, aimY, jump, 
 
   if (avatar.primaryCooldown === 0 && primary) {
     if (avatar.gun) {
-      avatar.primaryArm.dangle -= Math.sign(aimX) * random(game, 0.5, 1.5);
+      const aimAngle = Math.atan2(aimY, aimX) + avatar.primaryArm.dangle * random(game, -0.3, 0.3);
+      const dirX = Math.cos(aimAngle);
+      const dirY = Math.sin(aimAngle);
+
+      avatar.primaryArm.dangle -= Math.sign(aimX) * random(game, 0.1, 2.5);
       avatar.primaryArm.ddistance -= random(game, 0.5, 0.5);
 
-      const aimAngle = Math.atan2(aimY, aimX);
       const startX = avatar.body.x + aimX * (avatar.primaryArm.distance + avatar.gun.barrelLength);
       const startY = avatar.body.y + aimY * (avatar.primaryArm.distance + avatar.gun.barrelLength);
       game.bullets[game.autoid++] = {
-        x: startX,
-        y: startY,
-        dx: aimX * BULLET.SPEED,
-        dy: aimY * BULLET.SPEED,
+        x: startX + avatar.box.dx,
+        y: startY + avatar.box.dy,
+        dx: dirX * BULLET.SPEED,
+        dy: dirY * BULLET.SPEED,
       };
       avatar.gun.bullets--;
       avatar.primaryCooldown = avatar.gun.cooldown;
 
-      particleCreate(game, startX, startY, aimX, aimY, 0.3, 3, 1, 0.0, "yellow");
+      avatar.body.dx +=
+        (Math.cos(aimAngle + avatar.primaryArm.dangle * random(game, -0.3, 0.3)) * avatar.primaryArm.ddistance) / 4;
+      avatar.body.dy +=
+        (Math.sin(aimAngle + avatar.primaryArm.dangle * random(game, -0.3, 0.3)) * avatar.primaryArm.ddistance) / 4;
+
+      particleCreate(game, startX, startY, aimX, aimY, 0.35 * avatar.gun.damage, 4, 1, 0.0, "#ff260088");
+      particleCreate(game, startX, startY, aimX, aimY, 0.25 * avatar.gun.damage, 4, 1, 0.0, "yellow");
+      particleCreate(game, startX, startY, aimX, aimY, 0.1 * avatar.gun.damage, 4, 1, 0.0, "white");
       // for (let i = 0; i < 4; i++) {
       //   const angle = aimAngle + random(game, -1, 1) * (Math.PI / 4);
       //   particleCreate(game, startX, startY, Math.cos(angle), Math.sin(angle), 0.4, 2, 1, 0.0, "yellow");
@@ -270,7 +287,7 @@ export function avatarTick(game, level, avatar, moveX, moveY, aimX, aimY, jump, 
   } else if (avatar.rope.grabbingWall) {
     let dx = avatar.rope.box.x + avatar.rope.box.width / 2 - avatar.body.x - avatar.box.dx * 2;
     let dy = avatar.rope.box.y + avatar.rope.box.height / 2 - avatar.body.y - avatar.box.dy * 2;
-    const dist = (Math.hypot(dx, dy) + 1) * 10;
+    const dist = (Math.hypot(dx, dy) + 0.5) * 10;
 
     if (dist !== 0) {
       avatar.box.dx += dx / dist;
@@ -279,10 +296,14 @@ export function avatarTick(game, level, avatar, moveX, moveY, aimX, aimY, jump, 
   } else {
     boxLevelTick(level, avatar.rope.box);
 
-    const touchingWall =
-      avatar.rope.box.wallBottom || avatar.rope.box.wallLeft || avatar.rope.box.wallRight || avatar.rope.box.wallTop;
+    const touchingWall = Math.max(
+      avatar.rope.box.wallBottom ?? 0,
+      avatar.rope.box.wallLeft ?? 0,
+      avatar.rope.box.wallRight ?? 0,
+      avatar.rope.box.wallTop ?? 0
+    );
 
-    if (touchingWall) {
+    if (touchingWall === 1) {
       if (avatar.rope.box.wallBottom) {
         avatar.rope.box.y += avatar.rope.box.height / 2;
       }
@@ -296,6 +317,8 @@ export function avatarTick(game, level, avatar, moveX, moveY, aimX, aimY, jump, 
         avatar.rope.box.x += avatar.rope.box.width / 2;
       }
       avatar.rope.grabbingWall = true;
+    } else if (touchingWall === 2) {
+      avatar.rope.active = false;
     }
 
     if (!avatar.rope.grabbingWall) {
@@ -335,6 +358,27 @@ export function avatarTick(game, level, avatar, moveX, moveY, aimX, aimY, jump, 
     }
   }
 
+  if (avatar.box.wallBottom === 2) {
+    avatarTakeDamage(game, avatar, 2, 0, -1);
+    avatar.box.dy -= 1;
+  }
+
+  if (avatar.box.wallTop === 2) {
+    avatarTakeDamage(game, avatar, 2, 0, 1);
+    avatar.box.dy += 1;
+  }
+
+  if (avatar.box.wallLeft === 2) {
+    avatarTakeDamage(game, avatar, 2, -1, 0);
+    avatar.box.dx += 1;
+    avatar.box.dy -= 0.5;
+  }
+  if (avatar.box.wallRight === 2) {
+    avatarTakeDamage(game, avatar, 2, 1, 0);
+    avatar.box.dx -= 1;
+    avatar.box.dy -= 0.5;
+  }
+
   if (avatar.primaryArm.damage) {
     if (avatar.primaryCooldown === 1) {
       avatar.primaryArm.damage = 0;
@@ -372,7 +416,11 @@ export function avatarTick(game, level, avatar, moveX, moveY, aimX, aimY, jump, 
   avatar.primaryArm.distance -= (avatar.primaryArm.distance - primaryArmDistance) / 4;
 
   avatar.primaryArm.ddistance /= 1.3;
-  avatar.primaryArm.dangle /= 1.3;
+  if (avatar.gun?.automatic) {
+    avatar.primaryArm.dangle /= 1.5;
+  } else {
+    avatar.primaryArm.dangle /= 1.4;
+  }
 
   avatar.body.dx -= (avatar.body.dx - avatar.box.dx * 2) / 3;
   avatar.body.dy -= (avatar.body.dy - avatar.box.dy * 2) / 3;
@@ -509,9 +557,9 @@ export function avatarRender(ctx, game, prevAvatar, avatar, alpha) {
   const primaryArmVY = lin(prevAvatar?.primaryArm.vy, avatar.primaryArm.vy, alpha);
   const primaryArmAngle =
     Math.atan2(primaryArmVY, primaryArmVX) + lin(prevAvatar?.primaryArm.dangle, avatar.primaryArm.dangle, alpha);
+  const primaryArmDDistance = lin(prevAvatar?.primaryArm.ddistance, avatar.primaryArm.ddistance, alpha);
   const primaryArmDistance =
-    lin(prevAvatar?.primaryArm.distance, avatar.primaryArm.distance, alpha) +
-    lin(prevAvatar?.primaryArm.ddistance, avatar.primaryArm.ddistance, alpha);
+    lin(prevAvatar?.primaryArm.distance, avatar.primaryArm.distance, alpha) + primaryArmDDistance;
 
   const feetLeftStartX = lin(prevAvatar?.feet.leftStartX, avatar.feet.leftStartX, alpha);
   const feetLeftStartY = lin(prevAvatar?.feet.leftStartY, avatar.feet.leftStartY, alpha);
@@ -620,7 +668,10 @@ export function avatarRender(ctx, game, prevAvatar, avatar, alpha) {
 
   ctx.save();
   ctx.textAlign = "end";
-  ctx.translate(bodyX + avatar.body.dx / 2 - 0.12, bodyY + avatar.body.dy / 2 + 0.2);
+  ctx.translate(
+    bodyX + avatar.body.dx / 2 + (primaryArmDDistance < 0 ? (primaryArmVX * -primaryArmDDistance) / 2 : 0) - 0.12,
+    bodyY + avatar.body.dy / 2 + 0.2 + (primaryArmDDistance < 0 ? (primaryArmVY * -primaryArmDDistance) / 2 : 0)
+  );
   ctx.rotate(Math.PI / 2);
   ctx.font = "normal 0.5px sans-serif";
   ctx.fillStyle = "black";
@@ -644,7 +695,13 @@ export function avatarRender(ctx, game, prevAvatar, avatar, alpha) {
   }
 
   if (avatar.gun) {
-    pistolRender(ctx, armEndX, armEndY, primaryArmAngle);
+    if (avatar.gun.type === 0) {
+      pistolRender(ctx, armEndX, armEndY, primaryArmAngle);
+    } else if (avatar.gun.type === 1) {
+      uziRender(ctx, armEndX, armEndY, primaryArmAngle);
+    } else {
+      boxRender(ctx, undefined, avatar.gun.box, "red", 1);
+    }
   }
 }
 
@@ -758,13 +815,7 @@ export function createAvatar(game, x, y, color) {
       dy: 0,
       width: AVATAR.WIDTH,
       height: AVATAR.HEIGHT,
-
       bounce: 0,
-
-      wallTop: false,
-      wallBottom: false,
-      wallLeft: false,
-      wallRight: false,
     },
     rope: {
       active: false,
@@ -786,7 +837,7 @@ export function createAvatar(game, x, y, color) {
     facing: 1,
     face: AVATAR.FACE.PASSIVE,
     faceTicks: -1,
-    health: 5,
+    health: 8,
     crouching: false,
     feet: {
       angle: 0,

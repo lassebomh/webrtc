@@ -73,6 +73,8 @@ type Gun = {
   type: number;
   box: Box;
   cooldown: number;
+  automatic: boolean;
+  damage: number;
   barrelLength: number;
 };
 
@@ -110,6 +112,7 @@ interface Game extends IGame {
   };
   level: number;
   guns: Record<string, Gun>;
+  allowedGuns: number;
   particles: Record<string, Particle>;
 
   debug_points: [number, number][];
@@ -124,8 +127,9 @@ interface Box {
   height: number;
   bounce: number;
 
-  wallTop?: boolean;
-  wallBottom?: boolean;
-  wallLeft?: boolean;
-  wallRight?: boolean;
+  wallTop?: number;
+  wallBottom?: number;
+  wallLeft?: number;
+  wallRight?: number;
+  wall?: number;
 }

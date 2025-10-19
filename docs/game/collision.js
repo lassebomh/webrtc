@@ -18,7 +18,7 @@ export function boxLevelTick(level, box) {
       const ml = getTile(level, l, box.y + box.height / 2);
       const bl = getTile(level, l, box.y + box.height - EPSILON);
 
-      box.wallLeft = ml === 1 || bl === 1 || tl === 1;
+      box.wallLeft = Math.max(ml, bl, tl);
       if (box.wallLeft) {
         dx = 0;
         box.x = Math.ceil(l);
@@ -31,7 +31,7 @@ export function boxLevelTick(level, box) {
       const mr = getTile(level, r, box.y + box.height / 2);
       const br = getTile(level, r, box.y + box.height - EPSILON);
 
-      box.wallRight = mr === 1 || br === 1 || tr === 1;
+      box.wallRight = Math.max(mr, br, tr);
       if (box.wallRight) {
         dx = 0;
         box.x = Math.floor(r) - box.width;
@@ -43,7 +43,7 @@ export function boxLevelTick(level, box) {
       const bl = getTile(level, box.x + EPSILON, b);
       const br = getTile(level, box.x + box.width - EPSILON, b);
 
-      box.wallBottom = bl === 1 || br === 1;
+      box.wallBottom = Math.max(bl, br);
       if (box.wallBottom) {
         dy = 0;
         box.y = Math.floor(b) - box.height;
@@ -55,12 +55,14 @@ export function boxLevelTick(level, box) {
       const tl = getTile(level, box.x + EPSILON, t);
       const tr = getTile(level, box.x + box.width - EPSILON, t);
 
-      box.wallTop = tl === 1 || tr === 1;
+      box.wallTop = Math.max(tl, tr);
       if (box.wallTop) {
         dy = 0;
         box.y = Math.ceil(t);
       }
     }
+
+    box.wall = Math.max(box.wallTop ?? 0, box.wallBottom ?? 0, box.wallLeft ?? 0, box.wallRight ?? 0);
 
     box.x += dx;
     box.y += dy;

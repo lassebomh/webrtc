@@ -1,8 +1,8 @@
 import { fail, lin, now } from "../lib/utils.js";
 import { AVATAR, avatarRender, avatarTakeDamage, avatarTick, createAvatar } from "./avatar.js";
 
-import { boxLevelTick, boxOnBoxCollision, boxOnPointCollision } from "./collision.js";
-import { BULLET, gunCreate, pistolRender } from "./guns.js";
+import { boxLevelTick, boxOnBoxCollision, boxOnPointCollision, boxRender } from "./collision.js";
+import { BULLET, GUN_TYPES, gunCreate, pistolRender, uziRender } from "./guns.js";
 import { getTile, levels } from "./levels.js";
 import { particleCreate, particleRender, particleTick } from "./particle.js";
 import { random } from "./utils.js";
@@ -22,8 +22,9 @@ export const init = () =>
       y: 0,
       scale: 1,
     },
-    level: 1,
+    level: 2,
     guns: {},
+    allowedGuns: 4,
     debug_points: [],
   });
 
@@ -31,21 +32,12 @@ export const init = () =>
 export const tick = (game, inputs) => {
   const level = levels[game.level] ?? fail();
 
-  if (game.tick === 1) {
-    game.camera.x = level.box.width / 2 + 0.1;
-    game.camera.y = level.box.height / 2 + 0.1;
-    game.camera.scale = 900 / level.box.height;
-  }
-
-  if (Object.keys(game.guns).length === 0) {
-    for (const { x, y } of level.gunLocations) {
-      gunCreate(game, x, y, 0);
-    }
-  }
+  let gunsCount = Object.keys(game.guns).length;
 
   let avatarMeanX = 0;
   let avatarMeanY = 0;
   let avatarCount = 0;
+  let highestDistanceToCamera = 0;
 
   for (const deviceID in inputs) {
     game.players[deviceID] ??= {
@@ -114,8 +106,7 @@ export const tick = (game, inputs) => {
 
     let avatar = player.avatarID ? game.avatars[player.avatarID] ?? fail() : undefined;
 
-    if (player.avatarID === undefined) {
-      // && start) {
+    if (player.avatarID === undefined && start) {
       const spawnPointAvatarDistances = level.spawnPoints
         .map((spawnPoint) => {
           const avatars = Object.values(game.avatars);
@@ -195,9 +186,34 @@ export const tick = (game, inputs) => {
 
     avatarTick(game, level, avatar, moveX, moveY, aimX, aimY, jump, primary, secondary);
 
-    avatarMeanX += avatar.box.x;
-    avatarMeanY += avatar.box.y;
+    if (avatar.gun) {
+      gunsCount++;
+    }
+
+    avatarMeanX += avatar.body.x;
+    avatarMeanY += avatar.body.y;
     avatarCount += 1;
+
+    const distanceToCamera = Math.hypot(avatar.body.x - game.camera.x, avatar.body.y - game.camera.y);
+
+    if (distanceToCamera > highestDistanceToCamera) {
+      highestDistanceToCamera = distanceToCamera;
+    }
+  }
+
+  while (game.allowedGuns - gunsCount > 0) {
+    gunsCount++;
+
+    const gunLocations = level.gunLocations
+      .map((gunLocation) => {
+        const guns = Object.values(game.guns);
+        const distances = guns.map((g) => Math.hypot(g.box.x - gunLocation.x, g.box.y - gunLocation.y));
+        return /** @type {const} */ ([gunLocation, Math.min(...distances)]);
+      })
+      .toSorted(([_, aDist], [__, bDist]) => bDist - aDist);
+
+    const { x, y } = gunLocations[0]?.[0] ?? fail();
+    gunCreate(game, x, y, Math.floor(random(game, 0, GUN_TYPES.length)));
   }
 
   for (const gunID in game.guns) {
@@ -212,16 +228,35 @@ export const tick = (game, inputs) => {
       gun.box.dx /= 1.1;
     }
 
-    if (gun.bullets) {
+    if (!boxOnBoxCollision(gun.box, level.box)) {
+      delete game.guns[gunID];
+    } else if (gun.bullets) {
       boxLevelTick(level, gun.box);
+
+      if (gun.box.wallBottom === 2) {
+        delete game.guns[gunID];
+      }
     } else {
       gun.box.x += gun.box.dx;
       gun.box.y += gun.box.dy;
     }
+  }
 
-    if (!boxOnBoxCollision(gun.box, level.box)) {
-      delete game.guns[gunID];
-    }
+  if (game.tick === 1) {
+    game.camera.x = level.box.width / 2 + 0.1;
+    game.camera.y = level.box.height / 2 + 0.1;
+    game.camera.scale = 60;
+  } else if (avatarCount) {
+    avatarMeanX /= avatarCount;
+    avatarMeanY /= avatarCount;
+
+    const targetX = avatarMeanX;
+    const targetY = avatarMeanY;
+    game.camera.x -= (game.camera.x - targetX) / 32;
+    game.camera.y -= (game.camera.y - targetY) / 32;
+    let targetScale = 400 / highestDistanceToCamera;
+    targetScale = Math.min(targetScale, 50);
+    game.camera.scale -= (game.camera.scale - targetScale) / 50;
   }
 };
 
@@ -250,7 +285,13 @@ export const render = (ctx, prev, curr, alpha) => {
     const y = lin(prevGun?.box.y, gun.box.y, alpha);
 
     // boxRender(ctx, prevGun?.box, gun.box, "red", alpha);
-    pistolRender(ctx, x + gun.box.width / 2, y + gun.box.height / 2, x);
+    if (gun.type === 0) {
+      pistolRender(ctx, x + gun.box.width / 2, y + gun.box.height / 2, x);
+    } else if (gun.type === 1) {
+      uziRender(ctx, x + gun.box.width / 2, y + gun.box.height / 2, x);
+    } else {
+      boxRender(ctx, prevGun?.box, gun.box, "red", alpha);
+    }
   }
 
   for (const avatarID in curr.avatars) {

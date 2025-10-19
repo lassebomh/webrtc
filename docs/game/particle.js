@@ -1,4 +1,4 @@
-import { EPSILON, lin } from "../lib/utils.js";
+import { lin } from "../lib/utils.js";
 import { random } from "./utils.js";
 
 /**
@@ -17,7 +17,11 @@ export function particleRender(ctx, prevParticle, particle, alpha) {
   const size = lin(prevParticle?.size, particle.size, alpha);
   const particleAngle = Math.atan2(dy, dx);
   const mag = Math.hypot(dx, dy);
-  ctx.ellipse(x + dx / 2, y + dy / 2, size, Math.max(size, mag / 1.5), particleAngle + Math.PI / 2, 0, Math.PI * 2);
+
+  ctx.ellipse(x + dx / 2, y + dy / 2, size, Math.max(size, mag / 1.5, 0), particleAngle + Math.PI / 2, 0, Math.PI * 2);
+
+  ctx.shadowBlur = mag * 20;
+  ctx.shadowColor = particle.color;
 
   ctx.fillStyle = particle.color;
   ctx.fill();
@@ -36,8 +40,8 @@ export function particleTick(game, particle) {
   particle.dy = Math.sin(angle) * dist;
   particle.x += particle.dx;
   particle.y += particle.dy;
-  if (particle.size < EPSILON) {
-    game.particles[particle.id];
+  if (particle.size < 0.001) {
+    delete game.particles[particle.id];
   }
 }
 

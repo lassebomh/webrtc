@@ -33,6 +33,8 @@ function createLevelFromText(text) {
 
       if (tileString === "#") {
         lineTiles.push(1);
+      } else if (tileString === "!") {
+        lineTiles.push(2);
       } else if (tileString === "s") {
         spawnPoints.push({ x, y });
         lineTiles.push(0);
@@ -66,6 +68,11 @@ function createLevelFromText(text) {
         image.data[offset + 1] = v;
         image.data[offset + 2] = v;
         image.data[offset + 3] = 255;
+      } else if (value === 2) {
+        image.data[offset + 0] = 30;
+        image.data[offset + 1] = 0;
+        image.data[offset + 2] = 0;
+        image.data[offset + 3] = 255;
       } else {
         image.data[offset + 0] = 0;
         image.data[offset + 1] = 0;
@@ -85,10 +92,6 @@ function createLevelFromText(text) {
       bounce: 0,
       dx: 0,
       dy: 0,
-      wallBottom: false,
-      wallTop: false,
-      wallLeft: false,
-      wallRight: false,
       height,
       width,
     },
@@ -108,11 +111,9 @@ export const levels = [
 #                  #
 #                  #
 #                  #
-#                  #
 #        g         #
 #        #         #
-#                  #
-#                  #
+#        #         #
 #                  #
 #      s   s       #
 #                  #
@@ -136,15 +137,93 @@ export const levels = [
 #    #                             #    #
 #    #                             #    #
 #    #                             #    #
-#                   #                   #
+#         g         #         g         #
 #                   #                   #
 #      s            #            s      #
 #                   #                   #
 #    ###########    #    ###########    #
 #                   #                   #
-#      g            #            g      #
+#      s            #            s      #
 #                   #                   #
 #########################################`,
+  `\
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!                                                         !
+!                                                         !
+!                                                         !
+!                                                         !
+!                                                         !
+!                                                         !
+!                                                         !
+!                                                         !
+!                                                         !
+!                                                         !
+!                                                         !
+!                                                         !
+!                                                         !
+!                                                         !
+!                                                         !
+!                                                         !
+!                                                         !
+!                                                         !
+!                                                         !
+!                                                         !
+!                                                         !
+!                                                         !
+!                                                         !
+!                                                         !
+!                            g                            !
+!                                                         !
+!                                                         !
+!                                                         !
+!                          #####                          !
+!                          #####                          !
+!                          #####                          !
+!                          #####                          !
+!                                                         !
+!                                                         !
+!                                                         !
+!                                                         !
+!                                                         !
+!                     g             g                     !
+!                                                         !
+!                                                         !
+!                                                         !
+!                   #####         #####                   !
+!                   #####         #####                   !
+!                   #####         #####                   !
+!                   #####         #####                   !
+!                                                         !
+!                                                         !
+!                                                         !
+!                                                         !
+!                                                         !
+!              g             g             g              !
+!                                                         !
+!                                                         !
+!                                                         !
+!            #####         #####         #####            !
+!            #####         #####         #####            !
+!            #####         #####         #####            !
+!            #####         #####         #####            !
+!                                                         !
+!                                                         !
+!                                                         !
+!                                                         !
+!                                                         !
+!                                                         !
+!                                                         !
+!       s             s             s             s       !
+!                                                         !
+!     #####         #####         #####         #####     !
+!     #####         #####         #####         #####     !
+!     #####         #####         #####         #####     !
+!     #####         #####         #####         #####     !
+!                                                         !
+!                                                         !
+!                                                         !
+!                                                         !
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!`,
 ].map(createLevelFromText);
 
 /**

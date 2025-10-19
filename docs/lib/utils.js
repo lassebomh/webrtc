@@ -52,7 +52,7 @@ export function setupCanvas(canvas, onresize = () => {}) {
  * @param {number} alpha
  */
 export function lin(start, end, alpha) {
-  return start === undefined ? end : start + (end - start) * alpha;
+  return start === undefined || !Number.isFinite(start) ? end : start + (end - start) * alpha;
 }
 
 /** @type {DeviceID} */
