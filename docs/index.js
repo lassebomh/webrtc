@@ -18,14 +18,13 @@ const publicRoomsTable = /** @type {HTMLTableElement} */ (document.getElementByI
 const publicRooms = /** @type {HTMLElement} */ (document.getElementById("public-rooms") ?? fail());
 const server = new WebSocket(`ws${window.location.protocol === "https:" ? "s" : ""}://${window.location.host}/`);
 
+document.body.style.opacity = "0";
+
 /**
  * @param {ServerRequestPayload} payload
  */
 function send(payload) {
   server.send(JSON.stringify(payload));
-}
-if (location.search) {
-  canvas.style.display = "initial";
 }
 server.addEventListener(
   "open",
@@ -98,6 +97,8 @@ server.addEventListener("message", async (event) => {
       if (location.search !== "?" + newRoom.roomID) {
         location.search = "?" + newRoom.roomID;
       } else {
+        document.body.style.opacity = "1";
+        canvas.style.display = "initial";
         const ctx = setupCanvas(canvas);
         run({ tick, render, init, ctx, server });
       }
@@ -110,6 +111,7 @@ server.addEventListener("message", async (event) => {
     }
 
     case "roomsList": {
+      document.body.style.opacity = "1";
       publicRooms.style.display = payload.data.length ? "flex" : "none";
       publicRoomsTable.replaceChildren();
 
