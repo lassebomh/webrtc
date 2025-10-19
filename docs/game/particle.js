@@ -10,26 +10,17 @@ import { random } from "./utils.js";
  */
 export function particleRender(ctx, prevParticle, particle, alpha) {
   ctx.beginPath();
-  if (prevParticle) {
-    ctx.fillStyle = particle.color;
+  const x = lin(prevParticle?.x, particle.x, alpha);
+  const y = lin(prevParticle?.y, particle.y, alpha);
+  const dx = lin(prevParticle?.dx, particle.dx, alpha);
+  const dy = lin(prevParticle?.dy, particle.dy, alpha);
+  const size = lin(prevParticle?.size, particle.size, alpha);
+  const particleAngle = Math.atan2(dy, dx);
+  const mag = Math.hypot(dx, dy);
+  ctx.ellipse(x + dx / 2, y + dy / 2, size, Math.max(size, mag / 1.5), particleAngle + Math.PI / 2, 0, Math.PI * 2);
 
-    const dx = particle.dx;
-    const dy = particle.dy;
-    const particleAngle = Math.atan2(dy, dx);
-    const mag = Math.hypot(dx, dy);
-    ctx.ellipse(
-      lin(prevParticle.x, particle.x, alpha),
-      lin(prevParticle.y, particle.y, alpha),
-      particle.size,
-      Math.max(particle.size, mag / 1.3),
-      particleAngle + Math.PI / 2,
-      0,
-      Math.PI * 2
-    );
-    ctx.fill();
-  } else {
-    // todo
-  }
+  ctx.fillStyle = particle.color;
+  ctx.fill();
 }
 
 /**

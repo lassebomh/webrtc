@@ -16,7 +16,7 @@ export async function run({ tick, render, init }) {
 
   const ctx = setupCanvas(document.getElementById("canvas"));
 
-  const statusElement = document.getElementById("fps") ?? fail();
+  const statusElement = document.getElementById("status") ?? fail();
   const fpsLogs = new Array(64).fill(0);
   let fpsCounter = 0;
   const pingLogs = new Array(64).fill(0);

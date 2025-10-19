@@ -1,8 +1,8 @@
 import { fail, lin, now } from "../lib/utils.js";
 import { AVATAR, avatarRender, avatarTakeDamage, avatarTick, createAvatar } from "./avatar.js";
-import { BULLET } from "./bullet.js";
+
 import { boxLevelTick, boxOnBoxCollision, boxOnPointCollision } from "./collision.js";
-import { gunCreate, pistolRender } from "./guns.js";
+import { BULLET, gunCreate, pistolRender } from "./guns.js";
 import { getTile, levels } from "./levels.js";
 import { particleCreate, particleRender, particleTick } from "./particle.js";
 import { random } from "./utils.js";
@@ -11,7 +11,6 @@ export const init = () =>
   /** @type {Game} */ ({
     tick: 0,
     originTime: now(),
-    avatarCount: 0,
     players: {},
     avatars: {},
     bullets: {},
@@ -23,7 +22,7 @@ export const init = () =>
       y: 0,
       scale: 30,
     },
-    level: 1,
+    level: 0,
     guns: {},
     debug_points: [],
   });
@@ -40,7 +39,7 @@ export const tick = (game, inputs) => {
 
   if (Object.keys(game.guns).length === 0) {
     for (const { x, y } of level.gunLocations) {
-      gunCreate(game, x, y);
+      gunCreate(game, x, y, 0);
     }
   }
 
@@ -267,25 +266,16 @@ export const render = (ctx, prev, curr, alpha) => {
     const bullet = curr.bullets[bulletId] ?? fail();
 
     ctx.beginPath();
-    if (prevBullet) {
-      ctx.fillStyle = "white";
-      ctx.strokeStyle = ctx.fillStyle;
-      const bulletSize = 0.05;
-      const dx = bullet.dx;
-      const dy = bullet.dy;
-      const bulletAngle = Math.atan2(dy, dx);
-      const mag = Math.hypot(dx, dy);
-      ctx.ellipse(
-        lin(prevBullet.x, bullet.x, alpha),
-        lin(prevBullet.y, bullet.y, alpha),
-        bulletSize,
-        Math.max(bulletSize, mag / 1.5),
-        bulletAngle + Math.PI / 2,
-        0,
-        Math.PI * 2
-      );
-      ctx.fill();
-    }
+    const x = lin(prevBullet?.x, bullet.x, alpha);
+    const y = lin(prevBullet?.y, bullet.y, alpha);
+    const dx = lin(prevBullet?.dx, bullet.dx, alpha);
+    const dy = lin(prevBullet?.dy, bullet.dy, alpha);
+    const size = 0.05;
+    const particleAngle = Math.atan2(dy, dx);
+    const mag = Math.hypot(dx, dy);
+    ctx.ellipse(x + dx / 2, y + dy / 2, size, Math.max(size, mag / 1.3), particleAngle + Math.PI / 2, 0, Math.PI * 2);
+    ctx.fillStyle = "yellow";
+    ctx.fill();
   }
 
   for (const particleId in curr.particles) {

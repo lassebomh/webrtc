@@ -73,6 +73,7 @@ type Gun = {
   type: number;
   box: Box;
   cooldown: number;
+  barrelLength: number;
 };
 
 type Level = {
@@ -102,7 +103,6 @@ interface Game extends IGame {
   players: Record<DeviceID, Player>;
   avatars: Record<string, Avatar>;
   bullets: Record<string, Bullet>;
-  avatarCount: number;
   camera: {
     x: number;
     y: number;

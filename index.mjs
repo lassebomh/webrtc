@@ -7,7 +7,7 @@ import { createReadStream, statSync } from "fs";
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 
 const PORT = 8080;
-const PUBLIC_DIR = join(__dirname, "docs");
+const PUBLIC_DIR = join(__dirname, "./docs");
 
 /** @type {Record<string, string>} */
 const mimeTypes = {
@@ -22,7 +22,7 @@ const mimeTypes = {
 };
 
 const server = http.createServer((req, res) => {
-  let safePath = decodeURIComponent((req.url ?? "").split("?")[0]);
+  let safePath = decodeURIComponent((req.url ?? "").split("?")[0] || "");
   if (safePath.endsWith("/")) {
     safePath += "index.html";
   }
@@ -54,33 +54,39 @@ const wss = new WebSocketServer({ server });
 const rooms = new Map();
 
 wss.on("connection", (ws, req) => {
-  if (req.url === undefined) return;
+  const roomId = req.url?.slice(1) || undefined;
 
-  const roomId = req.url.slice(1);
+  if (!roomId) {
+    ws.send(
+      JSON.stringify(
+        Object.fromEntries([...rooms.entries()].map(([roomId, connections]) => [roomId, connections.size]))
+      )
+    );
+  } else {
+    let room = rooms.get(roomId);
 
-  let room = rooms.get(roomId);
+    if (room === undefined) {
+      room = new Set();
+      rooms.set(roomId, room);
+    }
 
-  if (room === undefined) {
-    room = new Set();
-    rooms.set(roomId, room);
-  }
+    room.add(ws);
 
-  room.add(ws);
-
-  ws.on("message", (message) => {
-    for (const client of room) {
-      if (client !== ws && client.readyState === ws.OPEN) {
-        client.send(message);
+    ws.on("message", (message) => {
+      for (const client of room) {
+        if (client !== ws && client.readyState === ws.OPEN) {
+          client.send(message);
+        }
       }
-    }
-  });
+    });
 
-  ws.on("close", () => {
-    room.delete(ws);
-    if (room.size === 0) {
-      rooms.delete(roomId);
-    }
-  });
+    ws.on("close", () => {
+      room.delete(ws);
+      if (room.size === 0) {
+        rooms.delete(roomId);
+      }
+    });
+  }
 });
 
 server.listen(PORT, () => {

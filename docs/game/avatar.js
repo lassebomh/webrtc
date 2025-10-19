@@ -1,7 +1,7 @@
 import { fail, lin } from "../lib/utils.js";
-import { BULLET } from "./bullet.js";
+
 import { boxLevelTick, boxOnBoxCollision } from "./collision.js";
-import { pistolRender } from "./guns.js";
+import { BULLET, pistolRender } from "./guns.js";
 import { particleCreate } from "./particle.js";
 import { getPointAtDistance, random } from "./utils.js";
 
@@ -152,14 +152,23 @@ export function avatarTick(game, level, avatar, moveX, moveY, aimX, aimY, jump, 
       avatar.primaryArm.dangle -= Math.sign(aimX) * random(game, 0.5, 1.5);
       avatar.primaryArm.ddistance -= random(game, 0.5, 0.5);
 
+      const aimAngle = Math.atan2(aimY, aimX);
+      const startX = avatar.body.x + aimX * (avatar.primaryArm.distance + avatar.gun.barrelLength);
+      const startY = avatar.body.y + aimY * (avatar.primaryArm.distance + avatar.gun.barrelLength);
       game.bullets[game.autoid++] = {
-        x: avatar.body.x + aimX * avatar.primaryArm.distance,
-        y: avatar.body.y + aimY * avatar.primaryArm.distance,
+        x: startX,
+        y: startY,
         dx: aimX * BULLET.SPEED,
         dy: aimY * BULLET.SPEED,
       };
       avatar.gun.bullets--;
       avatar.primaryCooldown = avatar.gun.cooldown;
+
+      particleCreate(game, startX, startY, aimX, aimY, 0.3, 3, 1, 0.0, "yellow");
+      // for (let i = 0; i < 4; i++) {
+      //   const angle = aimAngle + random(game, -1, 1) * (Math.PI / 4);
+      //   particleCreate(game, startX, startY, Math.cos(angle), Math.sin(angle), 0.4, 2, 1, 0.0, "yellow");
+      // }
       if (avatar.gun.bullets <= 0) {
         avatarDropWeapon(game, avatar, random(game, -0.1, 0.1), -random(game, 0.2, 0.3));
       }

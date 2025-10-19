@@ -6,10 +6,13 @@
     "lib": ["ES2024", "DOM", "ES2017.TypedArrays"],
     "allowJs": true,
     "module": "esnext",
+    "moduleResolution": "bundler",
+    "moduleDetection": "force",
     "strict": true,
-    "types": ["./types.d.ts", "./docs/game/types.d.ts"],
+    "types": [],
+    "typeRoots": ["./"],
     "erasableSyntaxOnly": true,
     "noUncheckedIndexedAccess": true
   },
-  "include": ["docs/**/*.js"]
+  "include": ["./**/*.js", "./game/types.d.ts", "./lib/types.d.ts"]
 }

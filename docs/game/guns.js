@@ -1,3 +1,16 @@
+export const BULLET = {
+  SPEED: 1.5,
+  GRAVITY: 0.0,
+};
+
+export const GUN_TYPES = /** @type {const} */ ([
+  {
+    cooldown: 1,
+    bullets: 10,
+    barrelLength: 0.1,
+  },
+]);
+
 /**
  * @param {CanvasRenderingContext2D} ctx
  * @param {number} x
@@ -31,10 +44,11 @@ export function pistolRender(ctx, x, y, angle) {
  * @param {Game} game
  * @param {number} x
  * @param {number} y
+ * @param {number} type
  * @returns {Gun}
  */
-export function gunCreate(game, x, y) {
-  return (game.guns[game.autoid++] = {
+export function gunCreate(game, x, y, type) {
+  return (game.guns[game.autoid++] = /** @type {Gun} */ ({
     box: {
       x: x,
       y: y,
@@ -48,9 +62,8 @@ export function gunCreate(game, x, y) {
       wallRight: false,
       wallTop: false,
     },
-    bullets: 8,
-    cooldown: 10,
     ticksUntilPickup: 0,
     type: 0,
-  });
+    ...GUN_TYPES[type],
+  }));
 }
