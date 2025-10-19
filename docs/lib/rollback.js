@@ -1,20 +1,20 @@
-import { fail, now, defaultDeviceID, setupCanvas, sleep } from "./utils.js";
+import { fail, now, defaultDeviceID, sleep } from "./utils.js";
 import { setupConnection } from "./conn.js";
 
 export const TICK_RATE = 1000 / 60;
 
 /**
  * @template {IGame} TGame
- * @param {{ tick: GameFunc<TGame>, render: RenderFunc<TGame>, init: () => TGame }} tick
+ * @param {{ tick: GameFunc<TGame>, render: RenderFunc<TGame>, init: () => TGame, ctx: CanvasRenderingContext2D, server: WebSocket }} tick
  */
-export async function run({ tick, render, init }) {
-  const roomID = (window.location.search ||= "?" + crypto.randomUUID().slice(0, 5).toUpperCase()).slice(1);
+export async function run({ tick, render, init, ctx, server }) {
+  // const roomID = (window.location.search ||= "?" + crypto.randomUUID().slice(0, 5).toUpperCase()).slice(1);
 
   const DELAY_TICKS = 2;
   const TICKS_PER_SNAPSHOT = 10;
   const MAX_SNAPSHOTS = 20;
 
-  const ctx = setupCanvas(document.getElementById("canvas"));
+  // const ctx = setupCanvas(document.getElementById("canvas"));
 
   const statusElement = document.getElementById("status") ?? fail();
   const fpsLogs = new Array(64).fill(0);
@@ -71,7 +71,7 @@ export async function run({ tick, render, init }) {
 
   /** @type {(message: Message<TGame>) => void} */
   const send = setupConnection(
-    roomID,
+    server,
     (/** @type {Message<TGame>} */ message) => {
       switch (message.type) {
         case "input":
@@ -135,17 +135,17 @@ export async function run({ tick, render, init }) {
     send({ type: "input", data: [inputEntry] });
   }
 
-  ctx.canvas.addEventListener("keydown", onkey);
-  ctx.canvas.addEventListener("keyup", onkey);
+  window.addEventListener("keydown", onkey);
+  window.addEventListener("keyup", onkey);
 
   let mouseX = 0;
   let mouseY = 0;
 
-  ctx.canvas.addEventListener("pointermove", (event) => {
+  window.addEventListener("pointermove", (event) => {
     mouseX = event.clientX - window.innerWidth / 2;
     mouseY = event.clientY - window.innerHeight / 2;
   });
-  ctx.canvas.addEventListener("mousedown", (event) => {
+  window.addEventListener("mousedown", (event) => {
     /** @type {InputEntry} */
     const inputEntry = {
       time: now(),
@@ -156,7 +156,7 @@ export async function run({ tick, render, init }) {
     addInputEntry(inputEntry);
     send({ type: "input", data: [inputEntry] });
   });
-  ctx.canvas.addEventListener("mouseup", (event) => {
+  window.addEventListener("mouseup", (event) => {
     /** @type {InputEntry} */
     const inputEntry = {
       time: now(),

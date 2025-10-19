@@ -12,7 +12,7 @@ export const AVATAR = {
   CROUCH_GRAVITY: 0.06,
   HELD_GRAVITY: 0.02,
   GRAVITY: 0.05,
-  MAX_FALL_SPEED: 0.8,
+  MAX_FALL_SPEED: 0.7,
   MAX_WALK_SPEED: 0.2,
   WIDTH: 0.85,
   HEIGHT: 1.1,
@@ -80,14 +80,14 @@ export function avatarTick(game, level, avatar, moveX, moveY, aimX, aimY, jump, 
   }
 
   if (!avatar.box.wallBottom) {
-    if (avatar.jumpHeld || (avatar.box.dy >= 0 && !pressingCrouch)) {
+    if ((avatar.jumpHeld || avatar.box.dy >= 0) && !pressingCrouch && !avatar.rope.grabbingWall) {
       avatar.box.dy += AVATAR.HELD_GRAVITY;
     } else {
       avatar.box.dy += AVATAR.GRAVITY;
     }
 
-    if (avatar.box.dy > AVATAR.MAX_FALL_SPEED) {
-      avatar.box.dy = AVATAR.MAX_FALL_SPEED;
+    if (Math.abs(avatar.box.dy) > AVATAR.MAX_FALL_SPEED) {
+      avatar.box.dy = AVATAR.MAX_FALL_SPEED * Math.sign(avatar.box.dy);
     }
   }
 

@@ -44,12 +44,6 @@ type InputKey =
   | "buttony"
   | "is_gamepad";
 
-type Prettify<T> = {
-  [K in keyof T]: T[K];
-} & unknown;
-
-type TaggedUnion<T> = Prettify<{ [K in keyof T]: { type: K; data: T[K] } }[keyof T]>;
-
 interface IGame {
   tick: number;
   originTime: number;

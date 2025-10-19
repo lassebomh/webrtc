@@ -1,0 +1,163 @@
+:root {
+  --bg: #121212;
+  --fg: white;
+  --color: #e1e1e1;
+  --accent: #1e88e5;
+  --border: #3a3a3a;
+  --hover: #2f2f2f;
+}
+
+body,
+body * {
+  color: var(--color);
+  font-family: monospace;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 2ch;
+  border: none;
+  outline-offset: -1px;
+  outline-width: 1px;
+  outline-style: solid;
+  outline-color: transparent;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  position: fixed;
+  inset: 0;
+  background-size: 100% 100%;
+  background-color: var(--bg);
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+form,
+label,
+hr,
+br,
+div,
+input {
+  display: flex;
+  flex-direction: column;
+  justify-content: start;
+  align-items: start;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5 {
+  font-weight: bold;
+  color: var(--fg);
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5 {
+  margin: 0;
+}
+
+input,
+textarea,
+select {
+  background-color: var(--hover);
+  appearance: textfield;
+  color: var(--fg);
+  outline-offset: 0;
+  min-width: 5ch;
+}
+
+input[type="checkbox"] {
+  display: inline-block;
+  position: relative;
+  cursor: pointer;
+  appearance: none;
+  outline-color: var(--border);
+  background-color: var(--bg);
+  min-width: auto;
+  width: 3ch;
+  height: 2ch;
+  text-align: center;
+
+  &::after {
+    content: " ";
+    position: absolute;
+    inset: 0;
+  }
+
+  &:checked::after {
+    content: "x";
+  }
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  outline-color: var(--accent);
+}
+
+button {
+  color: var(--fg);
+  background-color: var(--accent);
+  cursor: pointer;
+  text-align: center;
+  display: block;
+  padding: 0 1ch;
+}
+
+br {
+  display: block;
+  width: 100%;
+  margin: 1ch 0;
+}
+
+hr {
+  border-bottom: 1px solid var(--border);
+  display: block;
+  width: 100%;
+  height: 1ch;
+  margin-bottom: 1ch;
+}
+
+label {
+  flex-direction: row;
+  gap: 1ch;
+  width: 100%;
+  justify-content: space-between;
+}
+
+table {
+  width: 100%;
+}
+
+#canvas {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  background: none;
+  background-color: black;
+  image-rendering: pixelated;
+}
+
+#status {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  background-color: #000a;
+  pointer-events: none;
+}

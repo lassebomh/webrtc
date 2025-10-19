@@ -5,9 +5,9 @@
   "license": "ISC",
   "author": "",
   "type": "module",
-  "main": "server/index.mjs",
+  "main": "server.mjs",
   "scripts": {
-    "dev": "node --watch-path=./docs --watch-path=./index.mjs ./index.mjs"
+    "dev": "node --watch-path=./docs --watch-path=./server.mjs ./server.mjs"
   },
   "dependencies": {
     "ws": "8.18.3"

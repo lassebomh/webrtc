@@ -20,9 +20,9 @@ export const init = () =>
     camera: {
       x: 0,
       y: 0,
-      scale: 30,
+      scale: 1,
     },
-    level: 0,
+    level: 1,
     guns: {},
     debug_points: [],
   });
@@ -34,7 +34,7 @@ export const tick = (game, inputs) => {
   if (game.tick === 1) {
     game.camera.x = level.box.width / 2 + 0.1;
     game.camera.y = level.box.height / 2 + 0.1;
-    game.camera.scale = 1000 / level.box.height;
+    game.camera.scale = 900 / level.box.height;
   }
 
   if (Object.keys(game.guns).length === 0) {

@@ -1,16 +1,16 @@
 import { assert, sleep } from "./utils.js";
 
 /**
- * @param {string} roomId
+ * @param {WebSocket} signal
  * @param {(data: any) => any} onmessage
  * @param {number} delay
  */
-export function setupConnection(roomId, onmessage, delay = 0) {
+export function setupConnection(signal, onmessage, delay = 0) {
   const id = Math.trunc(Math.random() * Number.MAX_SAFE_INTEGER);
 
-  const signal = new WebSocket(
-    `ws${window.location.protocol === "https:" ? "s" : ""}://${window.location.host}/${roomId}`
-  );
+  // const signal = new WebSocket(
+  //   `ws${window.location.protocol === "https:" ? "s" : ""}://${window.location.host}/${roomId}`
+  // );
 
   /** @type {Map<number, RTCDataChannel>} */
   const channels = new Map();
@@ -23,21 +23,22 @@ export function setupConnection(roomId, onmessage, delay = 0) {
    * @param {any} to
    */
   function send(data, to = undefined) {
-    signal.send(JSON.stringify({ from: id, to, ...data }));
+    /** @type {ServerRequestPayload} */
+    const payload = {
+      type: "broadcast",
+      data: { from: id, to, ...data },
+    };
+    signal.send(JSON.stringify(payload));
   }
 
-  signal.addEventListener("close", () => {
-    sleep(100).then(() => {
-      window.location.reload();
-    });
-  });
-
-  signal.addEventListener("open", (e) => {
-    send({ type: "init" });
-  });
+  send({ type: "init" });
 
   signal.addEventListener("message", async (e) => {
-    const { from, to, ...msg } = JSON.parse(await /** @type {Blob} */ (e.data).text());
+    /** @type {ServerResponsePayload} */
+    const payload = JSON.parse(await /** @type {Blob} */ (e.data).text());
+    if (payload.type !== "broadcast") return;
+
+    const { from, to, ...msg } = /** @type {any} */ (payload.data);
 
     if (to !== undefined && to !== id) return;
 

@@ -3,36 +3,47 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="/index.css" />
     <link href="/favicon.png" rel="shortcut icon" type="image/png" />
-    <style>
-      body {
-        position: fixed;
-        inset: 0;
-        margin: 0;
-        background-color: black;
-        background-size: 100% 100%;
-      }
-
-      canvas {
-        width: 100%;
-        height: 100%;
-        background: none;
-        image-rendering: pixelated;
-      }
-
-      #status {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        font-family: monospace;
-        background-color: #000a;
-        color: white;
-      }
-    </style>
+    <script type="module" src="./index.js"></script>
+    <title>New game</title>
   </head>
   <body>
-    <canvas id="canvas" tabindex="0"></canvas>
-    <script src="./main.js" type="module"></script>
+    <div style="margin: auto; width: 40ch; padding: 10ch 0">
+      <div style="width: 100%">
+        <label>
+          <h2>Username</h2>
+          <input type="text" id="username" minlength="3" value="" />
+        </label>
+      </div>
+      <br />
+      <br />
+      <br />
+      <br />
+      <form id="create-game">
+        <h2>New Game</h2>
+        <hr />
+        <label>Name <input type="text" name="name" minlength="4" value="New room" autocomplete="off" /></label>
+        <hr />
+        <label>Public <input type="checkbox" name="public" checked autocomplete="off" /></label>
+        <hr />
+        <label
+          >Max players <input type="number" name="connectionLimit" min="1" max="16" value="4" autocomplete="off"
+        /></label>
+        <hr />
+        <button type="submit" style="margin-left: auto">Create</button>
+      </form>
+      <br />
+      <br />
+      <br />
+      <br />
+      <div style="width: 100%; display: none" id="public-rooms">
+        <h2>Join Game</h2>
+        <hr />
+        <table id="public-rooms-table"></table>
+      </div>
+    </div>
+    <canvas id="canvas" style="display: none"></canvas>
     <div id="status"></div>
   </body>
 </html>
