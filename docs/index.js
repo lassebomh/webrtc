@@ -4,12 +4,16 @@ import { assert, fail, setupCanvas, sleep } from "./lib/utils.js";
 
 // setupConnection("debug", () => {});
 
-sessionStorage.username ??= "Anonymous";
+let username = sessionStorage.getItem("username") ?? "Anonymous";
+sessionStorage.setItem("username", username);
 
 const usernameInput = /** @type {HTMLInputElement} */ (document.getElementById("username") ?? fail());
-usernameInput.value = sessionStorage.username;
+usernameInput.value = username;
 usernameInput.addEventListener("input", () => {
-  sessionStorage.username = usernameInput.value;
+  if (usernameInput.value) {
+    username = usernameInput.value;
+    sessionStorage.setItem("username", username);
+  }
 });
 
 const createGameForm = /** @type {HTMLFormElement} */ (document.getElementById("create-game") ?? fail());
@@ -34,7 +38,7 @@ server.addEventListener(
         type: "joinRoom",
         data: {
           roomID: location.search.slice(1),
-          username: sessionStorage.username,
+          username: username,
         },
       });
     } else {

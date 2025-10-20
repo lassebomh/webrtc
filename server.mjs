@@ -61,6 +61,15 @@ const wss = new WebSocketServer({ server });
 /** @type {Map<string, Room>} */
 const rooms = new Map();
 
+rooms.set("test", {
+  connectionLimit: 16,
+  connections: new Map(),
+  created: Date.now(),
+  isPublic: true,
+  name: "Test room",
+  roomID: "test",
+});
+
 wss.on("connection", (ws, req) => {
   /** @type {Room | undefined} */
   let room;
@@ -69,143 +78,152 @@ wss.on("connection", (ws, req) => {
     if (room) {
       room.connections.delete(ws);
 
-      if (room.connections.size === 0) {
-        rooms.delete(room.roomID);
-      }
+      setTimeout(() => {
+        if (room && room.connections.size === 0) {
+          rooms.delete(room.roomID);
+        }
+      }, 1000 * 60 * 2);
     }
   });
 
   ws.on("message", (message) => {
     const payload = /** @type {unknown} */ (JSON.parse(message.toString()));
 
-    assert(
-      payload &&
-        typeof payload === "object" &&
-        "type" in payload &&
-        typeof payload.type === "string" &&
-        "data" in payload &&
-        payload.data
-    );
+    try {
+      assert(
+        payload &&
+          typeof payload === "object" &&
+          "type" in payload &&
+          typeof payload.type === "string" &&
+          "data" in payload &&
+          payload.data
+      );
 
-    switch (payload.type) {
-      case "createRoom": {
-        assert(
-          typeof payload.data === "object" &&
-            "name" in payload.data &&
-            typeof payload.data.name === "string" &&
-            payload.data.name.length >= 3 &&
-            payload.data.name.length <= 40
-        );
-        const name = payload.data.name;
-        assert("isPublic" in payload.data && typeof payload.data.isPublic === "boolean");
-        const isPublic = payload.data.isPublic;
-        assert(
-          "connectionLimit" in payload.data &&
-            typeof payload.data.connectionLimit === "number" &&
-            payload.data.connectionLimit >= 1 &&
-            payload.data.connectionLimit <= 16
-        );
-        const connectionLimit = payload.data.connectionLimit;
+      switch (payload.type) {
+        case "createRoom": {
+          assert(
+            typeof payload.data === "object" &&
+              "name" in payload.data &&
+              typeof payload.data.name === "string" &&
+              payload.data.name.length >= 3 &&
+              payload.data.name.length <= 40
+          );
+          const name = payload.data.name;
+          assert("isPublic" in payload.data && typeof payload.data.isPublic === "boolean");
+          const isPublic = payload.data.isPublic;
+          assert(
+            "connectionLimit" in payload.data &&
+              typeof payload.data.connectionLimit === "number" &&
+              payload.data.connectionLimit >= 1 &&
+              payload.data.connectionLimit <= 16
+          );
+          const connectionLimit = payload.data.connectionLimit;
 
-        const uuid = crypto.randomUUID().toUpperCase().replace("-", "");
+          const uuid = crypto.randomUUID().toUpperCase().replace("-", "");
 
-        let roomID = "";
-        for (let i = 6; i < uuid.length; i++) {
-          roomID = uuid.slice(0, i);
-          if (!rooms.has(roomID)) break;
-        }
+          let roomID = "";
+          for (let i = 6; i < uuid.length; i++) {
+            roomID = uuid.slice(0, i);
+            if (!rooms.has(roomID)) break;
+          }
 
-        rooms.set(roomID, {
-          roomID: roomID,
-          connectionLimit,
-          connections: new Map(),
-          created: Date.now(),
-          isPublic,
-          name,
-        });
-
-        /** @type {ServerResponsePayload} */
-        const response = { type: "roomCreated", data: { roomID, connectionLimit, isPublic, name } };
-        ws.send(JSON.stringify(response));
-
-        break;
-      }
-
-      case "joinRoom": {
-        assert(typeof payload.data === "object" && "roomID" in payload.data && typeof payload.data.roomID === "string");
-
-        assert(
-          "username" in payload.data && typeof payload.data.username === "string" && payload.data.username.length >= 3
-        );
-
-        if (room) {
-          room.connections.delete(ws);
-        }
-
-        room = rooms.get(payload.data.roomID);
-
-        if (room && room.connections.size < room.connectionLimit) {
-          /** @type {ServerResponsePayload} */
-          const response = {
-            type: "roomJoined",
-            data: {
-              roomID: room.roomID,
-              connectionLimit: room.connectionLimit,
-              name: room.name,
-              isPublic: room.isPublic,
-            },
-          };
-
-          room.connections.set(ws, {
-            name: payload.data.username,
+          rooms.set(roomID, {
+            roomID: roomID,
+            connectionLimit,
+            connections: new Map(),
+            created: Date.now(),
+            isPublic,
+            name,
           });
 
+          /** @type {ServerResponsePayload} */
+          const response = { type: "roomCreated", data: { roomID, connectionLimit, isPublic, name } };
           ws.send(JSON.stringify(response));
-        } else {
+
+          break;
+        }
+
+        case "joinRoom": {
+          assert(
+            typeof payload.data === "object" && "roomID" in payload.data && typeof payload.data.roomID === "string"
+          );
+
+          assert(
+            "username" in payload.data && typeof payload.data.username === "string" && payload.data.username.length >= 3
+          );
+
+          if (room) {
+            room.connections.delete(ws);
+          }
+
+          room = rooms.get(payload.data.roomID);
+
+          if (room && room.connections.size < room.connectionLimit) {
+            /** @type {ServerResponsePayload} */
+            const response = {
+              type: "roomJoined",
+              data: {
+                roomID: room.roomID,
+                connectionLimit: room.connectionLimit,
+                name: room.name,
+                isPublic: room.isPublic,
+              },
+            };
+
+            room.connections.set(ws, {
+              name: payload.data.username,
+            });
+
+            ws.send(JSON.stringify(response));
+          } else {
+            /** @type {ServerResponsePayload} */
+            const response = {
+              type: "roomDisconnected",
+              data: true,
+            };
+
+            ws.send(JSON.stringify(response));
+          }
+
+          break;
+        }
+
+        case "broadcast": {
+          if (room !== undefined) {
+            for (const [client] of room.connections) {
+              if (client !== ws && client.readyState === ws.OPEN) {
+                client.send(message);
+              }
+            }
+          }
+          break;
+        }
+
+        case "roomsList": {
           /** @type {ServerResponsePayload} */
           const response = {
-            type: "roomDisconnected",
-            data: true,
+            type: "roomsList",
+            data: [...rooms.entries()]
+              .filter((x) => x[1].isPublic)
+              .map(([roomID, { connectionLimit, connections, name }]) => ({
+                roomID,
+                name,
+                connectionLimit,
+                connections: connections.size,
+              })),
           };
 
           ws.send(JSON.stringify(response));
+
+          break;
         }
 
-        break;
+        default:
+          break;
       }
-
-      case "broadcast": {
-        if (room !== undefined) {
-          for (const [client] of room.connections) {
-            if (client !== ws && client.readyState === ws.OPEN) {
-              client.send(message);
-            }
-          }
-        }
-        break;
-      }
-
-      case "roomsList": {
-        /** @type {ServerResponsePayload} */
-        const response = {
-          type: "roomsList",
-          data: [...rooms.entries()]
-            .filter((x) => x[1].isPublic)
-            .map(([roomID, { connectionLimit, connections, name }]) => ({
-              roomID,
-              name,
-              connectionLimit,
-              connections: connections.size,
-            })),
-        };
-
-        ws.send(JSON.stringify(response));
-
-        break;
-      }
-
-      default:
-        break;
+    } catch (error) {
+      console.log(payload);
+      throw error;
     }
   });
 

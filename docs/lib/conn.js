@@ -118,11 +118,15 @@ export function setupConnection(signal, onmessage, delay = 0) {
   /** @type {(data: any) => void} */
   const sendFunc = (data) => {
     const payload = JSON.stringify(data);
-
-    for (const channel of channels.values()) {
-      if (channel.readyState === "open") {
-        channel.send(payload);
+    try {
+      for (const channel of channels.values()) {
+        if (channel.readyState === "open") {
+          channel.send(payload);
+        }
       }
+    } catch (error) {
+      console.warn(payload);
+      throw error;
     }
   };
 
