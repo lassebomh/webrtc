@@ -18,6 +18,8 @@ export function particleRender(ctx, prevParticle, particle, alpha) {
   const particleAngle = Math.atan2(dy, dx);
   const mag = Math.hypot(dx, dy);
 
+  if (size <= 0 || Math.max(size, mag / 1.5, 0) <= 0) return;
+
   ctx.ellipse(x + dx / 2, y + dy / 2, size, Math.max(size, mag / 1.5, 0), particleAngle + Math.PI / 2, 0, Math.PI * 2);
 
   ctx.shadowBlur = mag * 20;
@@ -28,7 +30,6 @@ export function particleRender(ctx, prevParticle, particle, alpha) {
 }
 
 /**
- *
  * @param {Game} game
  * @param {Particle} particle
  */
@@ -46,7 +47,6 @@ export function particleTick(game, particle) {
 }
 
 /**
- *
  * @param {Game} game
  * @param {number} x
  * @param {number} y

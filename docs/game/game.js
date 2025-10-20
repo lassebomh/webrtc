@@ -314,6 +314,7 @@ export const render = (ctx, prev, curr, alpha) => {
     const size = 0.05;
     const particleAngle = Math.atan2(dy, dx);
     const mag = Math.hypot(dx, dy);
+    if (size <= 0 || Math.max(size, mag / 1.3, 0) <= 0) continue;
     ctx.ellipse(x + dx / 2, y + dy / 2, size, Math.max(size, mag / 1.3), particleAngle + Math.PI / 2, 0, Math.PI * 2);
     ctx.fillStyle = "yellow";
     ctx.fill();
