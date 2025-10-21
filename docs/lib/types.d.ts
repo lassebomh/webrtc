@@ -51,12 +51,12 @@ interface IGame {
 
 type InputEntry = { deviceID: DeviceID; key: InputKey; value: number; time: number };
 
-type TickInput = { [K in InputKey]?: number };
-type TickInputMap = Record<DeviceID, TickInput>;
+type DeviceInputs = { [K in InputKey]?: number };
+type InputRecord = Record<DeviceID, DeviceInputs>;
 
 type DeviceID = string & {};
 
-type GameFunc<TGame extends IGame> = (prev: TGame, inputs: TickInputMap) => void;
+type GameFunc<TGame extends IGame> = (prev: TGame, inputs: InputRecord) => void;
 type RenderFunc<TGame extends IGame> = (
   ctx: CanvasRenderingContext2D,
   prev: TGame,
@@ -69,7 +69,7 @@ type Message<TGame extends IGame> = TaggedUnion<{
   syncRequest: true;
   syncResponse: {
     game: TGame;
-    baseTickInputMap: TickInputMap;
+    baseTickInputMap: InputRecord;
     inputEntries: InputEntry[];
   };
 }>;

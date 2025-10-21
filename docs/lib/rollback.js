@@ -25,7 +25,7 @@ export async function run({ tick, render, init, ctx, server }) {
   /** @type {InputEntry[]} */
   let inputEntries = [];
 
-  /** @type {TickInputMap} */
+  /** @type {InputRecord} */
   let baseTickInputMap = {};
 
   /** @type {Array<TGame>} */
@@ -309,7 +309,7 @@ export async function run({ tick, render, init, ctx, server }) {
 
       const inputEntriesInTimeWindow = inputEntries.filter((x) => x.time < tickEndTime);
 
-      /** @type {TickInputMap} */
+      /** @type {InputRecord} */
       const combinedInputs = structuredClone(baseTickInputMap);
 
       for (const inputEntry of inputEntriesInTimeWindow) {
@@ -340,11 +340,12 @@ export async function run({ tick, render, init, ctx, server }) {
 
     fpsLogs[fpsCounter++ & 63] = currentTime - lastTime;
 
-    if ((fpsCounter & 15) === 0) {
+    if ((fpsCounter & 63) === 0) {
       const fps = 1000 / (fpsLogs.reduce((acc, x) => acc + x, 0) / fpsLogs.length);
       const ping = pingLogs.reduce((acc, x) => acc + x, 0) / pingLogs.length;
+      const gameSize = new TextEncoder().encode(JSON.stringify({ game, inputEntries, baseTickInputMap })).length;
 
-      statusElement.textContent = `${fps.toFixed(2)} FPS ${ping.toFixed(2)} PING`;
+      statusElement.textContent = `${fps.toFixed(2)} FPS ${ping.toFixed(2)} PING ${gameSize} SIZE`;
     }
 
     const currentTimeTick = (now() - game.originTime) / TICK_RATE - DELAY_TICKS;

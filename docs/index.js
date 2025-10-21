@@ -1,6 +1,7 @@
 import { init, render, tick } from "./game/game.js";
 import { run } from "./lib/rollback.js";
 import { assert, fail, setupCanvas, sleep } from "./lib/utils.js";
+import "./lib/inputs.js";
 
 // setupConnection("debug", () => {});
 

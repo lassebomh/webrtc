@@ -175,7 +175,7 @@ let stopAvatar;
  * @param {DeviceID} deviceID
  */
 function play(deviceID) {
-  /** @type {TickInput} */
+  /** @type {DeviceInputs} */
   let combinedInputs = {};
 
   /**
