@@ -1,15 +1,15 @@
 import { assert, fail } from "./utils.js";
 
 /**
- * @template TGame
+ * @template TState
  */
 class RollbackEngine {
   /**
-   * @param {{ tick: number, state: TGame, inputs: InputRecord}} init
-   * @param {(prev: TGame, inputs: InputRecord) => void} tickFunc
+   * @param {{ tick: number, state: TState, inputs: InputRecord}} init
+   * @param {(prev: TState, inputs: InputRecord) => void} tickFunc
    */
   constructor(init, tickFunc) {
-    /** @type {{tick: number, inputs: InputRecord, mergedInputs: InputRecord | null, state: TGame | null}[]} */
+    /** @type {{tick: number, inputs: InputRecord, mergedInputs: InputRecord | null, state: TState | null}[]} */
     this.history = [
       {
         tick: 0,
@@ -129,7 +129,7 @@ class InputController {
   /** @type {DeviceInputs} */
   defaultInputs = {};
 
-  /** @type {DeviceInputs[]} */
+  /** @type {(DeviceInputs | null)[]} */
   gamepadInputs = [];
 
   /** @type {number | undefined} */
@@ -197,46 +197,64 @@ class InputController {
       this.defaultInputs[key] = 0;
     });
 
-    window.addEventListener("gamepadconnected", (ev) => {
-      if (ev.gamepad.index < this.gamepadInputs.length - 1) {
-        this.gamepadInputs.push({ is_gamepad: 1 });
-      }
-    });
-
     setInterval(() => {
-      for (const gamepad of navigator.getGamepads()) {
-        if (gamepad) {
-          const inputs = this.gamepadInputs[gamepad.index] ?? fail();
+      const gamepads = navigator.getGamepads();
 
-          if (gamepad.axes.length >= 6) {
-            const [lstickx, lsticky, rstickx, rsticky, ltrigger, rtrigger] =
-              /** @type {[number,number,number,number,number,number]} */ (gamepad.axes);
+      for (let i = 0; i < gamepads.length; i++) {
+        const gamepad = gamepads[i];
 
-            inputs.lstickx = lstickx;
-            inputs.lsticky = lsticky;
-            inputs.rstickx = rstickx;
-            inputs.rsticky = rsticky;
-            inputs.ltrigger = (ltrigger + 1) / 2;
-            inputs.rtrigger = (rtrigger + 1) / 2;
-          }
+        if (!gamepad) {
+          this.gamepadInputs[i] ??= null;
+          continue;
+        }
 
-          if (gamepad.buttons.length >= 6) {
-            const [buttona, buttonb, buttony, buttonx, lshoulder, rshoulder] =
-              /** @type {[number,number,number,number,number,number]} */ (gamepad.buttons.map((x) => x.value));
-            inputs.buttona = buttona;
-            inputs.buttonb = buttonb;
-            inputs.buttony = buttony;
-            inputs.buttonx = buttonx;
-            inputs.lshoulder = lshoulder;
-            inputs.rshoulder = rshoulder;
-          }
+        const inputs = (this.gamepadInputs[i] ??= {});
+        inputs.is_gamepad = 1;
+
+        if (gamepad.axes.length >= 6) {
+          let [lstickx, lsticky, rstickx, rsticky, ltrigger, rtrigger] =
+            /** @type {[number,number,number,number,number,number]} */ (gamepad.axes);
+          ltrigger = (ltrigger + 1) / 2;
+          rtrigger = (rtrigger + 1) / 2;
+
+          if (Math.abs(lstickx) > 0.08) inputs.lstickx = lstickx;
+          if (Math.abs(lsticky) > 0.08) inputs.lsticky = lsticky;
+          if (Math.abs(rstickx) > 0.08) inputs.rstickx = rstickx;
+          if (Math.abs(rsticky) > 0.08) inputs.rsticky = rsticky;
+          if (ltrigger !== 0.5 && Math.abs(ltrigger) > 0.05) inputs.ltrigger = ltrigger;
+          if (rtrigger !== 0.5 && Math.abs(rtrigger) > 0.05) inputs.rtrigger = rtrigger;
+        }
+
+        if (gamepad.buttons.length >= 6) {
+          const [buttona, buttonb, buttony, buttonx, lshoulder, rshoulder] =
+            /** @type {[number,number,number,number,number,number]} */ (gamepad.buttons.map((x) => x.value));
+          if (buttona) inputs.buttona = buttona;
+          if (buttonb) inputs.buttonb = buttonb;
+          if (buttony) inputs.buttony = buttony;
+          if (buttonx) inputs.buttonx = buttonx;
+          if (lshoulder) inputs.lshoulder = lshoulder;
+          if (rshoulder) inputs.rshoulder = rshoulder;
         }
       }
     }, 1000 / 60);
   }
 
-  flush() {}
+  flush() {
+    const defaultInputs = this.defaultInputs;
+    const gamepadInputs = this.gamepadInputs;
+
+    this.defaultInputs = {};
+    this.gamepadInputs = [];
+
+    return { defaultInputs, gamepadInputs };
+  }
 }
+
+// const inputController = new InputController(document.getElementById("test") ?? fail());
+
+// setInterval(() => {
+//   console.log(JSON.stringify(inputController.flush()));
+// }, 1000);
 
 /** @typedef {{tick: number, value: number}} TestGame */
 
