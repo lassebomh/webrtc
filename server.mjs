@@ -1,3 +1,4 @@
+/// <reference path="./docs/lib/shared/index.d.ts" />
 /// <reference path="./server.d.ts" />
 
 import { WebSocket, WebSocketServer } from "ws";
@@ -5,7 +6,8 @@ import http from "http";
 import { extname, join } from "path";
 import { fileURLToPath } from "url";
 import { createReadStream, statSync } from "fs";
-import assert from "assert";
+import { serverPeerId } from "./docs/lib/shared/net.js";
+import { assert, fail } from "./docs/lib/shared/utils.js";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 
@@ -53,199 +55,160 @@ const server = http.createServer((req, res) => {
 
 const wss = new WebSocketServer({ server });
 
-/**
- * @typedef {{ name: string }} User
- * @typedef {{roomID: string, name: string, created: number, isPublic: boolean, connectionLimit: number, connections: Map<WebSocket, User>}} Room
- */
+/** @type {WeakMap<WebSocket, PeerID>} */
+const peers = new WeakMap();
 
-/** @type {Map<string, Room>} */
+/** @type {Set<PeerID>} */
+const allPeerIDs = new Set([serverPeerId]);
+
+/** @typedef {Room & { connections: WebSocket[]; }} RoomConnections */
+
+/** @type {Map<string, RoomConnections>} */
 const rooms = new Map();
 
-rooms.set("test", {
-  connectionLimit: 16,
-  connections: new Map(),
-  created: Date.now(),
-  isPublic: true,
-  name: "Test room",
-  roomID: "test",
-});
-
 wss.on("connection", (ws, req) => {
-  /** @type {Room | undefined} */
-  let room;
+  /** @type {PeerID | undefined} */
+  let peerID;
+
+  /** @type {RoomConnections | undefined} */
+  let currentRoom;
 
   ws.on("close", () => {
-    if (room) {
-      room.connections.delete(ws);
-
-      setTimeout(() => {
-        if (room && room.connections.size === 0) {
-          rooms.delete(room.roomID);
-        }
-      }, 1000 * 60 * 2);
+    peers.delete(ws);
+    if (peerID) {
+      allPeerIDs.delete(peerID);
     }
   });
 
   ws.on("message", (message) => {
-    const payload = /** @type {unknown} */ (JSON.parse(message.toString()));
+    const packet = /** @type {PacketRequest<ServerPackets> | PacketResponse<ServerPackets>} */ (
+      JSON.parse(message.toString())
+    );
+
+    console.log("received", packet);
 
     try {
-      assert(
-        payload &&
-          typeof payload === "object" &&
-          "type" in payload &&
-          typeof payload.type === "string" &&
-          "data" in payload &&
-          payload.data
-      );
-
-      switch (payload.type) {
-        case "createRoom": {
-          assert(
-            typeof payload.data === "object" &&
-              "name" in payload.data &&
-              typeof payload.data.name === "string" &&
-              payload.data.name.length >= 3 &&
-              payload.data.name.length <= 40
-          );
-          const name = payload.data.name;
-          assert("isPublic" in payload.data && typeof payload.data.isPublic === "boolean");
-          const isPublic = payload.data.isPublic;
-          assert(
-            "connectionLimit" in payload.data &&
-              typeof payload.data.connectionLimit === "number" &&
-              payload.data.connectionLimit >= 1 &&
-              payload.data.connectionLimit <= 16
-          );
-          const connectionLimit = payload.data.connectionLimit;
-
-          const uuid = crypto.randomUUID().toUpperCase().replace("-", "");
-
-          let roomID = "";
-          for (let i = 6; i < uuid.length; i++) {
-            roomID = uuid.slice(0, i);
-            if (!rooms.has(roomID)) break;
-          }
-
-          rooms.set(roomID, {
-            roomID: roomID,
-            connectionLimit,
-            connections: new Map(),
-            created: Date.now(),
-            isPublic,
-            name,
-          });
-
-          /** @type {ServerResponsePayload} */
-          const response = { type: "roomCreated", data: { roomID, connectionLimit, isPublic, name } };
-          ws.send(JSON.stringify(response));
-
-          break;
+      if (peerID === undefined) {
+        assert(packet.type === "greet", "peer has to send a greeting first");
+        const requestedPeerID = packet.sender;
+        if (allPeerIDs.has(requestedPeerID)) {
+          fail("id is already used");
         }
+        peerID = requestedPeerID;
+        peers.set(ws, peerID);
+        allPeerIDs.add(peerID);
+        return;
+      }
 
-        case "joinRoom": {
-          assert(
-            typeof payload.data === "object" && "roomID" in payload.data && typeof payload.data.roomID === "string"
-          );
+      assert(packet.type !== "greet", "peer has already been assigned an id");
+      assert(packet.sender === peerID, "cheat!");
 
-          assert(
-            "username" in payload.data && typeof payload.data.username === "string" && payload.data.username.length >= 3
-          );
+      if (packet.receiver === serverPeerId) {
+        assert("request" in packet);
+        switch (packet.type) {
+          case "createRoom": {
+            const { connectionLimit, isPublic, name } = packet.request;
+            const roomID = crypto.randomUUID();
 
-          if (room) {
-            room.connections.delete(ws);
-          }
-
-          room = rooms.get(payload.data.roomID);
-
-          if (room && room.connections.size < room.connectionLimit) {
-            /** @type {ServerResponsePayload} */
-            const response = {
-              type: "roomJoined",
-              data: {
-                roomID: room.roomID,
-                connectionLimit: room.connectionLimit,
-                name: room.name,
-                isPublic: room.isPublic,
-              },
+            /** @type {Room} */
+            const room = {
+              roomID,
+              name,
+              isPublic,
+              connectionLimit,
             };
 
-            room.connections.set(ws, {
-              name: payload.data.username,
-            });
+            /** @type {RoomConnections} */
+            const roomConnections = {
+              ...room,
+              connections: [],
+            };
 
-            ws.send(JSON.stringify(response));
-          } else {
-            /** @type {ServerResponsePayload} */
+            rooms.set(roomID, roomConnections);
+
+            /** @type {PacketResponse<ServerPackets, 'createRoom'>} */
             const response = {
-              type: "roomDisconnected",
-              data: true,
+              type: "createRoom",
+              id: packet.id,
+              receiver: packet.sender,
+              sender: serverPeerId,
+              response: room,
             };
 
             ws.send(JSON.stringify(response));
+
+            break;
           }
 
-          break;
-        }
+          case "joinRoom": {
+            const room = rooms.get(packet.request);
+            assert(currentRoom === undefined);
 
-        case "broadcast": {
-          if (room !== undefined) {
-            for (const [client] of room.connections) {
-              if (client !== ws && client.readyState === ws.OPEN) {
-                client.send(message);
-              }
+            if (room) {
+              currentRoom = room;
+              room.connections.push(ws);
             }
+
+            /** @type {PacketResponse<ServerPackets, 'joinRoom'>} */
+            const response = {
+              type: "joinRoom",
+              id: packet.id,
+              receiver: packet.sender,
+              sender: serverPeerId,
+              response: room
+                ? {
+                    connectionLimit: room.connectionLimit,
+                    isPublic: room.isPublic,
+                    name: room.name,
+                    roomID: room.roomID,
+                  }
+                : null,
+            };
+
+            ws.send(JSON.stringify(response));
+
+            break;
           }
-          break;
+
+          case "disconnectRoom": {
+            if (currentRoom) {
+              const index = currentRoom.connections.indexOf(ws);
+              currentRoom.connections.splice(index, 1);
+              currentRoom = undefined;
+            }
+
+            /** @type {PacketResponse<ServerPackets, 'disconnectRoom'>} */
+            const response = {
+              type: "disconnectRoom",
+              id: packet.id,
+              receiver: packet.sender,
+              sender: serverPeerId,
+              response: undefined,
+            };
+
+            ws.send(JSON.stringify(response));
+
+            break;
+          }
+
+          default:
+            fail(JSON.stringify(packet));
+            break;
         }
+      } else {
+        assert(currentRoom);
 
-        case "roomsList": {
-          /** @type {ServerResponsePayload} */
-          const response = {
-            type: "roomsList",
-            data: [...rooms.entries()]
-              .filter((x) => x[1].isPublic)
-              .map(([roomID, { connectionLimit, connections, name }]) => ({
-                roomID,
-                name,
-                connectionLimit,
-                connections: connections.size,
-              })),
-          };
-
-          ws.send(JSON.stringify(response));
-
-          break;
+        for (const peerWS of currentRoom.connections) {
+          const recieverID = peers.get(peerWS) ?? fail();
+          if (ws === peerWS || (packet.receiver !== null && packet.receiver === recieverID)) continue;
+          peerWS.send(JSON.stringify(packet));
         }
-
-        default:
-          break;
       }
     } catch (error) {
-      console.log(payload);
+      console.log(packet);
       throw error;
     }
   });
-
-  // let room = rooms.get(roomId);
-  // if (room === undefined) {
-  //   room = new Set();
-  //   rooms.set(roomId, room);
-  // }
-  // room.add(ws);
-  // ws.on("message", (message) => {
-  // for (const client of room) {
-  //   if (client !== ws && client.readyState === ws.OPEN) {
-  //     client.send(message);
-  //   }
-  // }
-  // });
-  // ws.on("close", () => {
-  //   room.delete(ws);
-  //   if (room.size === 0) {
-  //     rooms.delete(roomId);
-  //   }
-  // });
 });
 
 server.listen(PORT, () => {

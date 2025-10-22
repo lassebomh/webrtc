@@ -59,3 +59,7 @@ export function lin(start, end, alpha) {
 export const defaultDeviceID = (sessionStorage.tabId ??= crypto.randomUUID());
 
 export const EPSILON = 1e-5;
+
+const safeIntRange = Number.MAX_SAFE_INTEGER - Number.MIN_SAFE_INTEGER;
+
+export const randInt = () => Math.trunc(Number.MIN_SAFE_INTEGER + Math.random() * safeIntRange);

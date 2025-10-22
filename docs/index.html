@@ -8,51 +8,5 @@
     <script type="module" src="./index.js"></script>
     <title>New game</title>
   </head>
-  <body>
-    <div style="margin: auto; width: 40ch; padding: 10ch 0">
-      <div style="width: 100%">
-        <label>
-          <h2>Username</h2>
-          <input type="text" id="username" minlength="3" value="" />
-        </label>
-      </div>
-      <br />
-      <br />
-      <br />
-      <br />
-      <form id="create-game">
-        <h2>New Game</h2>
-        <hr />
-        <label>Name <input type="text" name="name" minlength="4" value="New room" autocomplete="off" /></label>
-        <hr />
-        <label>Public <input type="checkbox" name="public" checked autocomplete="off" /></label>
-        <hr />
-        <label
-          >Max players <input type="number" name="connectionLimit" min="1" max="16" value="4" autocomplete="off"
-        /></label>
-        <hr />
-        <button type="submit" style="margin-left: auto">Create</button>
-      </form>
-      <br />
-      <br />
-      <br />
-      <br />
-      <div style="width: 100%; display: none" id="public-rooms">
-        <h2>Join Game</h2>
-        <hr />
-        <table id="public-rooms-table"></table>
-      </div>
-    </div>
-    <canvas id="canvas" style="display: none"></canvas>
-    <div id="status"></div>
-
-    <style>
-      #test {
-        width: 300px;
-        height: 300px;
-        background-color: #f008;
-      }
-    </style>
-    <div id="test">hello world</div>
-  </body>
+  <body></body>
 </html>

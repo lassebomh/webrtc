@@ -14,5 +14,5 @@
     "erasableSyntaxOnly": true,
     "noUncheckedIndexedAccess": true
   },
-  "include": ["./**/*.js", "./game/types.d.ts", "./lib/types.d.ts", "../server.d.ts"]
+  "include": ["./**/*.js", "./game/types.d.ts", "./lib/types.d.ts", "lib/shared/index.d.ts"]
 }
