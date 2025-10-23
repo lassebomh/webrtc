@@ -17,14 +17,22 @@ export class Net {
    * @param {PacketRequest<TPackets> | PacketResponse<TPackets>} packet
    */
   async receiveRaw(packet) {
+    console.log(
+      packet.receiver?.slice(0, 3) ?? "ALL",
+      "<--",
+      packet.sender.slice(0, 3),
+      packet.type,
+      "request" in packet ? packet.request : packet.response
+    );
+
     if (packet.receiver !== null && packet.receiver != this.peerId) return;
 
     if ("request" in packet) {
       const response = await this.receiver[packet.type](packet.sender, packet.request);
       if (response !== undefined) {
         this.sender({
-          type: packet.type,
           id: packet.id,
+          type: packet.type,
           sender: this.peerId,
           receiver: packet.sender,
           response,
@@ -43,7 +51,16 @@ export class Net {
    */
   constructor(peerId, sender, receiver) {
     this.peerId = peerId;
-    this.sender = sender;
+    this.sender = /** @type {typeof sender} */ (packet) => {
+      console.log(
+        packet.sender.slice(0, 3),
+        "|->",
+        packet.receiver?.slice(0, 3) ?? "ALL",
+        packet.type,
+        "request" in packet ? packet.request : packet.response
+      );
+      sender(packet);
+    };
     this.receiver = receiver;
   }
 
@@ -68,7 +85,20 @@ export class Net {
    * @param {T} type
    * @param {TPackets[T]['request']} data
    */
-  sendAll(type, data) {}
+  sendAll(type, data) {
+    const id = randInt();
+
+    /** @type {PacketRequest<TPackets, T>} */
+    const request = {
+      id,
+      type,
+      request: data,
+      sender: this.peerId,
+      receiver: null,
+    };
+
+    this.sender(request);
+  }
 
   /**
    * @template {keyof TPackets} T
@@ -123,9 +153,9 @@ export class Net {
     const request = {
       id,
       type,
-      request: data,
       sender: this.peerId,
       receiver,
+      request: data,
     };
 
     this.sender(request);
@@ -133,6 +163,7 @@ export class Net {
     const { promise, reject, resolve } = Promise.withResolvers();
 
     const timeout = setTimeout(() => {
+      console.warn(request);
       reject(new Error(`Request ${request.type.toString()}#${request.id} timeout`));
       this.#requestResolvers.delete(id);
     }, timeoutMs);

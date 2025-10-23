@@ -56,7 +56,13 @@ type InputRecord = Record<DeviceID, DeviceInputs>;
 
 type DeviceID = string & {};
 
-type GameFunc<TGame extends IGame> = (prev: TGame, inputs: InputRecord) => void;
+type NewInputEntry = {
+  defaultInputs: DeviceInputs;
+  gamepadInputs: (DeviceInputs | null)[];
+};
+type NewInputEntryRecord = Record<PeerID, NewInputEntry>;
+
+type GameFunc<TGame extends IGame> = (prev: TGame, inputs: NewInputEntryRecord) => void;
 type RenderFunc<TGame extends IGame> = (
   ctx: CanvasRenderingContext2D,
   prev: TGame,

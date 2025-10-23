@@ -11,7 +11,7 @@ type Room = {
   isPublic: boolean;
 };
 
-type PeerID = string & Record<symbol, never>;
+type PeerID = string;
 
 type Packets = { [K in string]: { request: any; response: any } };
 
@@ -38,7 +38,7 @@ type PacketResponse<TPackets extends Packets, TType extends keyof TPackets = key
 type ServerPackets = {
   greet: {
     request: null;
-    response: void;
+    response: null;
   };
   createRoom: {
     request: Omit<Room, "roomID">;
@@ -53,7 +53,7 @@ type ServerPackets = {
     response: void;
   };
   roomsList: {
-    request: void;
+    request: null;
     response: Array<{
       roomID: string;
       name: string;
@@ -61,12 +61,8 @@ type ServerPackets = {
       connections: number;
     }>;
   };
-  broadcast: {
-    request: string;
-    response: string;
-  };
 
   roomRtcOffer: { request: null; response: string | undefined };
-  roomRtcAnswer: { request: string | undefined; response: void };
+  roomRtcAnswer: { request: string | undefined; response: null };
   roomRtcIceCandidate: { request: RTCIceCandidate | null; response: void };
 };

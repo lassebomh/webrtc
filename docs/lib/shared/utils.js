@@ -1,9 +1,11 @@
+class AssertionError extends Error {}
+
 /**
  * @param {string | undefined} msg
  * @returns {never}
  */
 export function fail(msg = undefined) {
-  throw new Error(msg);
+  throw new AssertionError(msg);
 }
 
 /**
@@ -13,8 +15,17 @@ export function fail(msg = undefined) {
  */
 export function assert(value, msg = undefined) {
   if (!value) {
-    throw new Error(msg);
+    fail(msg);
   }
+}
+
+/**
+ * @param {never} value
+ * @param {string | undefined} msg
+ * @returns {never}
+ */
+export function isUnreachable(value, msg = undefined) {
+  fail(msg);
 }
 
 export function now() {

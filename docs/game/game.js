@@ -22,14 +22,16 @@ export const init = () =>
       y: 0,
       scale: 1,
     },
-    level: 2,
+    level: 0,
     guns: {},
     allowedGuns: 4,
     debug_points: [],
   });
 
 /** @type {GameFunc<Game>} */
-export const tick = (game, inputs) => {
+export const tick = (game, inputEntries) => {
+  game.tick++;
+
   const level = levels[game.level] ?? fail();
 
   let gunsCount = Object.keys(game.guns).length;
@@ -38,6 +40,19 @@ export const tick = (game, inputs) => {
   let avatarMeanY = 0;
   let avatarCount = 0;
   let highestDistanceToCamera = 0;
+
+  /** @type {Record<PeerID, DeviceInputs>} */
+  const inputs = {};
+
+  for (const peerID in inputEntries) {
+    const inputEntry = inputEntries[peerID] ?? fail();
+    inputs[peerID] = inputEntry.defaultInputs;
+
+    for (let i = 0; i < inputEntry.gamepadInputs.length; i++) {
+      const gamepad = inputEntry.gamepadInputs[i];
+      if (gamepad) inputs[peerID + i] = gamepad;
+    }
+  }
 
   for (const deviceID in inputs) {
     game.players[deviceID] ??= {

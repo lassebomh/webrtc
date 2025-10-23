@@ -7,7 +7,7 @@ import { extname, join } from "path";
 import { fileURLToPath } from "url";
 import { createReadStream, statSync } from "fs";
 import { serverPeerId } from "./docs/lib/shared/net.js";
-import { assert, fail } from "./docs/lib/shared/utils.js";
+import { assert, fail, isUnreachable } from "./docs/lib/shared/utils.js";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 
@@ -77,8 +77,99 @@ wss.on("connection", (ws, req) => {
     peers.delete(ws);
     if (peerID) {
       allPeerIDs.delete(peerID);
+
+      if (currentRoom) {
+        const index = currentRoom.connections.indexOf(ws);
+        assert(index !== -1);
+        currentRoom.connections.splice(index, 1);
+        currentRoom = undefined;
+      }
     }
   });
+
+  /**
+   * @param {PacketRequest<ServerPackets>} packet
+   * @returns {PacketResponse<ServerPackets>['response']}
+   */
+  function onserverrequest(packet) {
+    switch (packet.type) {
+      case "createRoom": {
+        const { connectionLimit, isPublic, name } = packet.request;
+        const roomID = crypto.randomUUID();
+
+        /** @type {Room} */
+        const room = {
+          roomID,
+          name,
+          isPublic,
+          connectionLimit,
+        };
+
+        /** @type {RoomConnections} */
+        const roomConnections = {
+          ...room,
+          connections: [],
+        };
+
+        rooms.set(roomID, roomConnections);
+
+        return room;
+      }
+
+      case "joinRoom": {
+        const room = rooms.get(packet.request);
+        assert(currentRoom === undefined);
+
+        if (room) {
+          currentRoom = room;
+          room.connections.push(ws);
+        }
+
+        return room
+          ? {
+              connectionLimit: room.connectionLimit,
+              isPublic: room.isPublic,
+              name: room.name,
+              roomID: room.roomID,
+            }
+          : null;
+
+        break;
+      }
+
+      case "disconnectRoom": {
+        if (currentRoom) {
+          const index = currentRoom.connections.indexOf(ws);
+          assert(index !== -1);
+          currentRoom.connections.splice(index, 1);
+          currentRoom = undefined;
+        }
+
+        return;
+      }
+
+      case "roomsList":
+        return [...rooms.values()]
+          .filter((x) => x.isPublic)
+          .map((x) => ({
+            name: x.name,
+            connectionLimit: x.connectionLimit,
+            connections: x.connections.length,
+            roomID: x.roomID,
+          }));
+
+        break;
+      case "greet":
+      case "roomRtcOffer":
+      case "roomRtcAnswer":
+      case "roomRtcIceCandidate":
+        fail();
+
+      default:
+        isUnreachable(packet, JSON.stringify(packet));
+        break;
+    }
+  }
 
   ws.on("message", (message) => {
     const packet = /** @type {PacketRequest<ServerPackets> | PacketResponse<ServerPackets>} */ (
@@ -97,6 +188,15 @@ wss.on("connection", (ws, req) => {
         peerID = requestedPeerID;
         peers.set(ws, peerID);
         allPeerIDs.add(peerID);
+        /** @type {PacketResponse<ServerPackets, 'greet'>} */
+        const response = {
+          id: packet.id,
+          type: packet.type,
+          sender: serverPeerId,
+          receiver: packet.sender,
+          response: null,
+        };
+        ws.send(JSON.stringify(response));
         return;
       }
 
@@ -105,102 +205,25 @@ wss.on("connection", (ws, req) => {
 
       if (packet.receiver === serverPeerId) {
         assert("request" in packet);
-        switch (packet.type) {
-          case "createRoom": {
-            const { connectionLimit, isPublic, name } = packet.request;
-            const roomID = crypto.randomUUID();
 
-            /** @type {Room} */
-            const room = {
-              roomID,
-              name,
-              isPublic,
-              connectionLimit,
-            };
+        /** @type {PacketResponse<ServerPackets, any>} */
+        const response = {
+          id: packet.id,
+          type: packet.type,
+          sender: serverPeerId,
+          receiver: packet.sender,
+          response: onserverrequest(packet),
+        };
 
-            /** @type {RoomConnections} */
-            const roomConnections = {
-              ...room,
-              connections: [],
-            };
+        console.log("sending", response);
 
-            rooms.set(roomID, roomConnections);
-
-            /** @type {PacketResponse<ServerPackets, 'createRoom'>} */
-            const response = {
-              type: "createRoom",
-              id: packet.id,
-              receiver: packet.sender,
-              sender: serverPeerId,
-              response: room,
-            };
-
-            ws.send(JSON.stringify(response));
-
-            break;
-          }
-
-          case "joinRoom": {
-            const room = rooms.get(packet.request);
-            assert(currentRoom === undefined);
-
-            if (room) {
-              currentRoom = room;
-              room.connections.push(ws);
-            }
-
-            /** @type {PacketResponse<ServerPackets, 'joinRoom'>} */
-            const response = {
-              type: "joinRoom",
-              id: packet.id,
-              receiver: packet.sender,
-              sender: serverPeerId,
-              response: room
-                ? {
-                    connectionLimit: room.connectionLimit,
-                    isPublic: room.isPublic,
-                    name: room.name,
-                    roomID: room.roomID,
-                  }
-                : null,
-            };
-
-            ws.send(JSON.stringify(response));
-
-            break;
-          }
-
-          case "disconnectRoom": {
-            if (currentRoom) {
-              const index = currentRoom.connections.indexOf(ws);
-              currentRoom.connections.splice(index, 1);
-              currentRoom = undefined;
-            }
-
-            /** @type {PacketResponse<ServerPackets, 'disconnectRoom'>} */
-            const response = {
-              type: "disconnectRoom",
-              id: packet.id,
-              receiver: packet.sender,
-              sender: serverPeerId,
-              response: undefined,
-            };
-
-            ws.send(JSON.stringify(response));
-
-            break;
-          }
-
-          default:
-            fail(JSON.stringify(packet));
-            break;
-        }
+        ws.send(JSON.stringify(response));
       } else {
         assert(currentRoom);
 
         for (const peerWS of currentRoom.connections) {
           const recieverID = peers.get(peerWS) ?? fail();
-          if (ws === peerWS || (packet.receiver !== null && packet.receiver === recieverID)) continue;
+          if (ws === peerWS || (packet.receiver !== null && packet.receiver !== recieverID)) continue;
           peerWS.send(JSON.stringify(packet));
         }
       }

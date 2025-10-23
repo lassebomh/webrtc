@@ -3,13 +3,13 @@ import { assert, fail } from "./utils.js";
 /**
  * @template TState
  */
-class RollbackEngine {
+export class RollbackEngine {
   /**
-   * @param {{ tick: number, state: TState, inputs: InputRecord}} init
-   * @param {(prev: TState, inputs: InputRecord) => void} tickFunc
+   * @param {{ tick: number, state: TState, inputs: NewInputEntryRecord}} init
+   * @param {(prev: TState, inputs: NewInputEntryRecord) => void} tickFunc
    */
   constructor(init, tickFunc) {
-    /** @type {{tick: number, inputs: InputRecord, mergedInputs: InputRecord | null, state: TState | null}[]} */
+    /** @type {{tick: number, inputs: NewInputEntryRecord, mergedInputs: NewInputEntryRecord | null, state: TState | null}[]} */
     this.history = [
       {
         tick: 0,
@@ -25,11 +25,11 @@ class RollbackEngine {
    * Inserts input data into the history,
    *
    * @param {number} tick
-   * @param {InputRecord} inputs These inputs will we used for tick+1
+   * @param {NewInputEntryRecord} inputs These inputs will we used for tick+1
    */
   addInputs(tick, inputs) {
     const firstItem = this.history.at(0) ?? fail();
-    if (firstItem.tick > tick) fail("Input is older than first item");
+    if (firstItem.tick > tick) fail(`Input tick ${tick} is older than first item tick ${firstItem.tick}`);
 
     let index = this.history.findLastIndex((x) => x.tick <= tick && x.state !== null);
     let item = this.history[index] ?? fail();
@@ -65,10 +65,11 @@ class RollbackEngine {
       } else if (item.tick === tick) {
         item.mergedInputs = structuredClone(this.history[i - 1]?.mergedInputs ?? {});
 
-        for (const device in inputs) {
+        for (const p in inputs) {
+          const peerID = /** @type {PeerID} */ (p);
           // assert(item.inputs[device] === undefined, "cannot override existing device inputs");
-          item.inputs[device] = inputs[device] ?? fail();
-          item.mergedInputs[device] = inputs[device] ?? fail();
+          item.inputs[peerID] = inputs[peerID] ?? fail();
+          item.mergedInputs[peerID] = inputs[peerID] ?? fail();
         }
       }
       expectedTick++;
@@ -108,11 +109,29 @@ class RollbackEngine {
       nextItem.mergedInputs = structuredClone(item.mergedInputs);
       nextItem.state = structuredClone(item.state);
 
-      for (const device in nextItem.inputs) {
-        nextItem.mergedInputs[device] ??= nextItem.inputs[device] ?? {};
-        for (const k in nextItem.inputs[device]) {
+      for (const p in nextItem.inputs) {
+        const peerID = /** @type {PeerID} */ (p);
+        nextItem.mergedInputs[peerID] ??= nextItem.inputs[peerID] ?? { defaultInputs: {}, gamepadInputs: [] };
+
+        if (nextItem.inputs[peerID]?.gamepadInputs) {
+          for (let i = 0; i < nextItem.inputs[peerID].gamepadInputs.length; i++) {
+            const gamepad = nextItem.mergedInputs[peerID].gamepadInputs[i];
+            if (gamepad === undefined) fail();
+            if (gamepad === null) {
+              nextItem.mergedInputs[peerID].gamepadInputs[i] = null;
+            } else {
+              nextItem.mergedInputs[peerID].gamepadInputs[i] ??= {};
+              for (const k in gamepad) {
+                const key = /** @type {InputKey} */ (k);
+                /** @type {DeviceInputs} */ (nextItem.mergedInputs[peerID].gamepadInputs[i])[key] =
+                  nextItem.inputs[peerID].defaultInputs[key];
+              }
+            }
+          }
+        }
+        for (const k in nextItem.inputs[peerID]?.defaultInputs) {
           const key = /** @type {InputKey} */ (k);
-          nextItem.mergedInputs[device][key] = nextItem.inputs[device][key];
+          nextItem.mergedInputs[peerID].defaultInputs[key] = nextItem.inputs[peerID].defaultInputs[key];
         }
       }
       this.tickFunc(nextItem.state, item.mergedInputs);
@@ -125,7 +144,7 @@ class RollbackEngine {
   }
 }
 
-class InputController {
+export class InputController {
   /** @type {DeviceInputs} */
   defaultInputs = {};
 
@@ -246,62 +265,60 @@ class InputController {
     this.defaultInputs = {};
     this.gamepadInputs = [];
 
-    return { defaultInputs, gamepadInputs };
+    /** @type {NewInputEntry} */
+    const inputEntry = { defaultInputs, gamepadInputs };
+
+    return inputEntry;
   }
 }
-
-// const inputController = new InputController(document.getElementById("test") ?? fail());
-
-// setInterval(() => {
-//   console.log(JSON.stringify(inputController.flush()));
-// }, 1000);
 
 /** @typedef {{tick: number, value: number}} TestGame */
 
 /**
  * @param {TestGame} state
- * @param {InputRecord} inputs
+ * @param {NewInputEntryRecord} inputs
  */
 function testGameTick(state, inputs) {
   state.tick++;
 
-  for (const deviceID in inputs) {
-    if (inputs[deviceID]?.d) {
+  for (const p in inputs) {
+    const peerID = /** @type {PeerID} */ (p);
+    if (inputs[peerID]?.defaultInputs.d) {
       state.value += 1;
     }
-    if (inputs[deviceID]?.a) {
+    if (inputs[peerID]?.defaultInputs?.a) {
       state.value -= 1;
     }
   }
 }
 
-// once we reach the target tick, see if any values are wrong (compared to the flat record)
-(async () => {
-  const rollback = new RollbackEngine({ inputs: {}, state: { tick: 0, value: 0 }, tick: 0 }, testGameTick);
+// // once we reach the target tick, see if any values are wrong (compared to the flat record)
+// (async () => {
+//   const rollback = new RollbackEngine({ inputs: {}, state: { tick: 0, value: 0 }, tick: 0 }, testGameTick);
 
-  function print() {
-    const ticks = rollback.history.map((x) => ({
-      tick: x.tick,
-      a_held: x?.inputs?.["x"]?.a,
-      a_merged_held: x?.mergedInputs?.["x"]?.a,
-      d_held: x?.inputs?.["x"]?.d,
-      d_merged_held: x?.mergedInputs?.["x"]?.d,
-      value: x.state?.value,
-    }));
+//   function print() {
+//     const ticks = rollback.history.map((x) => ({
+//       tick: x.tick,
+//       a_held: x?.inputs?.[/** @type {PeerID} */ ("x")]?.defaultInputs.a,
+//       a_merged_held: x?.mergedInputs?.[/** @type {PeerID} */ ("x")]?.defaultInputs.a,
+//       d_held: x?.inputs?.[/** @type {PeerID} */ ("x")]?.defaultInputs.d,
+//       d_merged_held: x?.mergedInputs?.[/** @type {PeerID} */ ("x")]?.defaultInputs.d,
+//       value: x.state?.value,
+//     }));
 
-    console.table(ticks);
-  }
+//     console.table(ticks);
+//   }
 
-  rollback.addInputs(0, { x: { d: 0 } });
-  rollback.getState(7);
-  print();
-  rollback.addInputs(1, { x: { d: 1 } });
-  rollback.getState(7);
-  print();
-  rollback.addInputs(3, { x: { d: 0 } });
-  rollback.getState(7);
-  print();
-  rollback.addInputs(5, { x: { a: 1, d: 1 } });
-  rollback.getState(7);
-  print();
-})();
+//   rollback.addInputs(0, { x: { defaultInputs: { d: 0 }, gamepadInputs: [] } });
+//   rollback.getState(7);
+//   print();
+//   rollback.addInputs(1, { x: { defaultInputs: { d: 1 }, gamepadInputs: [] } });
+//   rollback.getState(7);
+//   print();
+//   rollback.addInputs(3, { x: { defaultInputs: { d: 0 }, gamepadInputs: [] } });
+//   rollback.getState(7);
+//   print();
+//   rollback.addInputs(5, { x: { defaultInputs: { a: 1 }, gamepadInputs: [] } });
+//   rollback.getState(7);
+//   print();
+// })();
