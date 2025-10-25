@@ -551,6 +551,10 @@ export function avatarTick(game, level, avatar, moveX, moveY, aimX, aimY, jump, 
  * @param {number} alpha
  */
 export function avatarRender(ctx, game, prevAvatar, avatar, alpha) {
+  /**
+   * MARK: TODO ball hands
+   */
+
   const bodyX = lin(prevAvatar?.body.x, avatar.body.x, alpha);
   const bodyY = lin(prevAvatar?.body.y, avatar.body.y, alpha);
   const primaryArmVX = lin(prevAvatar?.primaryArm.vx, avatar.primaryArm.vx, alpha);

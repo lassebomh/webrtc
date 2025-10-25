@@ -1,5 +1,7 @@
 import { fail, randInt } from "./utils.js";
 
+const DEBUG = false;
+
 export function randomPeerID() {
   return /** @type {PeerID} */ (crypto.randomUUID());
 }
@@ -17,16 +19,17 @@ export class Net {
    * @param {PacketRequest<TPackets> | PacketResponse<TPackets>} packet
    */
   async receiveRaw(packet) {
-    console.log(
-      packet.receiver?.slice(0, 3) ?? "ALL",
-      "<--",
-      packet.sender.slice(0, 3),
-      packet.type,
-      "request" in packet ? packet.request : packet.response
-    );
-
     if (packet.receiver !== null && packet.receiver != this.peerId) return;
 
+    if (DEBUG) {
+      console.debug(
+        `${packet.receiver?.slice(0, 3).toUpperCase() ?? "ALL"} ${packet.sender
+          .slice(0, 3)
+          .toUpperCase()} %c<|| ${packet.type.toString()}`,
+        "font-weight: bold;"
+      );
+      console.debug("request" in packet ? packet.request : packet.response);
+    }
     if ("request" in packet) {
       const response = await this.receiver[packet.type](packet.sender, packet.request);
       if (response !== undefined) {
@@ -52,13 +55,15 @@ export class Net {
   constructor(peerId, sender, receiver) {
     this.peerId = peerId;
     this.sender = /** @type {typeof sender} */ (packet) => {
-      console.log(
-        packet.sender.slice(0, 3),
-        "|->",
-        packet.receiver?.slice(0, 3) ?? "ALL",
-        packet.type,
-        "request" in packet ? packet.request : packet.response
-      );
+      if (DEBUG) {
+        console.debug(
+          `${packet.sender.slice(0, 3).toUpperCase()} ${
+            packet.receiver?.slice(0, 3).toUpperCase() ?? "ALL"
+          } %c||> ${packet.type.toString()}`,
+          "font-weight: bold;"
+        );
+        console.debug("request" in packet ? packet.request : packet.response);
+      }
       sender(packet);
     };
     this.receiver = receiver;

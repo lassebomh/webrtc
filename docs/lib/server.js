@@ -1,5 +1,5 @@
 import { Net, randomPeerID, serverPeerId } from "./shared/net.js";
-import { assert, fail } from "./shared/utils.js";
+import { assert, fail, sleep } from "./shared/utils.js";
 
 const peerID = /** @type {PeerID} */ (sessionStorage.peerID ||= randomPeerID());
 
@@ -46,6 +46,11 @@ export class ServerNet {
 
   constructor() {
     this.#ws = new WebSocket(`ws${window.location.protocol === "https:" ? "s" : ""}://${window.location.host}/`);
+
+    this.#ws.onclose = async () => {
+      await sleep(75 + Math.random() * 150);
+      window.location.reload();
+    };
 
     this.#server = new Net(
       peerID,
@@ -160,17 +165,20 @@ export class ServerNet {
     const roomNet = new Net(
       peerID,
       (packet) => {
-        const raw = JSON.stringify(packet);
         if (packet.receiver !== null) {
           const channel = this.#channels[packet.receiver] ?? fail(`channel for peer ${packet.receiver} doesn't exist`);
           if (channel.readyState === "open") {
-            channel.send(raw);
+            channel.send(JSON.stringify(packet));
+          } else {
+            // fail("not ready");
           }
-          channel.send(raw);
         } else {
-          for (const channel of Object.values(this.#channels)) {
+          for (const [peerID, channel] of Object.entries(this.#channels)) {
             if (channel.readyState === "open") {
-              channel.send(raw);
+              packet.receiver = peerID;
+              channel.send(JSON.stringify(packet));
+            } else {
+              // fail("not ready");
             }
           }
         }
@@ -182,17 +190,19 @@ export class ServerNet {
 
     const offers = await this.#server.requestAll("roomRtcOffer", null, 500);
 
-    for (const [pid, offer] of Object.entries(offers)) {
-      const peerID = /** @type {PeerID} */ (pid);
-      const peer = this.#peers[peerID] ?? fail();
+    await Promise.all(
+      Object.entries(offers).map(async ([pid, offer]) => {
+        const peerID = /** @type {PeerID} */ (pid);
+        const peer = this.#peers[peerID] ?? fail();
 
-      peer.addEventListener("datachannel", (e) => this.addChannel(peerID, e.channel));
+        peer.addEventListener("datachannel", (e) => this.addChannel(peerID, e.channel));
 
-      await peer.setRemoteDescription({ type: "offer", sdp: offer });
-      const answer = await peer.createAnswer();
-      await peer.setLocalDescription(answer);
-      await this.#server.request("roomRtcAnswer", peerID, answer.sdp);
-    }
+        await peer.setRemoteDescription({ type: "offer", sdp: offer });
+        const answer = await peer.createAnswer();
+        await peer.setLocalDescription(answer);
+        await this.#server.request("roomRtcAnswer", peerID, answer.sdp);
+      })
+    );
 
     return roomNet;
   }

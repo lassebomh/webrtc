@@ -133,3 +133,27 @@ interface Box {
   wallRight?: number;
   wall?: number;
 }
+
+type GamePackets = {
+  sync: {
+    request: null;
+    response: {
+      originTime: number;
+      history: HistoryEntry<Game>[];
+    };
+  };
+  inputs: {
+    request: {
+      tick: number;
+      inputEntry: NewInputEntry;
+    };
+    response: void;
+  };
+};
+
+type HistoryEntry<TState> = {
+  tick: number;
+  inputs: NewInputEntryRecord;
+  mergedInputs: NewInputEntryRecord | null;
+  state: TState | null;
+};

@@ -7,6 +7,7 @@ import { getTile, levels } from "./levels.js";
 import { particleCreate, particleRender, particleTick } from "./particle.js";
 import { random } from "./utils.js";
 
+// MARK: Todo add params
 export const init = () =>
   /** @type {Game} */ ({
     tick: 0,

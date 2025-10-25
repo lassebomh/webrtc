@@ -5,19 +5,12 @@ import { assert, fail } from "./utils.js";
  */
 export class RollbackEngine {
   /**
-   * @param {{ tick: number, state: TState, inputs: NewInputEntryRecord}} init
+   * @param {HistoryEntry<TState>[]} history
    * @param {(prev: TState, inputs: NewInputEntryRecord) => void} tickFunc
    */
-  constructor(init, tickFunc) {
-    /** @type {{tick: number, inputs: NewInputEntryRecord, mergedInputs: NewInputEntryRecord | null, state: TState | null}[]} */
-    this.history = [
-      {
-        tick: 0,
-        inputs: init.inputs, // inputs used for the NEXT tick
-        mergedInputs: init.inputs,
-        state: init.state,
-      },
-    ];
+  constructor(history, tickFunc) {
+    /** @type {HistoryEntry<TState>[]} */
+    this.history = history;
     this.tickFunc = tickFunc;
   }
 
@@ -28,6 +21,7 @@ export class RollbackEngine {
    * @param {NewInputEntryRecord} inputs These inputs will we used for tick+1
    */
   addInputs(tick, inputs) {
+    // ORDER THE INPUTS
     const firstItem = this.history.at(0) ?? fail();
     if (firstItem.tick > tick) fail(`Input tick ${tick} is older than first item tick ${firstItem.tick}`);
 
@@ -137,10 +131,12 @@ export class RollbackEngine {
       this.tickFunc(nextItem.state, item.mergedInputs);
     }
 
-    const outputItem = this.history[lastItemBeforeIndex + ticksToProcess] ?? fail();
-    assert(outputItem.tick === tick);
+    const outputItem = this.history[lastItemBeforeIndex + ticksToProcess];
+    if (outputItem) {
+      assert(outputItem.tick === tick);
+    }
 
-    return outputItem.state ?? fail();
+    return outputItem;
   }
 }
 
@@ -200,13 +196,17 @@ export class InputController {
     window.addEventListener("keydown", onkey);
     window.addEventListener("keyup", onkey);
 
-    window.addEventListener("pointermove", (event) => {
-      // todo fix
-      if (this.width !== undefined && this.height !== undefined) {
-        this.defaultInputs.mousex = event.clientX - this.width / 2;
-        this.defaultInputs.mousey = event.clientY - this.height / 2;
-      }
-    });
+    window.addEventListener(
+      "pointermove",
+      (event) => {
+        // MARK: TODO transform position with mat
+        if (this.width !== undefined && this.height !== undefined) {
+          this.defaultInputs.mousex = event.clientX - this.width / 2;
+          this.defaultInputs.mousey = event.clientY - this.height / 2;
+        }
+      },
+      { passive: true }
+    );
     window.addEventListener("mousedown", (event) => {
       const key = event.button === 0 ? "mouseleftbutton" : "mouserightbutton";
       this.defaultInputs[key] = 1;
@@ -215,50 +215,48 @@ export class InputController {
       const key = event.button === 0 ? "mouseleftbutton" : "mouserightbutton";
       this.defaultInputs[key] = 0;
     });
-
-    setInterval(() => {
-      const gamepads = navigator.getGamepads();
-
-      for (let i = 0; i < gamepads.length; i++) {
-        const gamepad = gamepads[i];
-
-        if (!gamepad) {
-          this.gamepadInputs[i] ??= null;
-          continue;
-        }
-
-        const inputs = (this.gamepadInputs[i] ??= {});
-        inputs.is_gamepad = 1;
-
-        if (gamepad.axes.length >= 6) {
-          let [lstickx, lsticky, rstickx, rsticky, ltrigger, rtrigger] =
-            /** @type {[number,number,number,number,number,number]} */ (gamepad.axes);
-          ltrigger = (ltrigger + 1) / 2;
-          rtrigger = (rtrigger + 1) / 2;
-
-          if (Math.abs(lstickx) > 0.08) inputs.lstickx = lstickx;
-          if (Math.abs(lsticky) > 0.08) inputs.lsticky = lsticky;
-          if (Math.abs(rstickx) > 0.08) inputs.rstickx = rstickx;
-          if (Math.abs(rsticky) > 0.08) inputs.rsticky = rsticky;
-          if (ltrigger !== 0.5 && Math.abs(ltrigger) > 0.05) inputs.ltrigger = ltrigger;
-          if (rtrigger !== 0.5 && Math.abs(rtrigger) > 0.05) inputs.rtrigger = rtrigger;
-        }
-
-        if (gamepad.buttons.length >= 6) {
-          const [buttona, buttonb, buttony, buttonx, lshoulder, rshoulder] =
-            /** @type {[number,number,number,number,number,number]} */ (gamepad.buttons.map((x) => x.value));
-          if (buttona) inputs.buttona = buttona;
-          if (buttonb) inputs.buttonb = buttonb;
-          if (buttony) inputs.buttony = buttony;
-          if (buttonx) inputs.buttonx = buttonx;
-          if (lshoulder) inputs.lshoulder = lshoulder;
-          if (rshoulder) inputs.rshoulder = rshoulder;
-        }
-      }
-    }, 1000 / 60);
   }
 
   flush() {
+    const gamepads = navigator.getGamepads();
+
+    for (let i = 0; i < gamepads.length; i++) {
+      const gamepad = gamepads[i];
+
+      if (!gamepad) {
+        this.gamepadInputs[i] ??= null;
+        continue;
+      }
+
+      const inputs = (this.gamepadInputs[i] ??= {});
+      inputs.is_gamepad = 1;
+
+      if (gamepad.axes.length >= 6) {
+        let [lstickx, lsticky, rstickx, rsticky, ltrigger, rtrigger] =
+          /** @type {[number,number,number,number,number,number]} */ (gamepad.axes);
+        ltrigger = (ltrigger + 1) / 2;
+        rtrigger = (rtrigger + 1) / 2;
+
+        if (Math.abs(lstickx) > 0.08) inputs.lstickx = lstickx;
+        if (Math.abs(lsticky) > 0.08) inputs.lsticky = lsticky;
+        if (Math.abs(rstickx) > 0.08) inputs.rstickx = rstickx;
+        if (Math.abs(rsticky) > 0.08) inputs.rsticky = rsticky;
+        if (ltrigger !== 0.5 && Math.abs(ltrigger) > 0.05) inputs.ltrigger = ltrigger;
+        if (rtrigger !== 0.5 && Math.abs(rtrigger) > 0.05) inputs.rtrigger = rtrigger;
+      }
+
+      if (gamepad.buttons.length >= 6) {
+        const [buttona, buttonb, buttony, buttonx, lshoulder, rshoulder] =
+          /** @type {[number,number,number,number,number,number]} */ (gamepad.buttons.map((x) => x.value));
+        if (buttona) inputs.buttona = buttona;
+        if (buttonb) inputs.buttonb = buttonb;
+        if (buttony) inputs.buttony = buttony;
+        if (buttonx) inputs.buttonx = buttonx;
+        if (lshoulder) inputs.lshoulder = lshoulder;
+        if (rshoulder) inputs.rshoulder = rshoulder;
+      }
+    }
+
     const defaultInputs = this.defaultInputs;
     const gamepadInputs = this.gamepadInputs;
 
