@@ -1,7 +1,16 @@
 import { Net, randomPeerID, serverPeerId } from "./shared/net.js";
 import { assert, fail, sleep } from "./shared/utils.js";
+import { LOCALHOST } from "./utils.js";
 
 const peerID = /** @type {PeerID} */ (sessionStorage.peerID ||= randomPeerID());
+
+let SIMULATE_LAG = 0;
+
+if (LOCALHOST) {
+  setInterval(() => {
+    SIMULATE_LAG = 30 + Math.random() * 70;
+  }, 250);
+}
 
 export class ServerNet {
   /** @type {Net<ServerPackets>} */
@@ -27,6 +36,9 @@ export class ServerNet {
     this.#channels[peerID] = channel;
 
     channel.addEventListener("message", async (e) => {
+      if (SIMULATE_LAG) {
+        await sleep(SIMULATE_LAG);
+      }
       /** @type {PacketRequest<any> | PacketResponse<any>} */
       const packet = JSON.parse(e.data);
       if (packet.sender !== peerID) {
@@ -47,11 +59,12 @@ export class ServerNet {
   constructor() {
     this.#ws = new WebSocket(`ws${window.location.protocol === "https:" ? "s" : ""}://${window.location.host}/`);
 
-    this.#ws.onclose = async () => {
-      await sleep(75 + Math.random() * 150);
-      window.location.reload();
-    };
-
+    if (LOCALHOST) {
+      this.#ws.onclose = async () => {
+        await sleep(75 + Math.random() * 150);
+        window.location.reload();
+      };
+    }
     this.#server = new Net(
       peerID,
       (packet) => {

@@ -16,7 +16,16 @@ await sleep(1000 * Math.random());
 const ctx = setupCanvas(document.getElementById("canvas"));
 const inputController = new InputController(document.body);
 
-let rollback = new RollbackEngine([{ inputs: {}, mergedInputs: {}, state: init(), tick: 0 }], tick);
+const DELAY_TICK = 2;
+
+/** @type {RollbackEngine<Game> | undefined} */
+let wrongTimeline;
+/** @type {number | undefined} */
+let wrongTimelineStart;
+/** @type {number | undefined} */
+let wrongTimelineEnd;
+
+let timeline = new RollbackEngine([{ inputs: {}, mergedInputs: {}, state: init(), tick: 0 }], tick);
 let originTime = now();
 
 /** @type {number} */
@@ -25,11 +34,36 @@ let inputFlushTick = 0;
 /** @type {Array<{tick: number; peerID: PeerID, inputEntry: NewInputEntry}> | undefined} */
 let inputBuffer = [];
 
+/**
+ * @param {number} t
+ * @param {PeerID} peerID
+ * @param {NewInputEntry} inputs
+ */
+function addTimelineInputs(t, peerID, inputs) {
+  const [wrongHistoryStart, wrongHistory] = timeline.addInputs(t, peerID, inputs, true, wrongTimeline === undefined);
+  const behindMs = wrongHistoryStart ? (getRealTick() - wrongHistoryStart - DELAY_TICK) * TICK_RATE : 0;
+
+  if (wrongHistoryStart !== undefined && wrongHistory !== undefined) {
+    if (behindMs > 50) {
+      console.warn(behindMs);
+      if (!wrongTimeline) {
+        wrongTimeline = new RollbackEngine(wrongHistory, tick);
+        wrongTimelineStart = getRealTick();
+      }
+
+      assert(wrongTimelineStart);
+      wrongTimelineEnd = wrongTimelineStart + (getRealTick() - wrongHistoryStart);
+    }
+  }
+
+  wrongTimeline?.addInputs(t, peerID, inputs, peerID === roomNet.peerId, false);
+}
+
 /** @type {Net<GamePackets>} */
 const roomNet =
   (await server.joinRoom(roomID, {
     sync: async (peer, request) => {
-      const [firstHistoryEntry, ...historyEntries] = structuredClone(rollback.history);
+      const [firstHistoryEntry, ...historyEntries] = structuredClone(timeline.history);
       assert(firstHistoryEntry?.state && firstHistoryEntry?.mergedInputs);
       for (const historyEntry of historyEntries) {
         historyEntry.state = null;
@@ -46,7 +80,7 @@ const roomNet =
       if (inputBuffer) {
         inputBuffer.push({ peerID, tick, inputEntry });
       } else {
-        rollback.addInputs(tick, { [peerID]: inputEntry });
+        addTimelineInputs(tick, peerID, inputEntry);
       }
     },
   })) ?? fail();
@@ -69,23 +103,45 @@ function mainLoop() {
       const inputEntry = inputController.flush();
       inputFlushTick = Math.floor(realTick);
 
-      rollback.addInputs(inputFlushTick, { [roomNet.peerId]: inputEntry });
+      addTimelineInputs(inputFlushTick, roomNet.peerId, inputEntry);
       roomNet.sendAll("inputs", { tick: inputFlushTick, inputEntry });
-      while (rollback.history.length > 400) {
-        rollback.history.shift();
+      while (timeline.history.length > 400) {
+        timeline.history.shift();
       }
     }
 
     let frontFrameTick = Math.floor(realTick);
     const alpha = realTick - frontFrameTick;
-    frontFrameTick -= 2; // Delay ticks
+    frontFrameTick -= DELAY_TICK;
     const backFrameTick = frontFrameTick - 1;
 
-    {
-      const backFrameState = rollback.getState(backFrameTick);
-      const frontFrameState = rollback.getState(frontFrameTick);
+    let usedWrongTimeline = false;
 
-      assert(frontFrameState?.state && frontFrameState.mergedInputs);
+    if (false && wrongTimeline) {
+      assert(wrongTimelineStart && wrongTimelineEnd);
+      const alpha = (realTick - wrongTimelineStart) / (wrongTimelineEnd - wrongTimelineStart);
+
+      if (alpha < 1) {
+        usedWrongTimeline = true;
+        const deleteTo = wrongTimeline.history.findIndex((x) => x.tick < backFrameTick);
+        wrongTimeline.history.splice(0, deleteTo);
+        const backFrameState = wrongTimeline.getState(frontFrameTick);
+        const frontFrameState = timeline.getState(frontFrameTick);
+        assert(backFrameState?.state && frontFrameState?.state);
+        render(ctx, backFrameState.state, frontFrameState.state, Math.pow(alpha, 0.9));
+      }
+    }
+
+    if (!usedWrongTimeline) {
+      if (wrongTimeline) {
+        wrongTimeline = undefined;
+        wrongTimelineStart = undefined;
+        wrongTimelineEnd = undefined;
+      }
+      const backFrameState = timeline.getState(backFrameTick);
+      const frontFrameState = timeline.getState(frontFrameTick);
+
+      assert(frontFrameState?.state);
 
       if (backFrameState?.state) {
         render(ctx, backFrameState.state, frontFrameState.state, alpha);
@@ -122,20 +178,24 @@ async function historyHardSync() {
 
   if (
     oldestHistory &&
-    ((oldestHistory.history[0] ?? fail()).tick > (rollback.history[0] ?? fail()).tick ||
+    ((oldestHistory.history[0] ?? fail()).tick > (timeline.history[0] ?? fail()).tick ||
       oldestHistory.originTime < originTime)
   ) {
     console.warn("using", oldestHistory.originTime, "instead of", originTime);
 
     originTime = oldestHistory.originTime;
-    rollback = new RollbackEngine(oldestHistory.history, tick);
+    timeline = new RollbackEngine(oldestHistory.history, tick);
   }
+  wrongTimeline = undefined;
+  wrongTimelineStart = undefined;
+  wrongTimelineEnd = undefined;
 
   if (inputBuffer) {
     while (inputBuffer.length) {
       const { tick, peerID, inputEntry } = inputBuffer.pop() ?? fail();
       try {
-        rollback.addInputs(tick, { [peerID]: inputEntry });
+        addTimelineInputs(tick, peerID, inputEntry);
+        console.log("adding from input buffer");
       } catch (error) {
         if (error instanceof DesyncError) {
           console.warn(error);

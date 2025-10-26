@@ -18,16 +18,20 @@ export class RollbackEngine {
 
   /**
    * @param {number} tick
-   * @param {NewInputEntryRecord} inputs These inputs will we used for tick+1
+   * @param {PeerID} peerID
+   * @param {NewInputEntry} inputs These inputs will we used for tick+1
+   * @param {boolean} fixHistory
+   * @param {boolean} getFixedHistory
+   * @returns {[number | undefined, HistoryEntry<TState>[] | undefined]}
    */
-  addInputs(tick, inputs) {
+  addInputs(tick, peerID, inputs, fixHistory, getFixedHistory) {
     const firstItem = this.history.at(0) ?? fail();
     if (firstItem.tick > tick) fail(`Input tick ${tick} is older than first item tick ${firstItem.tick}`);
 
-    let index = this.history.findLastIndex((x) => x.tick <= tick && x.state !== null);
+    let index = this.history.findLastIndex((x) => x.tick <= tick && x.state !== null && x.mergedInputs !== null);
     if (index === -1) {
       console.warn("input happened before first valid history entry", tick, inputs);
-      return;
+      return [undefined, undefined];
     }
     let item = this.history[index] ?? fail();
 
@@ -43,6 +47,11 @@ export class RollbackEngine {
       });
     }
 
+    /** @type {HistoryEntry<TState> | undefined} */
+    let insertedTick;
+    /** @type {HistoryEntry<TState>[]} */
+    const wrongItems = [];
+
     let expectedTick = item.tick;
 
     for (let i = index; i < this.history.length; i++) {
@@ -56,9 +65,15 @@ export class RollbackEngine {
         };
         this.history.splice(i, 0, item);
       }
+
       if (item.tick > tick) {
-        item.state = null;
-        item.mergedInputs = null;
+        if (fixHistory) {
+          item.state = null;
+          if (getFixedHistory) {
+            wrongItems.push(structuredClone(item));
+          }
+          item.mergedInputs = null;
+        }
       } else if (item.tick === tick) {
         if (!item.mergedInputs) {
           const prevMergedInputs = this.history[i - 1]?.mergedInputs;
@@ -69,23 +84,31 @@ export class RollbackEngine {
           }
         }
 
-        for (const peerID in inputs) {
-          item.inputs[peerID] = inputs[peerID] ?? fail();
+        item.inputs[peerID] = inputs ?? fail();
+
+        item.mergedInputs[peerID] ??= {
+          defaultInputs: {},
+          gamepadInputs: [],
+        };
+
+        for (const k in inputs.defaultInputs) {
+          const key = /** @type {InputKey} */ (k);
+          item.mergedInputs[peerID].defaultInputs[key] = inputs.defaultInputs[key];
         }
 
-        for (const peerID in item.inputs) {
-          const inputs = item.inputs[peerID] ?? fail();
-          item.mergedInputs[peerID] ??= {
-            defaultInputs: {},
-            gamepadInputs: [],
-          };
-          for (const k in inputs.defaultInputs) {
-            const key = /** @type {InputKey} */ (k);
-            item.mergedInputs[peerID].defaultInputs[key] = inputs.defaultInputs[key];
-          }
-        }
+        insertedTick = item;
       }
       expectedTick++;
+    }
+
+    if (!getFixedHistory && fixHistory) {
+      return [item.tick, undefined];
+    } else if (getFixedHistory && fixHistory && wrongItems.length) {
+      assert(insertedTick);
+      wrongItems.unshift(...this.history.slice(0, index + 1), structuredClone(insertedTick));
+      return [item.tick, wrongItems];
+    } else {
+      return [undefined, undefined];
     }
   }
 
@@ -93,7 +116,9 @@ export class RollbackEngine {
    * @param {number} tick
    */
   getState(tick) {
-    const lastItemBeforeIndex = this.history.findLastIndex((x) => x.tick <= tick && x.state !== null);
+    const lastItemBeforeIndex = this.history.findLastIndex(
+      (x) => x.tick <= tick && x.state !== null && x.mergedInputs !== null
+    );
     const lastItemBefore = this.history[lastItemBeforeIndex] ?? fail(new DesyncError());
     const lastItem = this.history.at(-1) ?? fail();
 

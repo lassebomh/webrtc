@@ -33,3 +33,5 @@ export function setupCanvas(canvas, onresize = () => {}) {
 export function lin(start, end, alpha) {
   return start === undefined || !Number.isFinite(start) ? end : start + (end - start) * alpha;
 }
+
+export const LOCALHOST = window.location.hostname === "localhost";

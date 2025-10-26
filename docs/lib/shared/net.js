@@ -1,8 +1,6 @@
-import { fail, randInt, sleep } from "./utils.js";
+import { fail, randInt } from "./utils.js";
 
 const DEBUG = false;
-const SIMULATE_LAG = 0;
-
 export function randomPeerID() {
   return /** @type {PeerID} */ (Math.floor(Math.random() * Math.pow(2, 32)).toString());
 }
@@ -55,11 +53,7 @@ export class Net {
    */
   constructor(peerId, sender, receiver) {
     this.peerId = peerId;
-    this.sender = /** @type {typeof sender} */ async (packet) => {
-      if (SIMULATE_LAG) {
-        await sleep(Math.random() * SIMULATE_LAG);
-      }
-
+    this.sender = /** @type {typeof sender} */ (packet) => {
       if (DEBUG) {
         console.debug(
           `${packet.sender.slice(0, 3).toUpperCase()} ${
