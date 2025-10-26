@@ -2,8 +2,8 @@ import { server } from "./lib/server.js";
 import { Net } from "./lib/shared/net.js";
 import { assert, fail, now, sleep } from "./lib/shared/utils.js";
 import { init, render, tick } from "./game/game.js";
-import { DesyncError, InputController, RollbackEngine } from "./lib/inputs.js";
-import { setupCanvas } from "./lib/utils.js";
+import { CanvasController } from "./lib/inputs.js";
+import { Timeline, DesyncError } from "./lib/timeline.js";
 
 const TICK_RATE = 1000 / 60;
 
@@ -13,18 +13,18 @@ if (!roomID) roomID = await server.createRoom("New room", 16, true);
 
 await sleep(1000 * Math.random());
 
-const ctx = setupCanvas(document.getElementById("canvas"));
-const inputController = new InputController(document.body);
+const inputController = new CanvasController(document.getElementById("render") ?? fail());
+const ctx = inputController.ctx;
 
 const DELAY_TICK = 2;
 
-let timeline = new RollbackEngine([{ inputs: {}, mergedInputs: {}, state: init(), tick: 0 }], tick);
+let timeline = new Timeline([{ inputs: {}, mergedInputs: {}, state: init(), tick: 0 }], tick);
 let originTime = now();
 
 /** @type {number} */
 let inputFlushTick = 0;
 
-/** @type {Array<{tick: number; peerID: PeerID, inputEntry: NewInputEntry}> | undefined} */
+/** @type {Array<{tick: number; peerID: PeerID, inputs: PeerInputs}> | undefined} */
 let inputBuffer = [];
 
 /** @type {Net<GamePackets>} */
@@ -44,11 +44,11 @@ const roomNet =
         history: historyEntries,
       };
     },
-    inputs: async (peerID, { tick, inputEntry }) => {
+    inputs: async (peerID, { tick, inputs }) => {
       if (inputBuffer) {
-        inputBuffer.push({ peerID, tick, inputEntry });
+        inputBuffer.push({ peerID, tick, inputs });
       } else {
-        timeline.addInputs(tick, peerID, inputEntry);
+        timeline.addInputs(tick, peerID, inputs);
       }
     },
   })) ?? fail();
@@ -68,11 +68,11 @@ function mainLoop() {
     const realTick = getRealTick();
 
     if (Math.floor(realTick) > inputFlushTick) {
-      const inputEntry = inputController.flush();
+      const inputs = inputController.flush();
       inputFlushTick = Math.floor(realTick);
 
-      timeline.addInputs(inputFlushTick, roomNet.peerId, inputEntry);
-      roomNet.sendAll("inputs", { tick: inputFlushTick, inputEntry });
+      timeline.addInputs(inputFlushTick, roomNet.peerId, inputs);
+      roomNet.sendAll("inputs", { tick: inputFlushTick, inputs });
       while (timeline.history.length > 400) {
         timeline.history.shift();
       }
@@ -98,14 +98,14 @@ function mainLoop() {
   } catch (error) {
     if (error instanceof DesyncError) {
       console.warn(error);
-      historyHardSync();
+      hardSyncTimeline();
     } else {
       throw error;
     }
   }
 }
 
-async function historyHardSync() {
+async function hardSyncTimeline() {
   if (mainAnimationFrameRequest) {
     cancelAnimationFrame(mainAnimationFrameRequest);
     mainAnimationFrameRequest = undefined;
@@ -128,14 +128,14 @@ async function historyHardSync() {
     console.warn("using", oldestHistory.originTime, "instead of", originTime);
 
     originTime = oldestHistory.originTime;
-    timeline = new RollbackEngine(oldestHistory.history, tick);
+    timeline = new Timeline(oldestHistory.history, tick);
   }
 
   if (inputBuffer) {
     while (inputBuffer.length) {
-      const { tick, peerID, inputEntry } = inputBuffer.pop() ?? fail();
+      const { tick, peerID, inputs } = inputBuffer.pop() ?? fail();
       try {
-        timeline.addInputs(tick, peerID, inputEntry);
+        timeline.addInputs(tick, peerID, inputs);
         console.log("adding from input buffer");
       } catch (error) {
         if (error instanceof DesyncError) {
@@ -153,4 +153,4 @@ async function historyHardSync() {
   mainLoop();
 }
 
-await historyHardSync();
+await hardSyncTimeline();

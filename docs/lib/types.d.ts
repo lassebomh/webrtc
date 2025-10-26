@@ -44,38 +44,55 @@ type InputKey =
   | "buttony"
   | "is_gamepad";
 
-interface IGame {
-  tick: number;
-  originTime: number;
-}
-
-type InputEntry = { deviceID: DeviceID; key: InputKey; value: number; time: number };
-
-type DeviceInputs = { [K in InputKey]?: number };
-type InputRecord = Record<DeviceID, DeviceInputs>;
-
-type DeviceID = string & {};
-
-type NewInputEntry = {
-  defaultInputs: DeviceInputs;
-  gamepadInputs: (DeviceInputs | null)[];
+type StandardInput = {
+  a?: number;
+  b?: number;
+  c?: number;
+  d?: number;
+  e?: number;
+  f?: number;
+  g?: number;
+  h?: number;
+  i?: number;
+  j?: number;
+  k?: number;
+  l?: number;
+  m?: number;
+  n?: number;
+  o?: number;
+  p?: number;
+  q?: number;
+  r?: number;
+  s?: number;
+  t?: number;
+  u?: number;
+  v?: number;
+  w?: number;
+  x?: number;
+  y?: number;
+  z?: number;
+  space?: number;
+  mousex?: number;
+  mousey?: number;
+  mouseleftbutton?: number;
+  mouserightbutton?: number;
 };
-type NewInputEntryRecord = Record<PeerID, NewInputEntry>;
 
-type GameFunc<TGame extends IGame> = (prev: TGame, inputs: NewInputEntryRecord) => void;
-type RenderFunc<TGame extends IGame> = (
-  ctx: CanvasRenderingContext2D,
-  prev: TGame,
-  current: TGame,
-  alpha: number
-) => void;
+type Input = { [K in InputKey]?: number };
 
-type Message<TGame extends IGame> = TaggedUnion<{
-  input: InputEntry[];
-  syncRequest: true;
-  syncResponse: {
-    game: TGame;
-    baseTickInputMap: InputRecord;
-    inputEntries: InputEntry[];
-  };
-}>;
+type PeerInputs = {
+  canvasWidth: number;
+  canvasHeight: number;
+  standardInput: Input;
+  gamepadInputs: (Input | null)[];
+};
+
+type StateFunc<TState> = (previous: TState, inputs: Record<PeerID, PeerInputs>) => void;
+type RenderFunc<TState> = (ctx: CanvasRenderingContext2D, previous: TState, current: TState, alpha: number) => void;
+
+type HistoryEntry<TState> = {
+  tick: number;
+  inputs: Record<PeerID, PeerInputs>;
+  mergedInputs: Record<PeerID, PeerInputs> | null;
+  state: TState | null;
+};

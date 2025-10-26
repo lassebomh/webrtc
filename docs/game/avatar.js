@@ -760,8 +760,9 @@ export function avatarTakeDamage(game, avatar, damage, dx, dy) {
   if (avatar.health <= 0) {
     for (const deviceID in game.players) {
       const player = game.players[deviceID] ?? fail();
-      if (player.avatarID === avatar.id) {
-        player.avatarID = undefined;
+      if (player.keyboardPlayer.avatarID === avatar.id) {
+        // MARK: Todo controller
+        player.keyboardPlayer.avatarID = undefined;
         break;
       }
     }

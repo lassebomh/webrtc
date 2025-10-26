@@ -2,6 +2,10 @@ type Player = {
   color: string;
   avatarID: string | undefined;
 };
+type PeerPlayers = {
+  keyboardPlayer: Player;
+  gamepadPlayers: Player[];
+};
 
 type Avatar = {
   id: string;
@@ -99,10 +103,10 @@ type Particle = {
   color: string;
 };
 
-interface Game extends IGame {
+interface Game {
   autoid: number;
   random: number;
-  players: Record<DeviceID, Player>;
+  players: Record<PeerID, PeerPlayers>;
   avatars: Record<string, Avatar>;
   bullets: Record<string, Bullet>;
   camera: {
@@ -145,15 +149,8 @@ type GamePackets = {
   inputs: {
     request: {
       tick: number;
-      inputEntry: NewInputEntry;
+      inputs: PeerInputs;
     };
     response: void;
   };
-};
-
-type HistoryEntry<TState> = {
-  tick: number;
-  inputs: NewInputEntryRecord;
-  mergedInputs: NewInputEntryRecord | null;
-  state: TState | null;
 };
