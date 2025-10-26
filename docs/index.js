@@ -18,13 +18,6 @@ const inputController = new InputController(document.body);
 
 const DELAY_TICK = 2;
 
-/** @type {RollbackEngine<Game> | undefined} */
-let wrongTimeline;
-/** @type {number | undefined} */
-let wrongTimelineStart;
-/** @type {number | undefined} */
-let wrongTimelineEnd;
-
 let timeline = new RollbackEngine([{ inputs: {}, mergedInputs: {}, state: init(), tick: 0 }], tick);
 let originTime = now();
 
@@ -33,31 +26,6 @@ let inputFlushTick = 0;
 
 /** @type {Array<{tick: number; peerID: PeerID, inputEntry: NewInputEntry}> | undefined} */
 let inputBuffer = [];
-
-/**
- * @param {number} t
- * @param {PeerID} peerID
- * @param {NewInputEntry} inputs
- */
-function addTimelineInputs(t, peerID, inputs) {
-  const [wrongHistoryStart, wrongHistory] = timeline.addInputs(t, peerID, inputs, true, wrongTimeline === undefined);
-  const behindMs = wrongHistoryStart ? (getRealTick() - wrongHistoryStart - DELAY_TICK) * TICK_RATE : 0;
-
-  if (wrongHistoryStart !== undefined && wrongHistory !== undefined) {
-    if (behindMs > 50) {
-      console.warn(behindMs);
-      if (!wrongTimeline) {
-        wrongTimeline = new RollbackEngine(wrongHistory, tick);
-        wrongTimelineStart = getRealTick();
-      }
-
-      assert(wrongTimelineStart);
-      wrongTimelineEnd = wrongTimelineStart + (getRealTick() - wrongHistoryStart);
-    }
-  }
-
-  wrongTimeline?.addInputs(t, peerID, inputs, peerID === roomNet.peerId, false);
-}
 
 /** @type {Net<GamePackets>} */
 const roomNet =
@@ -80,7 +48,7 @@ const roomNet =
       if (inputBuffer) {
         inputBuffer.push({ peerID, tick, inputEntry });
       } else {
-        addTimelineInputs(tick, peerID, inputEntry);
+        timeline.addInputs(tick, peerID, inputEntry);
       }
     },
   })) ?? fail();
@@ -103,7 +71,7 @@ function mainLoop() {
       const inputEntry = inputController.flush();
       inputFlushTick = Math.floor(realTick);
 
-      addTimelineInputs(inputFlushTick, roomNet.peerId, inputEntry);
+      timeline.addInputs(inputFlushTick, roomNet.peerId, inputEntry);
       roomNet.sendAll("inputs", { tick: inputFlushTick, inputEntry });
       while (timeline.history.length > 400) {
         timeline.history.shift();
@@ -115,39 +83,15 @@ function mainLoop() {
     frontFrameTick -= DELAY_TICK;
     const backFrameTick = frontFrameTick - 1;
 
-    let usedWrongTimeline = false;
+    const backFrameState = timeline.getState(backFrameTick);
+    const frontFrameState = timeline.getState(frontFrameTick);
 
-    if (false && wrongTimeline) {
-      assert(wrongTimelineStart && wrongTimelineEnd);
-      const alpha = (realTick - wrongTimelineStart) / (wrongTimelineEnd - wrongTimelineStart);
+    assert(frontFrameState?.state);
 
-      if (alpha < 1) {
-        usedWrongTimeline = true;
-        const deleteTo = wrongTimeline.history.findIndex((x) => x.tick < backFrameTick);
-        wrongTimeline.history.splice(0, deleteTo);
-        const backFrameState = wrongTimeline.getState(frontFrameTick);
-        const frontFrameState = timeline.getState(frontFrameTick);
-        assert(backFrameState?.state && frontFrameState?.state);
-        render(ctx, backFrameState.state, frontFrameState.state, Math.pow(alpha, 0.9));
-      }
-    }
-
-    if (!usedWrongTimeline) {
-      if (wrongTimeline) {
-        wrongTimeline = undefined;
-        wrongTimelineStart = undefined;
-        wrongTimelineEnd = undefined;
-      }
-      const backFrameState = timeline.getState(backFrameTick);
-      const frontFrameState = timeline.getState(frontFrameTick);
-
-      assert(frontFrameState?.state);
-
-      if (backFrameState?.state) {
-        render(ctx, backFrameState.state, frontFrameState.state, alpha);
-      } else {
-        render(ctx, frontFrameState.state, frontFrameState.state, 1);
-      }
+    if (backFrameState?.state) {
+      render(ctx, backFrameState.state, frontFrameState.state, alpha);
+    } else {
+      render(ctx, frontFrameState.state, frontFrameState.state, 1);
     }
 
     mainAnimationFrameRequest = requestAnimationFrame(mainLoop);
@@ -186,15 +130,12 @@ async function historyHardSync() {
     originTime = oldestHistory.originTime;
     timeline = new RollbackEngine(oldestHistory.history, tick);
   }
-  wrongTimeline = undefined;
-  wrongTimelineStart = undefined;
-  wrongTimelineEnd = undefined;
 
   if (inputBuffer) {
     while (inputBuffer.length) {
       const { tick, peerID, inputEntry } = inputBuffer.pop() ?? fail();
       try {
-        addTimelineInputs(tick, peerID, inputEntry);
+        timeline.addInputs(tick, peerID, inputEntry);
         console.log("adding from input buffer");
       } catch (error) {
         if (error instanceof DesyncError) {

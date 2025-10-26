@@ -20,11 +20,8 @@ export class RollbackEngine {
    * @param {number} tick
    * @param {PeerID} peerID
    * @param {NewInputEntry} inputs These inputs will we used for tick+1
-   * @param {boolean} fixHistory
-   * @param {boolean} getFixedHistory
-   * @returns {[number | undefined, HistoryEntry<TState>[] | undefined]}
    */
-  addInputs(tick, peerID, inputs, fixHistory, getFixedHistory) {
+  addInputs(tick, peerID, inputs) {
     const firstItem = this.history.at(0) ?? fail();
     if (firstItem.tick > tick) fail(`Input tick ${tick} is older than first item tick ${firstItem.tick}`);
 
@@ -49,8 +46,6 @@ export class RollbackEngine {
 
     /** @type {HistoryEntry<TState> | undefined} */
     let insertedTick;
-    /** @type {HistoryEntry<TState>[]} */
-    const wrongItems = [];
 
     let expectedTick = item.tick;
 
@@ -67,13 +62,8 @@ export class RollbackEngine {
       }
 
       if (item.tick > tick) {
-        if (fixHistory) {
-          item.state = null;
-          if (getFixedHistory) {
-            wrongItems.push(structuredClone(item));
-          }
-          item.mergedInputs = null;
-        }
+        item.state = null;
+        item.mergedInputs = null;
       } else if (item.tick === tick) {
         if (!item.mergedInputs) {
           const prevMergedInputs = this.history[i - 1]?.mergedInputs;
@@ -99,16 +89,6 @@ export class RollbackEngine {
         insertedTick = item;
       }
       expectedTick++;
-    }
-
-    if (!getFixedHistory && fixHistory) {
-      return [item.tick, undefined];
-    } else if (getFixedHistory && fixHistory && wrongItems.length) {
-      assert(insertedTick);
-      wrongItems.unshift(...this.history.slice(0, index + 1), structuredClone(insertedTick));
-      return [item.tick, wrongItems];
-    } else {
-      return [undefined, undefined];
     }
   }
 
