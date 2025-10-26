@@ -89,9 +89,9 @@ function mainLoop() {
     assert(frontFrameState?.state);
 
     if (backFrameState?.state) {
-      render(ctx, backFrameState.state, frontFrameState.state, alpha);
+      render(ctx, backFrameState.state, frontFrameState.state, roomNet.peerId, alpha);
     } else {
-      render(ctx, frontFrameState.state, frontFrameState.state, 1);
+      render(ctx, frontFrameState.state, frontFrameState.state, roomNet.peerId, 1);
     }
 
     mainAnimationFrameRequest = requestAnimationFrame(mainLoop);
@@ -114,22 +114,18 @@ async function hardSyncTimeline() {
     inputBuffer = [];
   }
 
-  const existingHistories = Object.values(await roomNet.requestAll("sync", null, 500)).toSorted(
-    (a, b) => a.originTime - b.originTime
-  );
+  const existingHistories = [
+    ...Object.values(await roomNet.requestAll("sync", null, 500)),
+    {
+      originTime,
+      history: timeline.history,
+    },
+  ].sort((a, b) => (b.history[0] ?? fail()).tick - (a.history[0] ?? fail()).tick || a.originTime - b.originTime);
 
-  const oldestHistory = existingHistories.at(0);
+  const oldestHistory = existingHistories[0] ?? fail();
 
-  if (
-    oldestHistory &&
-    ((oldestHistory.history[0] ?? fail()).tick > (timeline.history[0] ?? fail()).tick ||
-      oldestHistory.originTime < originTime)
-  ) {
-    console.warn("using", oldestHistory.originTime, "instead of", originTime);
-
-    originTime = oldestHistory.originTime;
-    timeline = new Timeline(oldestHistory.history, tick);
-  }
+  originTime = oldestHistory.originTime;
+  timeline = new Timeline(oldestHistory.history, tick);
 
   if (inputBuffer) {
     while (inputBuffer.length) {

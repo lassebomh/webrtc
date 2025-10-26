@@ -2,6 +2,7 @@ import { fail } from "../lib/shared/utils.js";
 import { lin } from "../lib/utils.js";
 
 import { boxLevelTick, boxOnBoxCollision, boxRender } from "./collision.js";
+import { FACE_INNER_SIZE, FACE_OUTER_SIZE, FACES } from "./faces.js";
 import { BULLET, pistolRender, uziRender } from "./guns.js";
 import { particleCreate } from "./particle.js";
 import { getPointAtDistance, random } from "./utils.js";
@@ -38,34 +39,123 @@ export const AVATAR = {
 };
 
 /**
+ * @param {Game} game
+ * @param {number} x
+ * @param {number} y
+ * @param {string} color
+ * @param {number} face
+ * @returns {Avatar}
+ */
+export function createAvatar(game, x, y, color, face) {
+  /** @type {Avatar} */
+  const avatar = {
+    id: (game.autoid++).toString(),
+    box: {
+      x: x,
+      y: y,
+      dx: 0,
+      dy: 0,
+      width: AVATAR.WIDTH,
+      height: AVATAR.HEIGHT,
+      bounce: 0,
+    },
+    inputs: {
+      aimX: 0,
+      aimY: 0,
+      moveX: 0,
+      moveY: 0,
+      jump: false,
+      primary: false,
+      secondary: false,
+    },
+    rope: {
+      active: false,
+      box: {
+        x: x,
+        y: y,
+        dx: 0,
+        dy: 0,
+        width: 0.8,
+        height: 0.8,
+        bounce: 0,
+      },
+    },
+    primaryCooldown: 0,
+    secondaryCooldown: 0,
+    jumpHeld: 0,
+    fallingTicks: 0,
+    color,
+    facing: 1,
+    face: {
+      index: face,
+      type: "passive",
+      ticks: 0,
+    },
+    health: 8,
+    crouching: false,
+    feet: {
+      angle: 0,
+      leftX: x,
+      leftY: y,
+      rightX: x,
+      rightY: y,
+      leftStartX: x,
+      leftStartY: y,
+
+      rightStartX: x,
+      rightStartY: y,
+      leftKneeX: x,
+      leftKneeY: y,
+      rightKneeX: x,
+      rightKneeY: y,
+    },
+    primaryArm: {
+      vx: 1,
+      vy: 0,
+      dangle: 0,
+      ddistance: 0,
+      distance: 0,
+      damage: 0,
+    },
+    body: {
+      angle: 0,
+      x: x,
+      y: y,
+      dx: 0,
+      dy: 0,
+    },
+  };
+
+  game.avatars[avatar.id] = avatar;
+  return avatar;
+}
+
+/**
  *
  * @param {Game} game
  * @param {Level} level
  * @param {Avatar} avatar
- * @param {number} moveX
- * @param {number} moveY
- * @param {number} aimX
- * @param {number} aimY
- * @param {boolean} jump
- * @param {boolean} primary
- * @param {boolean} secondary
  */
-export function avatarTick(game, level, avatar, moveX, moveY, aimX, aimY, jump, primary, secondary) {
-  const aimDist = Math.hypot(aimX, aimY);
+export function avatarTick(game, level, avatar) {
+  const aimDist = Math.hypot(avatar.inputs.aimX, avatar.inputs.aimY);
   if (aimDist !== 0) {
-    aimX /= aimDist;
-    aimY /= aimDist;
+    avatar.inputs.aimX /= aimDist;
+    avatar.inputs.aimY /= aimDist;
   }
 
-  const moveDist = Math.hypot(moveX, moveY);
+  const moveDist = Math.hypot(avatar.inputs.moveX, avatar.inputs.moveY);
   if (moveDist !== 0) {
-    moveX /= moveDist;
-    moveY /= moveDist;
+    avatar.inputs.moveX /= moveDist;
+    avatar.inputs.moveY /= moveDist;
   }
 
-  const pressingCrouch = moveY > 0.6;
+  const pressingCrouch = avatar.inputs.moveY > 0.6;
 
-  const targetHeight = lin(AVATAR.HEIGHT, AVATAR.CROUCH_HEIGHT, Math.min(1, Math.max(0, (moveY - 0.6) / (1 - 0.6))));
+  const targetHeight = lin(
+    AVATAR.HEIGHT,
+    AVATAR.CROUCH_HEIGHT,
+    Math.min(1, Math.max(0, (avatar.inputs.moveY - 0.6) / (1 - 0.6)))
+  );
   const heightDiff = avatar.box.height - targetHeight;
 
   if (heightDiff !== 0) {
@@ -73,7 +163,7 @@ export function avatarTick(game, level, avatar, moveX, moveY, aimX, aimY, jump, 
     avatar.box.y += heightDiff;
   }
 
-  if (jump) {
+  if (avatar.inputs.jump) {
     if (avatar.jumpHeld !== -1) {
       avatar.jumpHeld += 1;
     }
@@ -116,8 +206,8 @@ export function avatarTick(game, level, avatar, moveX, moveY, aimX, aimY, jump, 
     avatar.jumpHeld = -1;
   }
 
-  if (Math.abs(moveX) > 0.2) {
-    const dx = AVATAR.SPEED * moveX;
+  if (Math.abs(avatar.inputs.moveX) > 0.2) {
+    const dx = AVATAR.SPEED * avatar.inputs.moveX;
     const movingOpposite = Math.sign(dx) !== Math.sign(avatar.box.dx);
     const atMaxSpeed = Math.abs(avatar.box.dx) > AVATAR.MAX_WALK_SPEED;
     if (movingOpposite || !atMaxSpeed) {
@@ -139,33 +229,41 @@ export function avatarTick(game, level, avatar, moveX, moveY, aimX, aimY, jump, 
     avatar.facing = Math.sign(avatar.box.dx);
   }
 
-  avatar.primaryArm.vx -= (avatar.primaryArm.vx - aimX) / 2;
-  avatar.primaryArm.vy -= (avatar.primaryArm.vy - aimY) / 2;
+  avatar.primaryArm.vx -= (avatar.primaryArm.vx - avatar.inputs.aimX) / 2;
+  avatar.primaryArm.vy -= (avatar.primaryArm.vy - avatar.inputs.aimY) / 2;
 
   const primaryArmDistance = avatar.gun !== undefined ? 0.8 : 0;
 
   if (avatar.primaryCooldown > 1) {
     avatar.primaryCooldown--;
-  } else if (avatar.primaryCooldown === 1 && (!primary || avatar.gun?.automatic)) {
+  } else if (avatar.primaryCooldown === 1 && (!avatar.inputs.primary || avatar.gun?.automatic)) {
     avatar.primaryCooldown = 0;
   }
   if (avatar.secondaryCooldown > 1) {
     avatar.secondaryCooldown--;
-  } else if (avatar.secondaryCooldown === 1 && !secondary) {
+  } else if (avatar.secondaryCooldown === 1 && !avatar.inputs.secondary) {
     avatar.secondaryCooldown = 0;
   }
 
-  if (avatar.primaryCooldown === 0 && primary) {
+  if (avatar.primaryCooldown === 0 && avatar.inputs.primary) {
     if (avatar.gun) {
-      const aimAngle = Math.atan2(aimY, aimX) + avatar.primaryArm.dangle * random(game, -0.3, 0.3);
+      avatar.face.type = "angry";
+      avatar.face.ticks = 40;
+
+      const aimAngle =
+        Math.atan2(avatar.inputs.aimY, avatar.inputs.aimX) + avatar.primaryArm.dangle * random(game, -0.3, 0.3);
       const dirX = Math.cos(aimAngle);
       const dirY = Math.sin(aimAngle);
 
-      avatar.primaryArm.dangle -= Math.sign(aimX) * random(game, 0.1, 2.5);
+      const startX =
+        avatar.body.x +
+        avatar.inputs.aimX * (avatar.primaryArm.distance + avatar.primaryArm.ddistance + avatar.gun.barrelLength);
+      const startY =
+        avatar.body.y +
+        avatar.inputs.aimY * (avatar.primaryArm.distance + avatar.primaryArm.ddistance + avatar.gun.barrelLength);
+      avatar.primaryArm.dangle -= Math.sign(avatar.inputs.aimX) * random(game, 0.1, 2.5);
       avatar.primaryArm.ddistance -= random(game, 0.5, 0.5);
 
-      const startX = avatar.body.x + aimX * (avatar.primaryArm.distance + avatar.gun.barrelLength);
-      const startY = avatar.body.y + aimY * (avatar.primaryArm.distance + avatar.gun.barrelLength);
       game.bullets[game.autoid++] = {
         x: startX + avatar.box.dx,
         y: startY + avatar.box.dy,
@@ -179,10 +277,45 @@ export function avatarTick(game, level, avatar, moveX, moveY, aimX, aimY, jump, 
         (Math.cos(aimAngle + avatar.primaryArm.dangle * random(game, -0.3, 0.3)) * avatar.primaryArm.ddistance) / 4;
       avatar.body.dy +=
         (Math.sin(aimAngle + avatar.primaryArm.dangle * random(game, -0.3, 0.3)) * avatar.primaryArm.ddistance) / 4;
+      // particleCreate(game, startX, startY, 0, 0, 0.2, 1.05, 1, 0.0, "red");
+      // particleCreate(game, startX, startY, 0, 0, 0.1, 1.05, 1, 0.0, "blue");
 
-      particleCreate(game, startX, startY, aimX, aimY, 0.35 * avatar.gun.damage, 4, 1, 0.0, "#ff260088");
-      particleCreate(game, startX, startY, aimX, aimY, 0.25 * avatar.gun.damage, 4, 1, 0.0, "yellow");
-      particleCreate(game, startX, startY, aimX, aimY, 0.1 * avatar.gun.damage, 4, 1, 0.0, "white");
+      particleCreate(
+        game,
+        startX - avatar.inputs.aimX,
+        startY - avatar.inputs.aimY,
+        avatar.inputs.aimX,
+        avatar.inputs.aimY,
+        1 * avatar.gun.damage,
+        4,
+        1,
+        0.0,
+        "#ff5100b0"
+      );
+      particleCreate(
+        game,
+        startX - avatar.inputs.aimX,
+        startY - avatar.inputs.aimY,
+        avatar.inputs.aimX,
+        avatar.inputs.aimY,
+        0.5 * avatar.gun.damage,
+        4,
+        1,
+        0.0,
+        "yellow"
+      );
+      particleCreate(
+        game,
+        startX - avatar.inputs.aimX,
+        startY - avatar.inputs.aimY,
+        avatar.inputs.aimX,
+        avatar.inputs.aimY,
+        0.3 * avatar.gun.damage,
+        4,
+        1,
+        0.0,
+        "white"
+      );
       // for (let i = 0; i < 4; i++) {
       //   const angle = aimAngle + random(game, -1, 1) * (Math.PI / 4);
       //   particleCreate(game, startX, startY, Math.cos(angle), Math.sin(angle), 0.4, 2, 1, 0.0, "yellow");
@@ -201,19 +334,19 @@ export function avatarTick(game, level, avatar, moveX, moveY, aimX, aimY, jump, 
     }
   }
 
-  if (avatar.secondaryCooldown === 0 && secondary) {
+  if (avatar.secondaryCooldown === 0 && avatar.inputs.secondary) {
     if (avatar.gun !== undefined) {
-      avatarDropWeapon(game, avatar, aimX / 1.3, aimY / 1.3);
+      avatarDropWeapon(game, avatar, avatar.inputs.aimX / 1.3, avatar.inputs.aimY / 1.3);
       avatar.secondaryCooldown = 1;
     } else if (!avatar.rope.active) {
       avatar.rope.active = true;
-      avatar.rope.box.dx = aimX;
-      avatar.rope.box.dy = aimY;
+      avatar.rope.box.dx = avatar.inputs.aimX;
+      avatar.rope.box.dy = avatar.inputs.aimY;
       avatar.secondaryCooldown = 7;
     }
   }
 
-  if (!secondary && avatar.rope.active) {
+  if (!avatar.inputs.secondary && avatar.rope.active) {
     if (avatar.rope.grabbingAvatarID) {
       const otherAvatar = game.avatars[avatar.rope.grabbingAvatarID];
       if (otherAvatar) {
@@ -504,11 +637,11 @@ export function avatarTick(game, level, avatar, moveX, moveY, aimX, aimY, jump, 
 
   boxLevelTick(level, avatar.box);
 
-  if (avatar.faceTicks === 0) {
-    avatar.face = AVATAR.FACE.PASSIVE;
-    avatar.faceTicks = -1;
-  } else if (avatar.faceTicks > 0) {
-    avatar.faceTicks--;
+  if (avatar.face.ticks === 0) {
+    avatar.face.type = "passive";
+    avatar.face.ticks = -1;
+  } else if (avatar.face.ticks > 0) {
+    avatar.face.ticks--;
   }
 
   for (const gunID in game.guns) {
@@ -558,6 +691,8 @@ export function avatarRender(ctx, game, prevAvatar, avatar, alpha) {
 
   const bodyX = lin(prevAvatar?.body.x, avatar.body.x, alpha);
   const bodyY = lin(prevAvatar?.body.y, avatar.body.y, alpha);
+  const bodyDX = lin(prevAvatar?.body.dx, avatar.body.dx, alpha);
+  const bodyDY = lin(prevAvatar?.body.dy, avatar.body.dy, alpha);
   const primaryArmVX = lin(prevAvatar?.primaryArm.vx, avatar.primaryArm.vx, alpha);
   const primaryArmVY = lin(prevAvatar?.primaryArm.vy, avatar.primaryArm.vy, alpha);
   const primaryArmAngle =
@@ -672,16 +807,45 @@ export function avatarRender(ctx, game, prevAvatar, avatar, alpha) {
   ctx.stroke();
 
   ctx.save();
-  ctx.textAlign = "end";
-  ctx.translate(
-    bodyX + avatar.body.dx / 2 + (primaryArmDDistance < 0 ? (primaryArmVX * -primaryArmDDistance) / 2 : 0) - 0.12,
-    bodyY + avatar.body.dy / 2 + 0.2 + (primaryArmDDistance < 0 ? (primaryArmVY * -primaryArmDDistance) / 2 : 0)
+  const faceX = bodyX + bodyDX / 2 + (primaryArmDDistance < 0 ? (primaryArmVX * -primaryArmDDistance) / 2 : 0);
+  const faceY = bodyY + bodyDY / 2 + (primaryArmDDistance < 0 ? (primaryArmVY * -primaryArmDDistance) / 2 : 0);
+  const face = (FACES[avatar.face.index] ?? fail())[avatar.face.type] ?? fail();
+  const faceSize = avatar.box.width;
+  const extraPadding = FACE_OUTER_SIZE / FACE_INNER_SIZE;
+  ctx.lineWidth = 0.02;
+
+  ctx.translate(faceX, faceY);
+  if (primaryArmVX < 0) {
+    ctx.scale(-1, 1);
+  }
+  ctx.drawImage(
+    face,
+    -(faceSize / 2) * extraPadding,
+    -(faceSize / 2) * extraPadding,
+    faceSize * extraPadding,
+    faceSize * extraPadding
   );
-  ctx.rotate(Math.PI / 2);
-  ctx.font = "normal 0.5px sans-serif";
-  ctx.fillStyle = "black";
-  ctx.fillText(avatar.face, 0, 0);
+
+  // ctx.rect(
+  //   -(faceSize / 2) * extraPadding,
+  //   -(faceSize / 2) * extraPadding,
+  //   faceSize * extraPadding,
+  //   faceSize * extraPadding
+  // );
+  // ctx.stroke();
   ctx.restore();
+
+  // ctx.save();
+  // ctx.textAlign = "end";
+  // ctx.translate(
+  //   bodyX + avatar.body.dx / 2 + (primaryArmDDistance < 0 ? (primaryArmVX * -primaryArmDDistance) / 2 : 0) - 0.12,
+  //   bodyY + avatar.body.dy / 2 + 0.2 + (primaryArmDDistance < 0 ? (primaryArmVY * -primaryArmDDistance) / 2 : 0)
+  // );
+  // ctx.rotate(Math.PI / 2);
+  // ctx.font = "normal 0.5px sans-serif";
+  // ctx.fillStyle = "black";
+  // ctx.fillText(avatar.face, 0, 0);
+  // ctx.restore();
 
   if (avatar.grabbedByAvatarID) {
     const otherAvatar = game.avatars[avatar.grabbedByAvatarID];
@@ -737,8 +901,8 @@ export function avatarDropWeapon(game, avatar, dx, dy) {
  * @param {number} dy
  */
 export function avatarTakeDamage(game, avatar, damage, dx, dy) {
-  avatar.face = AVATAR.FACE.DAMAGE;
-  avatar.faceTicks = 30;
+  avatar.face.type = "hurt";
+  avatar.face.ticks = 50;
   avatar.health -= damage;
 
   for (let i = 0; i < 3; i++) {
@@ -760,9 +924,9 @@ export function avatarTakeDamage(game, avatar, damage, dx, dy) {
   if (avatar.health <= 0) {
     for (const deviceID in game.players) {
       const player = game.players[deviceID] ?? fail();
-      if (player.keyboardPlayer.avatarID === avatar.id) {
+      if (player.keyboard.avatarID === avatar.id) {
         // MARK: Todo controller
-        player.keyboardPlayer.avatarID = undefined;
+        player.keyboard.avatarID = undefined;
         break;
       }
     }
@@ -801,83 +965,4 @@ export function avatarTakeDamage(game, avatar, damage, dx, dy) {
     }
     delete game.avatars[avatar.id];
   }
-}
-
-/**
- * @param {Game} game
- * @param {number} x
- * @param {number} y
- * @param {string} color
- * @returns {Avatar}
- */
-export function createAvatar(game, x, y, color) {
-  /** @type {Avatar} */
-  const avatar = {
-    id: (game.autoid++).toString(),
-    box: {
-      x: x,
-      y: y,
-      dx: 0,
-      dy: 0,
-      width: AVATAR.WIDTH,
-      height: AVATAR.HEIGHT,
-      bounce: 0,
-    },
-    rope: {
-      active: false,
-      box: {
-        x: x,
-        y: y,
-        dx: 0,
-        dy: 0,
-        width: 0.8,
-        height: 0.8,
-        bounce: 0,
-      },
-    },
-    primaryCooldown: 0,
-    secondaryCooldown: 0,
-    jumpHeld: 0,
-    fallingTicks: 0,
-    color,
-    facing: 1,
-    face: AVATAR.FACE.PASSIVE,
-    faceTicks: -1,
-    health: 8,
-    crouching: false,
-    feet: {
-      angle: 0,
-      leftX: x,
-      leftY: y,
-      rightX: x,
-      rightY: y,
-      leftStartX: x,
-      leftStartY: y,
-
-      rightStartX: x,
-      rightStartY: y,
-      leftKneeX: x,
-      leftKneeY: y,
-      rightKneeX: x,
-      rightKneeY: y,
-    },
-    primaryArm: {
-      vx: 1,
-      vy: 0,
-      dangle: 0,
-      ddistance: 0,
-      distance: 0,
-      damage: 0,
-    },
-    body: {
-      angle: 0,
-      x: x,
-      y: y,
-      dx: 0,
-      dy: 0,
-    },
-  };
-
-  game.avatars[avatar.id] = avatar;
-  return avatar;
 }

@@ -1,23 +1,44 @@
+type FaceType = "passive" | "angry" | "hurt";
+
 type Player = {
   color: string;
+  face: number;
   avatarID: string | undefined;
 };
 type PeerPlayers = {
-  keyboardPlayer: Player;
-  gamepadPlayers: Player[];
+  keyboard: Player;
+  gamepads: Player[];
+  camera: {
+    x: number;
+    y: number;
+    scale: number;
+  };
 };
 
 type Avatar = {
   id: string;
   color: string;
 
+  inputs: {
+    moveX: number;
+    moveY: number;
+    aimX: number;
+    aimY: number;
+    jump: boolean;
+    primary: boolean;
+    secondary: boolean;
+  };
+
   box: Box;
   jumpHeld: number;
   fallingTicks: number;
   crouching: boolean;
   facing: number;
-  face: string;
-  faceTicks: number;
+  face: {
+    index: number;
+    type: FaceType;
+    ticks: number;
+  };
   health: number;
   feet: {
     angle: number;
@@ -116,7 +137,6 @@ interface Game {
   };
   level: number;
   guns: Record<string, Gun>;
-  allowedGuns: number;
   particles: Record<string, Particle>;
 
   debug_points: [number, number][];
@@ -137,6 +157,11 @@ interface Box {
   wallRight?: number;
   wall?: number;
 }
+
+type Face = {
+  default: [number, number];
+  hurt: [number, number];
+};
 
 type GamePackets = {
   sync: {

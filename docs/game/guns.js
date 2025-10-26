@@ -8,14 +8,14 @@ export const GUN_TYPES = /** @type {const} */ ([
     cooldown: 1,
     damage: 1,
     bullets: 15,
-    barrelLength: 0.1,
+    barrelLength: 0.25,
     automatic: false,
   },
   {
     cooldown: 5,
     damage: 0.5,
     bullets: 60,
-    barrelLength: 0.4,
+    barrelLength: 0.3,
     automatic: true,
   },
 ]);

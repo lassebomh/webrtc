@@ -9,7 +9,6 @@ import { random } from "./utils.js";
  * @param {number} alpha
  */
 export function particleRender(ctx, prevParticle, particle, alpha) {
-  ctx.beginPath();
   const x = lin(prevParticle?.x, particle.x, alpha);
   const y = lin(prevParticle?.y, particle.y, alpha);
   const dx = lin(prevParticle?.dx, particle.dx, alpha);
@@ -17,15 +16,24 @@ export function particleRender(ctx, prevParticle, particle, alpha) {
   const size = lin(prevParticle?.size, particle.size, alpha);
   const particleAngle = Math.atan2(dy, dx);
   const mag = Math.hypot(dx, dy);
+  const radiusY = Math.max(size, mag / 1.1, 0);
 
-  if (size <= 0 || Math.max(size, mag / 1.5, 0) <= 0) return;
-
-  ctx.ellipse(x + dx / 2, y + dy / 2, size, Math.max(size, mag / 1.5, 0), particleAngle + Math.PI / 2, 0, Math.PI * 2);
+  if (size <= 0 || radiusY <= 0) return;
 
   ctx.shadowBlur = mag * 20;
   ctx.shadowColor = particle.color;
-
   ctx.fillStyle = particle.color;
+
+  ctx.beginPath();
+  ctx.ellipse(
+    x + Math.cos(particleAngle) * radiusY,
+    y + Math.sin(particleAngle) * radiusY,
+    size,
+    radiusY,
+    particleAngle + Math.PI / 2,
+    0,
+    Math.PI * 2
+  );
   ctx.fill();
 }
 
@@ -60,7 +68,7 @@ export function particleTick(game, particle) {
  */
 export function particleCreate(game, x, y, dx, dy, size, sizeDiv, speedDiv, speedRandom, color) {
   const id = (game.autoid++).toString();
-  game.particles[id] = {
+  return (game.particles[id] = {
     id,
     x,
     y,
@@ -71,5 +79,5 @@ export function particleCreate(game, x, y, dx, dy, size, sizeDiv, speedDiv, spee
     speedDiv,
     speedRandom,
     color,
-  };
+  });
 }

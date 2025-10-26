@@ -1,16 +1,18 @@
 import { fail } from "./shared/utils.js";
 
 export class CanvasController {
-  /** @type {Input} */
-  standardInput = {};
+  /** @type {KeyboardInput} */
+  keyboard = {};
+  /** @type {MouseInput} */
+  mouse = {};
 
-  /** @type {(Input | null)[]} */
+  /** @type {(GamepadInput | null)[]} */
   gamepadInputs = [];
 
-  /** @type {number} */
-  width;
-  /** @type {number} */
-  height;
+  /** @type {number | undefined} */
+  canvasWidth;
+  /** @type {number | undefined} */
+  canvasHeight;
 
   /**
    * @param {HTMLElement} element
@@ -27,8 +29,8 @@ export class CanvasController {
     this.ctx = canvas.getContext("2d") ?? fail();
 
     const { width, height } = element.getBoundingClientRect();
-    this.width = width;
-    this.height = height;
+    this.canvasWidth = width;
+    this.canvasHeight = height;
 
     const resizeObserver = new ResizeObserver((entries) => {
       for (const entry of entries) {
@@ -36,7 +38,8 @@ export class CanvasController {
 
         canvas.width = width;
         canvas.height = height;
-        // add input
+        this.canvasWidth = width;
+        this.canvasHeight = height;
       }
     });
 
@@ -52,19 +55,9 @@ export class CanvasController {
     const onkey = (event) => {
       event.preventDefault();
       if (event.repeat) return;
-      /** @type {InputKey} */
-      let key;
-      switch (event.key) {
-        case " ":
-          key = "space";
-          break;
-
-        default:
-          key = /** @type {InputKey} */ (event.key.toLowerCase());
-          break;
-      }
-
-      this.standardInput[key] = Number(event.type === "keydown");
+      /** @type {keyof KeyboardInput} */
+      const key = event.key === " " ? "space" : /** @type {keyof KeyboardInput} */ (event.key.toLocaleLowerCase());
+      this.keyboard[key] = Number(event.type === "keydown");
     };
 
     element.addEventListener("keydown", onkey);
@@ -73,18 +66,38 @@ export class CanvasController {
     element.addEventListener(
       "pointermove",
       (event) => {
-        this.standardInput.mousex = event.offsetX;
-        this.standardInput.mousey = event.offsetY;
+        this.mouse.x = event.offsetX;
+        this.mouse.y = event.offsetY;
       },
       { passive: true }
     );
     element.addEventListener("mousedown", (event) => {
-      const key = event.button === 0 ? "mouseleftbutton" : "mouserightbutton";
-      this.standardInput[key] = 1;
+      switch (event.button) {
+        case 0:
+          this.mouse.left = 1;
+          break;
+
+        case 2:
+          this.mouse.right = 1;
+          break;
+
+        default:
+          break;
+      }
     });
     element.addEventListener("mouseup", (event) => {
-      const key = event.button === 0 ? "mouseleftbutton" : "mouserightbutton";
-      this.standardInput[key] = 0;
+      switch (event.button) {
+        case 0:
+          this.mouse.left = 0;
+          break;
+
+        case 2:
+          this.mouse.right = 0;
+          break;
+
+        default:
+          break;
+      }
     });
   }
 
@@ -100,7 +113,6 @@ export class CanvasController {
       }
 
       const input = (this.gamepadInputs[i] ??= {});
-      input.is_gamepad = 1;
 
       if (gamepad.axes.length >= 6) {
         let [lstickx, lsticky, rstickx, rsticky, ltrigger, rtrigger] =
@@ -108,34 +120,40 @@ export class CanvasController {
         ltrigger = (ltrigger + 1) / 2;
         rtrigger = (rtrigger + 1) / 2;
 
-        if (Math.abs(lstickx) > 0.08) input.lstickx = lstickx;
-        if (Math.abs(lsticky) > 0.08) input.lsticky = lsticky;
-        if (Math.abs(rstickx) > 0.08) input.rstickx = rstickx;
-        if (Math.abs(rsticky) > 0.08) input.rsticky = rsticky;
-        if (ltrigger !== 0.5 && Math.abs(ltrigger) > 0.05) input.ltrigger = ltrigger;
-        if (rtrigger !== 0.5 && Math.abs(rtrigger) > 0.05) input.rtrigger = rtrigger;
+        if (Math.abs(lstickx) > 0.08) input.leftStickX = lstickx;
+        if (Math.abs(lsticky) > 0.08) input.leftStickY = lsticky;
+        if (Math.abs(rstickx) > 0.08) input.rightStickX = rstickx;
+        if (Math.abs(rsticky) > 0.08) input.rightStickY = rsticky;
+        if (ltrigger !== 0.5 && Math.abs(ltrigger) > 0.05) input.leftTrigger = ltrigger;
+        if (rtrigger !== 0.5 && Math.abs(rtrigger) > 0.05) input.rightTrigger = rtrigger;
       }
 
       if (gamepad.buttons.length >= 6) {
         const [buttona, buttonb, buttony, buttonx, lshoulder, rshoulder] =
           /** @type {[number,number,number,number,number,number]} */ (gamepad.buttons.map((x) => x.value));
-        if (buttona) input.buttona = buttona;
-        if (buttonb) input.buttonb = buttonb;
-        if (buttony) input.buttony = buttony;
-        if (buttonx) input.buttonx = buttonx;
-        if (lshoulder) input.lshoulder = lshoulder;
-        if (rshoulder) input.rshoulder = rshoulder;
+        if (buttona) input.a = buttona;
+        if (buttonb) input.b = buttonb;
+        if (buttony) input.y = buttony;
+        if (buttonx) input.x = buttonx;
+        if (lshoulder) input.leftShoulder = lshoulder;
+        if (rshoulder) input.rightShoulder = rshoulder;
       }
     }
 
-    const standardInput = this.standardInput;
+    const keyboard = this.keyboard;
+    const mouse = this.mouse;
     const gamepadInputs = this.gamepadInputs;
+    const canvasWidth = this.canvasWidth;
+    const canvasHeight = this.canvasHeight;
 
-    this.standardInput = {};
+    this.keyboard = {};
+    this.mouse = {};
     this.gamepadInputs = [];
+    this.canvasWidth = undefined;
+    this.canvasHeight = undefined;
 
     /** @type {PeerInputs} */
-    const peerInputs = { standardInput, gamepadInputs, canvasWidth: this.width, canvasHeight: this.height };
+    const peerInputs = { keyboard, mouse, gamepadInputs, canvasWidth: canvasWidth, canvasHeight: canvasHeight };
 
     return peerInputs;
   }

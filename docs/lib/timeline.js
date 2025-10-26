@@ -7,9 +7,10 @@ export class DesyncError extends Error {}
  * @param {PeerInputs} to
  */
 function applyInputs(from, to) {
-  Object.assign(to.standardInput, from.standardInput);
-  to.canvasWidth = from.canvasWidth;
-  to.canvasHeight = from.canvasHeight;
+  Object.assign(to.keyboard, from.keyboard);
+  Object.assign(to.mouse, from.mouse);
+  if (from.canvasWidth) to.canvasWidth = from.canvasWidth;
+  if (from.canvasHeight) to.canvasHeight = from.canvasHeight;
   //MARK: Todo controller
 }
 
@@ -85,10 +86,9 @@ export class Timeline {
         item.inputs[peerID] = inputs ?? fail();
 
         item.mergedInputs[peerID] ??= {
-          standardInput: {},
+          keyboard: {},
+          mouse: {},
           gamepadInputs: [],
-          canvasWidth: 0,
-          canvasHeight: 0,
         };
 
         applyInputs(inputs, item.mergedInputs[peerID]);
@@ -133,10 +133,9 @@ export class Timeline {
 
       for (const peerID in nextItem.inputs) {
         nextItem.mergedInputs[peerID] ??= structuredClone(nextItem.inputs[peerID]) ?? {
-          standardInput: {},
+          keyboard: {},
+          mouse: {},
           gamepadInputs: [],
-          canvasWidth: 0,
-          canvasHeight: 0,
         };
         applyInputs(nextItem.inputs[peerID] ?? fail(), nextItem.mergedInputs[peerID]);
       }
