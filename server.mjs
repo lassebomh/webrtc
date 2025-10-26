@@ -1,5 +1,4 @@
 /// <reference path="./docs/lib/shared/index.d.ts" />
-/// <reference path="./server.d.ts" />
 
 import { WebSocket, WebSocketServer } from "ws";
 import http from "http";
@@ -176,7 +175,7 @@ wss.on("connection", (ws, req) => {
       JSON.parse(message.toString())
     );
 
-    console.log("received", packet);
+    // console.log("received", packet);
 
     try {
       if (peerID === undefined) {
@@ -215,7 +214,7 @@ wss.on("connection", (ws, req) => {
           response: onserverrequest(packet),
         };
 
-        console.log("sending", response);
+        // console.log("sending", response);
 
         ws.send(JSON.stringify(response));
       } else {

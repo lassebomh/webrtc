@@ -1,4 +1,5 @@
-import { fail, lin } from "../lib/utils.js";
+import { fail } from "../lib/shared/utils.js";
+import { lin } from "../lib/utils.js";
 
 import { boxLevelTick, boxOnBoxCollision, boxRender } from "./collision.js";
 import { BULLET, pistolRender, uziRender } from "./guns.js";

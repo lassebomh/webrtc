@@ -26,7 +26,7 @@ export class ServerNet {
   addChannel(peerID, channel) {
     this.#channels[peerID] = channel;
 
-    channel.addEventListener("message", (e) => {
+    channel.addEventListener("message", async (e) => {
       /** @type {PacketRequest<any> | PacketResponse<any>} */
       const packet = JSON.parse(e.data);
       if (packet.sender !== peerID) {
@@ -65,7 +65,12 @@ export class ServerNet {
         disconnectRoom: (_) => fail(),
         roomRtcOffer: async (peerID, _) => {
           const peer = this.#peers[peerID] ?? fail();
-          this.addChannel(peerID, peer.createDataChannel("default"));
+          this.addChannel(
+            peerID,
+            peer.createDataChannel("default", {
+              ordered: false,
+            })
+          );
           const offer = await peer.createOffer();
           await peer.setLocalDescription(offer);
           return offer.sdp;

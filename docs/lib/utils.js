@@ -1,25 +1,4 @@
-/**
- * @param {string | undefined} msg
- * @returns {never}
- */
-export function fail(msg = undefined) {
-  throw new Error(msg);
-}
-
-/**
- * @param {any} value
- * @param {string | undefined} msg
- * @returns {asserts value}
- */
-export function assert(value, msg = undefined) {
-  if (!value) {
-    throw new Error(msg);
-  }
-}
-
-export function now() {
-  return performance.timeOrigin + performance.now();
-}
+import { assert, fail } from "./shared/utils.js";
 
 /** @type {(ms: number) => Promise<void>} */
 export const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
@@ -54,12 +33,3 @@ export function setupCanvas(canvas, onresize = () => {}) {
 export function lin(start, end, alpha) {
   return start === undefined || !Number.isFinite(start) ? end : start + (end - start) * alpha;
 }
-
-/** @type {DeviceID} */
-export const defaultDeviceID = (sessionStorage.tabId ??= crypto.randomUUID());
-
-export const EPSILON = 1e-5;
-
-const safeIntRange = Number.MAX_SAFE_INTEGER - Number.MIN_SAFE_INTEGER;
-
-export const randInt = () => Math.trunc(Number.MIN_SAFE_INTEGER + Math.random() * safeIntRange);

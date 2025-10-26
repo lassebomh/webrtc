@@ -1,12 +1,13 @@
-import { fail, randInt } from "./utils.js";
+import { fail, randInt, sleep } from "./utils.js";
 
 const DEBUG = false;
+const SIMULATE_LAG = 0;
 
 export function randomPeerID() {
-  return /** @type {PeerID} */ (crypto.randomUUID());
+  return /** @type {PeerID} */ (Math.floor(Math.random() * Math.pow(2, 32)).toString());
 }
 
-export const serverPeerId = /** @type {PeerID} */ ("00000000-0000-0000-0000-000000000000");
+export const serverPeerId = /** @type {PeerID} */ ("0000000000");
 
 /**
  * @template {Packets} TPackets
@@ -54,7 +55,11 @@ export class Net {
    */
   constructor(peerId, sender, receiver) {
     this.peerId = peerId;
-    this.sender = /** @type {typeof sender} */ (packet) => {
+    this.sender = /** @type {typeof sender} */ async (packet) => {
+      if (SIMULATE_LAG) {
+        await sleep(Math.random() * SIMULATE_LAG);
+      }
+
       if (DEBUG) {
         console.debug(
           `${packet.sender.slice(0, 3).toUpperCase()} ${

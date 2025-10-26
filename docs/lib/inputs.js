@@ -1,4 +1,6 @@
-import { assert, fail } from "./utils.js";
+import { assert, fail } from "./shared/utils.js";
+
+export class DesyncError extends Error {}
 
 /**
  * @template TState
@@ -15,17 +17,18 @@ export class RollbackEngine {
   }
 
   /**
-   * Inserts input data into the history,
-   *
    * @param {number} tick
    * @param {NewInputEntryRecord} inputs These inputs will we used for tick+1
    */
   addInputs(tick, inputs) {
-    // ORDER THE INPUTS
     const firstItem = this.history.at(0) ?? fail();
     if (firstItem.tick > tick) fail(`Input tick ${tick} is older than first item tick ${firstItem.tick}`);
 
     let index = this.history.findLastIndex((x) => x.tick <= tick && x.state !== null);
+    if (index === -1) {
+      console.warn("input happened before first valid history entry", tick, inputs);
+      return;
+    }
     let item = this.history[index] ?? fail();
 
     const lastItem = this.history.at(-1) ?? fail();
@@ -57,17 +60,32 @@ export class RollbackEngine {
         item.state = null;
         item.mergedInputs = null;
       } else if (item.tick === tick) {
-        item.mergedInputs = structuredClone(this.history[i - 1]?.mergedInputs ?? {});
+        if (!item.mergedInputs) {
+          const prevMergedInputs = this.history[i - 1]?.mergedInputs;
+          if (prevMergedInputs) {
+            item.mergedInputs = structuredClone(prevMergedInputs);
+          } else {
+            item.mergedInputs = {};
+          }
+        }
 
-        for (const p in inputs) {
-          const peerID = /** @type {PeerID} */ (p);
-          // assert(item.inputs[device] === undefined, "cannot override existing device inputs");
+        for (const peerID in inputs) {
           item.inputs[peerID] = inputs[peerID] ?? fail();
-          item.mergedInputs[peerID] = inputs[peerID] ?? fail();
+        }
+
+        for (const peerID in item.inputs) {
+          const inputs = item.inputs[peerID] ?? fail();
+          item.mergedInputs[peerID] ??= {
+            defaultInputs: {},
+            gamepadInputs: [],
+          };
+          for (const k in inputs.defaultInputs) {
+            const key = /** @type {InputKey} */ (k);
+            item.mergedInputs[peerID].defaultInputs[key] = inputs.defaultInputs[key];
+          }
         }
       }
       expectedTick++;
-      // assert(expectedTick < 100, "OVERFLOW");
     }
   }
 
@@ -76,7 +94,7 @@ export class RollbackEngine {
    */
   getState(tick) {
     const lastItemBeforeIndex = this.history.findLastIndex((x) => x.tick <= tick && x.state !== null);
-    const lastItemBefore = this.history[lastItemBeforeIndex] ?? fail();
+    const lastItemBefore = this.history[lastItemBeforeIndex] ?? fail(new DesyncError());
     const lastItem = this.history.at(-1) ?? fail();
 
     const itemsToCreate = Math.max(tick - lastItem.tick, 0);
@@ -103,26 +121,9 @@ export class RollbackEngine {
       nextItem.mergedInputs = structuredClone(item.mergedInputs);
       nextItem.state = structuredClone(item.state);
 
-      for (const p in nextItem.inputs) {
-        const peerID = /** @type {PeerID} */ (p);
+      for (const peerID in nextItem.inputs) {
         nextItem.mergedInputs[peerID] ??= nextItem.inputs[peerID] ?? { defaultInputs: {}, gamepadInputs: [] };
 
-        if (nextItem.inputs[peerID]?.gamepadInputs) {
-          for (let i = 0; i < nextItem.inputs[peerID].gamepadInputs.length; i++) {
-            const gamepad = nextItem.mergedInputs[peerID].gamepadInputs[i];
-            if (gamepad === undefined) fail();
-            if (gamepad === null) {
-              nextItem.mergedInputs[peerID].gamepadInputs[i] = null;
-            } else {
-              nextItem.mergedInputs[peerID].gamepadInputs[i] ??= {};
-              for (const k in gamepad) {
-                const key = /** @type {InputKey} */ (k);
-                /** @type {DeviceInputs} */ (nextItem.mergedInputs[peerID].gamepadInputs[i])[key] =
-                  nextItem.inputs[peerID].defaultInputs[key];
-              }
-            }
-          }
-        }
         for (const k in nextItem.inputs[peerID]?.defaultInputs) {
           const key = /** @type {InputKey} */ (k);
           nextItem.mergedInputs[peerID].defaultInputs[key] = nextItem.inputs[peerID].defaultInputs[key];

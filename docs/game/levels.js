@@ -1,4 +1,4 @@
-import { assert, fail } from "../lib/utils.js";
+import { assert, fail } from "../lib/shared/utils.js";
 
 /**
  * @param {string} text

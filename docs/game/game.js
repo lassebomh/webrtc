@@ -1,4 +1,5 @@
-import { fail, lin, now } from "../lib/utils.js";
+import { now, fail } from "../lib/shared/utils.js";
+import { lin } from "../lib/utils.js";
 import { AVATAR, avatarRender, avatarTakeDamage, avatarTick, createAvatar } from "./avatar.js";
 
 import { boxLevelTick, boxOnBoxCollision, boxOnPointCollision, boxRender } from "./collision.js";
@@ -23,7 +24,7 @@ export const init = () =>
       y: 0,
       scale: 1,
     },
-    level: 0,
+    level: 1,
     guns: {},
     allowedGuns: 4,
     debug_points: [],

@@ -1,10 +1,9 @@
 import { init, render, tick } from "../game/game.js";
 import { fail, setupCanvas } from "../lib/utils.js";
 
-import { setupConnection } from "../lib/conn.js";
 import { TICK_RATE } from "../lib/rollback.js";
 
-setupConnection("debug", () => {});
+// setupConnection("debug", () => {});
 
 /** @template T */
 class PersistedValue {
