@@ -1,6 +1,5 @@
 import { fail, randInt } from "./utils.js";
 
-const DEBUG = false;
 export function randomPeerID() {
   return /** @type {PeerID} */ (Math.floor(Math.random() * Math.pow(2, 32)).toString());
 }
@@ -20,7 +19,7 @@ export class Net {
   async receiveRaw(packet) {
     if (packet.receiver !== null && packet.receiver != this.peerId) return;
 
-    if (DEBUG) {
+    if (this.debug) {
       console.debug(
         `${packet.receiver?.slice(0, 3).toUpperCase() ?? "ALL"} ${packet.sender
           .slice(0, 3)
@@ -50,11 +49,13 @@ export class Net {
    * @param {PeerID} peerId
    * @param {(packet: PacketRequest<TPackets> | PacketResponse<TPackets>) => void} sender
    * @param {{[K in keyof TPackets]: (peer: PeerID, request: TPackets[K]['request']) => Promise<TPackets[K]['response']>}} receiver
+   * @param {boolean} debug
    */
-  constructor(peerId, sender, receiver) {
+  constructor(peerId, sender, receiver, debug = false) {
+    this.debug = debug;
     this.peerId = peerId;
     this.sender = /** @type {typeof sender} */ (packet) => {
-      if (DEBUG) {
+      if (this.debug) {
         console.debug(
           `${packet.sender.slice(0, 3).toUpperCase()} ${
             packet.receiver?.slice(0, 3).toUpperCase() ?? "ALL"

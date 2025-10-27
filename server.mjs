@@ -6,7 +6,7 @@ import { extname, join } from "path";
 import { fileURLToPath } from "url";
 import { createReadStream, statSync } from "fs";
 import { serverPeerId } from "./docs/lib/shared/net.js";
-import { assert, fail, isUnreachable } from "./docs/lib/shared/utils.js";
+import { assert, fail, isUnreachable, now } from "./docs/lib/shared/utils.js";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 
@@ -157,7 +157,9 @@ wss.on("connection", (ws, req) => {
             roomID: x.roomID,
           }));
 
-        break;
+      case "timeSync":
+        return now();
+
       case "greet":
       case "roomRtcOffer":
       case "roomRtcAnswer":

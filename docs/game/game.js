@@ -169,7 +169,7 @@ export const tick = (game, peerInputs) => {
     game.camera.x -= (game.camera.x - targetX) / 32;
     game.camera.y -= (game.camera.y - targetY) / 32;
     let targetScale = 400 / highestDistanceToCamera;
-    targetScale = Math.min(targetScale, 90);
+    targetScale = Math.min(targetScale, 50);
     game.camera.scale -= (game.camera.scale - targetScale) / 50;
   }
 };

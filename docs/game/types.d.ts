@@ -164,7 +164,7 @@ type Face = {
 };
 
 type GamePackets = {
-  sync: {
+  stateSync: {
     request: null;
     response: {
       originTime: number;

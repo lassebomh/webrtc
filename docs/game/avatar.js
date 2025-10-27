@@ -32,10 +32,6 @@ export const AVATAR = {
     "hsla(265, 83%, 57%, 1.00)",
     "hsla(24, 100%, 56%, 1.00)",
   ],
-  FACE: {
-    PASSIVE: ":|",
-    DAMAGE: ":o",
-  },
 };
 
 /**

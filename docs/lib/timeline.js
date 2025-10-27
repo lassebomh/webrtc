@@ -40,11 +40,13 @@ export class Timeline {
     let index = this.history.findLastIndex((x) => x.tick <= tick && x.state !== null && x.mergedInputs !== null);
     if (index === -1) {
       console.warn("input happened before first valid history entry", tick, inputs);
-      return [undefined, undefined];
+      return;
     }
     let item = this.history[index] ?? fail();
 
     const lastItem = this.history.at(-1) ?? fail();
+
+    let shownDeletedEntries = 0;
 
     const itemsToCreate = Math.max(tick - lastItem.tick, 0);
     for (let i = 0; i < itemsToCreate; i++) {
@@ -83,7 +85,7 @@ export class Timeline {
           }
         }
 
-        item.inputs[peerID] = inputs ?? fail();
+        item.inputs[peerID] = inputs;
 
         item.mergedInputs[peerID] ??= {
           keyboard: {},

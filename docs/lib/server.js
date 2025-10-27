@@ -1,8 +1,8 @@
 import { Net, randomPeerID, serverPeerId } from "./shared/net.js";
-import { assert, fail, sleep } from "./shared/utils.js";
+import { assert, fail, now, sleep } from "./shared/utils.js";
 import { LOCALHOST } from "./utils.js";
 
-const peerID = /** @type {PeerID} */ (sessionStorage.peerID ||= randomPeerID());
+export const localPeerID = /** @type {PeerID} */ (sessionStorage.peerID ||= randomPeerID());
 
 let SIMULATE_LAG = 0;
 
@@ -27,6 +27,32 @@ export class ServerNet {
   /** @type {Record<PeerID, (RTCIceCandidate | null)[]>} */
   #peerIceCandidateQueue = {};
 
+  #serverTimeDiff = 0;
+
+  /**
+   * @param {PeerID} peerID
+   */
+  async flushPeerIceCandidateQueue(peerID) {
+    const peer = this.#peers[peerID] ?? fail();
+    const iceCandidateQueue = this.#peerIceCandidateQueue[peerID];
+    while (iceCandidateQueue?.length) {
+      const iceCandidate = iceCandidateQueue.shift();
+      await peer.addIceCandidate(iceCandidate);
+    }
+  }
+
+  /**
+   * @param {PeerID} peerID
+   */
+  deletePeer(peerID) {
+    console.warn("deleting peer", peerID);
+    this.#channels[peerID]?.close();
+    this.#peers[peerID]?.close();
+    delete this.#channels[peerID];
+    delete this.#peers[peerID];
+    delete this.#peerIceCandidateQueue[peerID];
+  }
+
   /**
    *
    * @param {PeerID} peerID
@@ -47,26 +73,20 @@ export class ServerNet {
       (this.#roomNet ?? fail()).receiveRaw(packet);
     });
 
-    channel.addEventListener("close", () => {
-      channel?.close();
-      this.#peers[peerID]?.close();
-      delete this.#channels[peerID];
-      delete this.#peers[peerID];
-      delete this.#peerIceCandidateQueue[peerID];
-    });
+    channel.addEventListener("close", () => this.deletePeer(peerID));
   }
 
   constructor() {
     this.#ws = new WebSocket(`ws${window.location.protocol === "https:" ? "s" : ""}://${window.location.host}/`);
 
-    if (LOCALHOST) {
-      this.#ws.onclose = async () => {
-        await sleep(75 + Math.random() * 150);
-        window.location.reload();
-      };
-    }
+    // if (LOCALHOST) {
+    this.#ws.onclose = async () => {
+      await sleep(75 + Math.random() * 150);
+      window.location.reload();
+    };
+    // }
     this.#server = new Net(
-      peerID,
+      localPeerID,
       (packet) => {
         this.#ws.send(JSON.stringify(packet));
       },
@@ -76,6 +96,7 @@ export class ServerNet {
         joinRoom: (_) => fail(),
         roomsList: (_) => fail(),
         disconnectRoom: (_) => fail(),
+        timeSync: (_) => fail(),
         roomRtcOffer: async (peerID, _) => {
           const peer = this.#peers[peerID] ?? fail();
           this.addChannel(
@@ -90,17 +111,18 @@ export class ServerNet {
         },
         roomRtcAnswer: async (peerID, request) => {
           const peer = this.#peers[peerID] ?? fail();
-          await peer.setRemoteDescription({ type: "answer", sdp: request });
-          const iceCandidateQueue = this.#peerIceCandidateQueue[peerID];
-          while (iceCandidateQueue?.length) {
-            const iceCandidate = iceCandidateQueue.pop();
-            await peer.addIceCandidate(iceCandidate);
+          if (peer.signalingState !== "have-local-offer") {
+            console.warn("Ignoring unexpected answer for", peerID, "in state", peer.signalingState);
+            return null;
           }
+          await peer.setRemoteDescription({ type: "answer", sdp: request });
+          await this.flushPeerIceCandidateQueue(peerID);
           return null;
         },
         roomRtcIceCandidate: async (peerID, request) => {
           const peer = this.#peers[peerID] ?? fail();
           if (peer.remoteDescription) {
+            await this.flushPeerIceCandidateQueue(peerID);
             await peer.addIceCandidate(request);
           } else {
             this.#peerIceCandidateQueue[peerID] ??= [];
@@ -108,6 +130,7 @@ export class ServerNet {
           }
         },
       }
+      // true
     );
 
     this.#ws.addEventListener("message", async (event) => {
@@ -123,20 +146,26 @@ export class ServerNet {
 
       /** @type {PacketRequest<ServerPackets> | PacketResponse<ServerPackets>} */
       const packet = JSON.parse(raw);
+      const peerID = packet.sender;
 
-      if (packet.sender !== serverPeerId) {
-        let peer = this.#peers[packet.sender];
+      if (peerID !== serverPeerId) {
+        let peer = this.#peers[peerID];
 
         if (peer === undefined) {
           peer = new RTCPeerConnection({
             iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
           });
-
-          peer.addEventListener("icecandidate", ({ candidate }) => {
-            this.#server.send("roomRtcIceCandidate", packet.sender, candidate);
+          peer.addEventListener("connectionstatechange", () => {
+            if (peer?.connectionState === "disconnected" || peer?.connectionState === "failed") {
+              this.deletePeer(peerID);
+            }
           });
 
-          this.#peers[packet.sender] = peer;
+          peer.addEventListener("icecandidate", ({ candidate }) => {
+            this.#server.send("roomRtcIceCandidate", peerID, candidate);
+          });
+
+          this.#peers[peerID] = peer;
         }
       }
 
@@ -144,11 +173,36 @@ export class ServerNet {
     });
   }
 
+  async timeSync() {
+    const rounds = 5;
+    let avgTimeDiff = 0;
+    let avgPing = 0;
+
+    for (let i = 0; i < rounds; i++) {
+      const t0 = now();
+      const originPeerNow = await this.#server.request("timeSync", serverPeerId, null);
+      const t1 = now();
+      const rtt = t1 - t0;
+      const timeDiff = (t1 + t0) / 2 - originPeerNow;
+
+      avgTimeDiff += timeDiff / rounds;
+      avgPing += rtt / rounds;
+    }
+
+    console.log(`Server ping=${avgPing.toFixed(0)} timeDiff=${avgTimeDiff.toFixed(3)}`);
+    this.#serverTimeDiff = avgTimeDiff;
+  }
+
+  time() {
+    return now() - this.#serverTimeDiff;
+  }
+
   async ready() {
     await new Promise((res) => {
       this.#ws.addEventListener("open", res, { once: true });
     });
     await this.#server.request("greet", serverPeerId, null);
+    await this.timeSync();
   }
 
   /**
@@ -181,7 +235,7 @@ export class ServerNet {
 
     /** @type {Net<TPackets>} */
     const roomNet = new Net(
-      peerID,
+      localPeerID,
       (packet) => {
         if (packet.receiver !== null) {
           const channel = this.#channels[packet.receiver] ?? fail(`channel for peer ${packet.receiver} doesn't exist`);
@@ -202,6 +256,7 @@ export class ServerNet {
         }
       },
       receiver
+      // true
     );
 
     this.#roomNet = roomNet;
@@ -213,9 +268,10 @@ export class ServerNet {
         const peerID = /** @type {PeerID} */ (pid);
         const peer = this.#peers[peerID] ?? fail();
 
-        peer.addEventListener("datachannel", (e) => this.addChannel(peerID, e.channel));
+        peer.addEventListener("datachannel", ({ channel }) => this.addChannel(peerID, channel));
 
         await peer.setRemoteDescription({ type: "offer", sdp: offer });
+        await this.flushPeerIceCandidateQueue(peerID);
         const answer = await peer.createAnswer();
         await peer.setLocalDescription(answer);
         await this.#server.request("roomRtcAnswer", peerID, answer.sdp);

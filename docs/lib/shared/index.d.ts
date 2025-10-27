@@ -61,6 +61,10 @@ type ServerPackets = {
       connections: number;
     }>;
   };
+  timeSync: {
+    request: null;
+    response: number;
+  };
 
   roomRtcOffer: { request: null; response: string | undefined };
   roomRtcAnswer: { request: string | undefined; response: null };

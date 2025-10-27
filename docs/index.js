@@ -1,9 +1,9 @@
 import { server } from "./lib/server.js";
 import { Net } from "./lib/shared/net.js";
-import { assert, fail, now, sleep } from "./lib/shared/utils.js";
+import { assert, fail, sleep } from "./lib/shared/utils.js";
 import { init, render, tick } from "./game/game.js";
 import { CanvasController } from "./lib/inputs.js";
-import { Timeline, DesyncError } from "./lib/timeline.js";
+import { DesyncError, Timeline } from "./lib/timeline.js";
 
 const TICK_RATE = 1000 / 60;
 
@@ -19,7 +19,7 @@ const ctx = inputController.ctx;
 const DELAY_TICK = 2;
 
 let timeline = new Timeline([{ inputs: {}, mergedInputs: {}, state: init(), tick: 0 }], tick);
-let originTime = now();
+let originTime = server.time();
 
 /** @type {number} */
 let inputFlushTick = 0;
@@ -27,10 +27,14 @@ let inputFlushTick = 0;
 /** @type {Array<{tick: number; peerID: PeerID, inputs: PeerInputs}> | undefined} */
 let inputBuffer = [];
 
+function getRealTick() {
+  return (server.time() - originTime) / TICK_RATE;
+}
+
 /** @type {Net<GamePackets>} */
 const roomNet =
   (await server.joinRoom(roomID, {
-    sync: async (peer, request) => {
+    stateSync: async (peer, request) => {
       const [firstHistoryEntry, ...historyEntries] = structuredClone(timeline.history);
       assert(firstHistoryEntry?.state && firstHistoryEntry?.mergedInputs);
       for (const historyEntry of historyEntries) {
@@ -55,10 +59,6 @@ const roomNet =
 
 await sleep(1000);
 
-function getRealTick() {
-  return (now() - originTime) / TICK_RATE;
-}
-
 /** @type {number | undefined} */
 let mainAnimationFrameRequest;
 
@@ -73,7 +73,7 @@ function mainLoop() {
 
       timeline.addInputs(inputFlushTick, roomNet.peerId, inputs);
       roomNet.sendAll("inputs", { tick: inputFlushTick, inputs });
-      while (timeline.history.length > 400) {
+      while (timeline.history.length > 200) {
         timeline.history.shift();
       }
     }
@@ -114,25 +114,23 @@ async function hardSyncTimeline() {
     inputBuffer = [];
   }
 
-  const existingHistories = [
-    ...Object.values(await roomNet.requestAll("sync", null, 500)),
-    {
-      originTime,
-      history: timeline.history,
-    },
-  ].sort((a, b) => (b.history[0] ?? fail()).tick - (a.history[0] ?? fail()).tick || a.originTime - b.originTime);
+  for (const [peerID, { originTime: otherOriginTime, history: otherHistory }] of Object.entries(
+    await roomNet.requestAll("stateSync", null, 500)
+  )) {
+    const currentFirstHistoryEntry = timeline.history[0] ?? fail();
+    const firstHistoryEntry = otherHistory[0] ?? fail();
 
-  const oldestHistory = existingHistories[0] ?? fail();
-
-  originTime = oldestHistory.originTime;
-  timeline = new Timeline(oldestHistory.history, tick);
+    if (currentFirstHistoryEntry.tick < firstHistoryEntry.tick || otherOriginTime < originTime) {
+      timeline.history = otherHistory;
+      originTime = otherOriginTime;
+    }
+  }
 
   if (inputBuffer) {
     while (inputBuffer.length) {
       const { tick, peerID, inputs } = inputBuffer.pop() ?? fail();
       try {
         timeline.addInputs(tick, peerID, inputs);
-        console.log("adding from input buffer");
       } catch (error) {
         if (error instanceof DesyncError) {
           console.warn(error);
