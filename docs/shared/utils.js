@@ -42,3 +42,12 @@ export const EPSILON = 1e-5;
 const safeIntRange = Number.MAX_SAFE_INTEGER - Number.MIN_SAFE_INTEGER;
 
 export const randInt = () => Math.trunc(Number.MIN_SAFE_INTEGER + Math.random() * safeIntRange);
+
+/**
+ * @param {number | undefined} start
+ * @param {number} end
+ * @param {number} alpha
+ */
+export function lin(start, end, alpha) {
+  return start === undefined || !Number.isFinite(start) ? end : start + (end - start) * alpha;
+}

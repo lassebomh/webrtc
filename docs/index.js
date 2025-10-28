@@ -1,9 +1,10 @@
 import { server } from "./lib/server.js";
-import { Net } from "./lib/shared/net.js";
-import { assert, fail, sleep } from "./lib/shared/utils.js";
+import { Net } from "./shared/net.js";
+import { assert, fail, sleep } from "./shared/utils.js";
 import { init, render, tick } from "./game/game.js";
-import { CanvasController } from "./lib/inputs.js";
+import { IOController } from "./lib/inputs.js";
 import { DesyncError, Timeline } from "./lib/timeline.js";
+import "./lib/ui.js";
 
 const TICK_RATE = 1000 / 60;
 
@@ -13,7 +14,7 @@ if (!roomID) roomID = await server.createRoom("New room", 16, true);
 
 await sleep(1000 * Math.random());
 
-const inputController = new CanvasController(document.getElementById("render") ?? fail());
+const inputController = new IOController(document.getElementById("render") ?? fail());
 const ctx = inputController.ctx;
 
 const DELAY_TICK = 2;

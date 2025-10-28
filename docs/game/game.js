@@ -1,5 +1,4 @@
-import { fail } from "../lib/shared/utils.js";
-import { lin } from "../lib/utils.js";
+import { fail, lin } from "../shared/utils.js";
 import { avatarRender, avatarTakeDamage, avatarTick } from "./avatar.js";
 
 import { boxLevelTick, boxOnBoxCollision, boxOnPointCollision, boxRender } from "./collision.js";
@@ -119,7 +118,6 @@ export const tick = (game, peerInputs) => {
     }
   }
 
-  // MARK: todo fix gun spawn
   while (level.gunLocations.length - gunsCount > 0) {
     gunsCount++;
 

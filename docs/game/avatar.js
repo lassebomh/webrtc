@@ -1,5 +1,4 @@
-import { fail } from "../lib/shared/utils.js";
-import { lin } from "../lib/utils.js";
+import { fail, lin } from "../shared/utils.js";
 
 import { boxLevelTick, boxOnBoxCollision, boxRender } from "./collision.js";
 import { FACES, renderTile } from "./faces.js";

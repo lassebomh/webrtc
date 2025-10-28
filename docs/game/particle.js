@@ -1,4 +1,4 @@
-import { lin } from "../lib/utils.js";
+import { lin } from "../shared/utils.js";
 import { random } from "./utils.js";
 
 /**

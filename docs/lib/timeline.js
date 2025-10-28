@@ -1,4 +1,4 @@
-import { assert, fail } from "./shared/utils.js";
+import { assert, fail } from "../shared/utils.js";
 
 export class DesyncError extends Error {}
 
@@ -6,7 +6,7 @@ export class DesyncError extends Error {}
  * @param {PeerInputs} from
  * @param {PeerInputs} to
  */
-function applyInputs(from, to) {
+export function applyInputs(from, to) {
   Object.assign(to.keyboard, from.keyboard);
   Object.assign(to.mouse, from.mouse);
   if (from.canvasWidth) to.canvasWidth = from.canvasWidth;
@@ -45,8 +45,6 @@ export class Timeline {
     let item = this.history[index] ?? fail();
 
     const lastItem = this.history.at(-1) ?? fail();
-
-    let shownDeletedEntries = 0;
 
     const itemsToCreate = Math.max(tick - lastItem.tick, 0);
     for (let i = 0; i < itemsToCreate; i++) {

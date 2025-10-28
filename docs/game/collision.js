@@ -1,5 +1,4 @@
-import { EPSILON } from "../lib/shared/utils.js";
-import { lin } from "../lib/utils.js";
+import { EPSILON, lin } from "../shared/utils.js";
 import { getTile } from "./levels.js";
 
 /**

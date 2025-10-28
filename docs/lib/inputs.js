@@ -1,6 +1,6 @@
-import { fail } from "./shared/utils.js";
+import { fail } from "../shared/utils.js";
 
-export class CanvasController {
+export class IOController {
   /** @type {KeyboardInput} */
   keyboard = {};
   /** @type {MouseInput} */

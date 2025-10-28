@@ -1,13 +1,12 @@
-/** @type {(ms: number) => Promise<void>} */
-export const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
-
-/**
- * @param {number | undefined} start
- * @param {number} end
- * @param {number} alpha
- */
-export function lin(start, end, alpha) {
-  return start === undefined || !Number.isFinite(start) ? end : start + (end - start) * alpha;
-}
+import { sleep } from "../shared/utils.js";
 
 export const LOCALHOST = window.location.hostname === "localhost";
+
+export function autoreload() {
+  const ws = new WebSocket(`ws${window.location.protocol === "https:" ? "s" : ""}://${window.location.host}/`);
+
+  ws.onclose = async () => {
+    await sleep(75 + Math.random() * 150);
+    window.location.reload();
+  };
+}

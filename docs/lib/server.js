@@ -1,5 +1,5 @@
-import { Net, randomPeerID, serverPeerId } from "./shared/net.js";
-import { assert, fail, now, sleep } from "./shared/utils.js";
+import { Net, randomPeerID, serverPeerId } from "../shared/net.js";
+import { assert, fail, now, sleep } from "../shared/utils.js";
 import { LOCALHOST } from "./utils.js";
 
 export const localPeerID = /** @type {PeerID} */ (sessionStorage.peerID ||= randomPeerID());
@@ -17,6 +17,8 @@ export class ServerNet {
   #server;
   /** @type {WebSocket} */
   #ws;
+  /** @type {Promise<void>} */
+  #wsReady;
 
   /** @type {Net<*> | undefined} */
   #roomNet;
@@ -85,6 +87,10 @@ export class ServerNet {
       window.location.reload();
     };
     // }
+    this.#wsReady = new Promise((res) => {
+      this.#ws.addEventListener("open", () => res());
+    });
+
     this.#server = new Net(
       localPeerID,
       (packet) => {
@@ -198,9 +204,7 @@ export class ServerNet {
   }
 
   async ready() {
-    await new Promise((res) => {
-      this.#ws.addEventListener("open", res, { once: true });
-    });
+    await this.#wsReady;
     await this.#server.request("greet", serverPeerId, null);
     await this.timeSync();
   }

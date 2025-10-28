@@ -121,3 +121,10 @@ type HistoryEntry<TState> = {
   mergedInputs: Record<PeerID, PeerInputs> | null;
   state: TState | null;
 };
+
+type Store<T> = (() => T) & {
+  subscribe(listener: (value: T) => void): () => void;
+  notify(): void;
+  set(value: T): void;
+  bind(element: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement): void;
+};

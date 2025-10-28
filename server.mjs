@@ -1,12 +1,12 @@
-/// <reference path="./docs/lib/shared/index.d.ts" />
+/// <reference path="./docs/shared/index.d.ts" />
 
 import { WebSocket, WebSocketServer } from "ws";
 import http from "http";
 import { extname, join } from "path";
 import { fileURLToPath } from "url";
 import { createReadStream, statSync } from "fs";
-import { serverPeerId } from "./docs/lib/shared/net.js";
-import { assert, fail, isUnreachable, now } from "./docs/lib/shared/utils.js";
+import { serverPeerId } from "./docs/shared/net.js";
+import { assert, fail, isUnreachable, now } from "./docs/shared/utils.js";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 

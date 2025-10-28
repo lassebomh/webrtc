@@ -1,4 +1,4 @@
-import { fail } from "../lib/shared/utils.js";
+import { fail } from "../shared/utils.js";
 import { AVATAR, createAvatar } from "./avatar.js";
 
 import "./faces.js";

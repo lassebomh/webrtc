@@ -4,112 +4,45 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link href="/favicon.png" rel="shortcut icon" type="image/png" />
-    <style>
-      body {
-        position: fixed;
-        inset: 0;
-        margin: 0;
-        background-color: black;
-        background-size: 100% 100%;
-      }
-
-      main {
-        display: grid;
-        grid-template-rows: 1fr 25px 70px;
-        height: 100vh;
-        color: white;
-      }
-
-      #center {
-        display: flex;
-        /* height: 100%; */
-      }
-
-      #sidebar {
-        width: 400px;
-        color: #ffffff;
-        margin: 0;
-        height: 90vh;
-        overflow-y: scroll;
-      }
-
-      #canvas-container {
-        flex-grow: 1;
-        height: 100%;
-        position: relative;
-      }
-
-      canvas {
-        position: absolute;
-        inset: 0;
-        background: none;
-        image-rendering: pixelated;
-      }
-
-      #toolbar {
-        display: flex;
-        justify-content: start;
-        align-items: center;
-        gap: 0.25rem;
-
-        > * {
-          width: max-content;
-        }
-      }
-
-      #timeline {
-        display: flex;
-        overflow-x: scroll;
-        user-select: none;
-
-        > * {
-          flex-shrink: 0;
-          width: 40px;
-          padding: 0;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-
-          &[data-current="true"] {
-            outline: 3px solid cornflowerblue !important;
-            outline-offset: -3px;
-          }
-        }
-      }
-    </style>
+    <link rel="stylesheet" href="style.css" />
   </head>
   <body>
-    <main>
-      <div id="center">
-        <pre id="sidebar"></pre>
-        <div id="canvas-container">
-          <canvas id="canvas" tabindex="0"></canvas>
+    <div class="column w-full h-full">
+      <div id="timeline"></div>
+      <div class="w-full grow">
+        <div class="h-full grow">
+          <aside id="sidebar">
+            <pre id="inputs"></pre>
+            <pre id="state"></pre>
+          </aside>
+          <div class="w-full h-full" style="position: relative">
+            <div class="w-full h-full" id="render"></div>
+            <div id="onion-before"></div>
+            <div id="onion-after"></div>
+            <div style="position: absolute; top: 8px; left: 8px; gap: 8px">
+              <select id="peer-id"></select>
+              <select id="playback-speed"></select>
+              <div>
+                <input
+                  id="onion-before-count"
+                  style="width: 40px; border-top-right-radius: 0; border-bottom-right-radius: 0"
+                  type="number"
+                  min="0"
+                  step="1"
+                />
+                <input
+                  id="onion-after-count"
+                  style="width: 40px; border-top-left-radius: 0; border-bottom-left-radius: 0"
+                  type="number"
+                  min="0"
+                  step="1"
+                />
+              </div>
+            </div>
+          </div>
         </div>
       </div>
-      <div id="toolbar">
-        <select id="device-select">
-          <option value="a" selected>device a</option>
-          <option value="b">device b</option>
-          <option value="c">device c</option>
-        </select>
-        <select id="tick-rate-select">
-          <option value="1">1/1</option>
-          <option value="0.5">1/2</option>
-          <option value="0.25">1/4</option>
-          <option value="0.125">1/8</option>
-          <option value="0.0625">1/16</option>
-          <option value="0.03125">1/32</option>
-        </select>
-        <input id="tick-input" type="number" value="0" step="1" min="0" />
-        <input id="alpha-input" type="number" value="0" step="0.05" min="0" max="1" />
-        <button id="tick-play" type="button">play</button>
-        <label>loop:<input id="loop" type="checkbox" /></label>
-        <input id="loop-from" type="number" value="0" step="1" min="0" />
-        <input id="loop-ticks" type="number" value="0" step="1" min="0" />
-        <button id="clear" type="button">clear</button>
-      </div>
-      <div id="timeline"></div>
-    </main>
-    <script src="./main.js" type="module"></script>
+    </div>
+    <script src="./index.js" type="module"></script>
   </body>
 </html>
