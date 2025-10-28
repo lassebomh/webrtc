@@ -42,7 +42,7 @@ const server = http.createServer((req, res) => {
     }
 
     const ext = extname(filePath);
-    const contentType = mimeTypes[ext] || "application/octet-stream";
+    const contentType = mimeTypes[ext.toLocaleLowerCase()] || "application/octet-stream";
 
     res.writeHead(200, { "Content-Type": contentType });
     createReadStream(filePath).pipe(res);

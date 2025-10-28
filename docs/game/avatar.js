@@ -2,7 +2,7 @@ import { fail } from "../lib/shared/utils.js";
 import { lin } from "../lib/utils.js";
 
 import { boxLevelTick, boxOnBoxCollision, boxRender } from "./collision.js";
-import { FACE_INNER_SIZE, FACE_OUTER_SIZE, FACES } from "./faces.js";
+import { FACES, renderTile } from "./faces.js";
 import { BULLET, pistolRender, uziRender } from "./guns.js";
 import { particleCreate } from "./particle.js";
 import { getPointAtDistance, random } from "./utils.js";
@@ -802,34 +802,62 @@ export function avatarRender(ctx, game, prevAvatar, avatar, alpha) {
   ctx.quadraticCurveTo(armElbowX, armElbowY, armEndX, armEndY);
   ctx.stroke();
 
-  ctx.save();
   const faceX = bodyX + bodyDX / 2 + (primaryArmDDistance < 0 ? (primaryArmVX * -primaryArmDDistance) / 2 : 0);
   const faceY = bodyY + bodyDY / 2 + (primaryArmDDistance < 0 ? (primaryArmVY * -primaryArmDDistance) / 2 : 0);
   const face = (FACES[avatar.face.index] ?? fail())[avatar.face.type] ?? fail();
   const faceSize = avatar.box.width;
-  const extraPadding = FACE_OUTER_SIZE / FACE_INNER_SIZE;
-  ctx.lineWidth = 0.02;
 
-  ctx.translate(faceX, faceY);
+  ctx.save();
+  ctx.translate(bodyX - faceSize / 2, bodyY - faceSize / 2);
   if (primaryArmVX < 0) {
     ctx.scale(-1, 1);
+    ctx.translate(-faceSize, 0);
   }
-  ctx.drawImage(
-    face,
-    -(faceSize / 2) * extraPadding,
-    -(faceSize / 2) * extraPadding,
-    faceSize * extraPadding,
-    faceSize * extraPadding
-  );
-
-  // ctx.rect(
-  //   -(faceSize / 2) * extraPadding,
-  //   -(faceSize / 2) * extraPadding,
-  //   faceSize * extraPadding,
-  //   faceSize * extraPadding
-  // );
-  // ctx.stroke();
+  renderTile(ctx, faceSize, faceSize, face, "body");
   ctx.restore();
+
+  ctx.save();
+  ctx.translate(faceX - faceSize / 2, faceY - faceSize / 2);
+  if (primaryArmVX < 0) {
+    ctx.scale(-1, 1);
+    ctx.translate(-faceSize, 0);
+  }
+  renderTile(ctx, faceSize, faceSize, face, "face");
+  ctx.restore();
+
+  ctx.save();
+  ctx.translate(bodyX - faceSize / 2, bodyY - faceSize / 2);
+  if (primaryArmVX < 0) {
+    ctx.scale(-1, 1);
+    ctx.translate(-faceSize, 0);
+  }
+  renderTile(ctx, faceSize, faceSize, face, "hat");
+  ctx.restore();
+  // // Move to face center
+  // ctx.translate(faceX, faceY);
+
+  // // Flip horizontally if needed
+
+  // // Compute scale so that inner box = avatar.box.width
+  // const scale = faceSize / face.innerWidth;
+
+  // // Compute where to draw the layer so that the *inner box center* aligns to 0,0
+  // const innerCenterX = face.offsetX + face.innerWidth / 2;
+  // const innerCenterY = face.offsetY + face.innerHeight / 2;
+
+  // // Apply draw
+  // ctx.drawImage(
+  //   face.layer.face, // source canvas
+  //   -innerCenterX * scale,
+  //   -innerCenterY * scale,
+  //   face.width * scale,
+  //   face.height * scale
+  // );
+
+  // // Optional: visualize the target area (inner box)
+  // ctx.lineWidth = 0.02;
+  // ctx.strokeStyle = "red";
+  // ctx.strokeRect(-faceSize / 2, -faceSize / 2, faceSize, faceSize);
 
   // ctx.save();
   // ctx.textAlign = "end";
