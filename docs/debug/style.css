@@ -67,10 +67,12 @@ div {
       background-color: #333;
     }
     &.onion-before {
-      border-bottom: 3px solid red;
+      outline: 1px solid #f008;
+      outline-offset: -1px;
     }
     &.onion-after {
-      border-bottom: 3px solid green;
+      outline: 1px solid #0f08;
+      outline-offset: -1px;
     }
 
     &.is-current {
@@ -112,12 +114,7 @@ div {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  opacity: 0.2;
-
-  > canvas {
-    position: absolute;
-    inset: 0;
-  }
+  opacity: 0.3;
 }
 
 #onion-before {

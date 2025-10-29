@@ -29,12 +29,12 @@ bindSelect(peerIDElement, peerID, {
 
 const playing = writable(false);
 
-const onionBeforeElement = qs("#onion-before", "div");
+const onionBeforeElement = qs("#onion-before", "canvas");
 const onionBeforeCountElement = qs("#onion-before-count", "input");
 const onionBeforeCount = persistant("onionBeforeCount", () => 0);
 bindNumber(onionBeforeCountElement, onionBeforeCount);
 
-const onionAfterElement = qs("#onion-after", "div");
+const onionAfterElement = qs("#onion-after", "canvas");
 const onionAfterCountElement = qs("#onion-after-count", "input");
 const onionAfterCount = persistant("onionAfterCount", () => 0);
 bindNumber(onionAfterCountElement, onionAfterCount);
@@ -125,13 +125,13 @@ function updateTimelineButtons() {
     } else {
       button.classList.remove("is-current");
 
-      if (tickDiff > 0 && onionAfterCount() >= tickDiff) {
+      if (tickDiff > 0 && onionAfterCount() === tickDiff) {
         button.classList.add("onion-after");
       } else {
         button.classList.remove("onion-after");
       }
 
-      if (tickDiff < 0 && onionBeforeCount() >= -tickDiff) {
+      if (tickDiff < 0 && onionBeforeCount() === -tickDiff) {
         button.classList.add("onion-before");
       } else {
         button.classList.remove("onion-before");
@@ -166,44 +166,32 @@ function updateRenderPreview() {
 
   const firstItem = timeline.history[0] ?? fail();
 
-  for (let i = 0; i < onionBeforeCount(); i++) {
-    /** @type {HTMLCanvasElement} */
-    let canvas;
-    if (onionBeforeElement.childNodes.length < i + 1) {
-      canvas = document.createElement("canvas");
-      onionBeforeElement.appendChild(canvas);
-    } else {
-      canvas = /** @type {HTMLCanvasElement} */ (onionBeforeElement.childNodes.item(i));
-    }
-    const beforeTick = tick() - i - 1;
+  onionBeforeElement.style.opacity = "0";
+  onionAfterElement.style.opacity = "0";
+  if (onionBeforeCount() > 0) {
+    const beforeTick = tick() - onionBeforeCount();
 
     if (firstItem.tick <= beforeTick) {
-      const ctx = canvas.getContext("2d") ?? fail();
-      canvas.width = io.ctx.canvas.width;
-      canvas.height = io.ctx.canvas.height;
+      const ctx = onionBeforeElement.getContext("2d") ?? fail();
+      onionBeforeElement.width = io.ctx.canvas.width;
+      onionBeforeElement.height = io.ctx.canvas.height;
       const historyBefore = timeline.getState(beforeTick);
       assert(historyBefore?.state);
       render(ctx, historyBefore.state, historyBefore.state, peerID(), 1);
+      onionBeforeElement.style.opacity = "0.3";
     }
   }
 
-  for (let i = 0; i < onionAfterCount(); i++) {
-    /** @type {HTMLCanvasElement} */
-    let canvas;
-    if (onionAfterElement.childNodes.length < i + 1) {
-      canvas = document.createElement("canvas");
-      onionAfterElement.appendChild(canvas);
-    } else {
-      canvas = /** @type {HTMLCanvasElement} */ (onionAfterElement.childNodes.item(i));
-    }
-    const afterTick = tick() + i + 1;
+  if (onionAfterCount() > 0) {
+    const afterTick = tick() + onionAfterCount();
 
-    const ctx = canvas.getContext("2d") ?? fail();
-    canvas.width = io.ctx.canvas.width;
-    canvas.height = io.ctx.canvas.height;
+    const ctx = onionAfterElement.getContext("2d") ?? fail();
+    onionAfterElement.width = io.ctx.canvas.width;
+    onionAfterElement.height = io.ctx.canvas.height;
     const historyAfter = timeline.getState(afterTick);
     assert(historyAfter?.state);
     render(ctx, historyAfter.state, historyAfter.state, peerID(), 1);
+    onionAfterElement.style.opacity = "0.3";
   }
 }
 
