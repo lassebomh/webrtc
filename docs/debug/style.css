@@ -158,6 +158,12 @@ div {
   pointer-events: none;
   background: transparent;
 }
+#camera-overlay {
+  cursor: move;
+  position: absolute;
+  inset: 0;
+  display: none;
+}
 
 input {
   appearance: textfield;
@@ -176,15 +182,19 @@ button {
   font-family: monospace;
   box-sizing: border-box;
 
-  &:hover {
+  &:hover:not(:disabled) {
     outline: 1px solid var(--border-3);
     outline-offset: -1px;
     z-index: 10;
     background-color: var(--bg-3);
   }
+
+  &:disabled {
+    color: #fff9;
+  }
 }
 
-button {
+button:not(:disabled) {
   cursor: pointer;
 }
 

@@ -158,18 +158,18 @@ export const tick = (game, peerInputs) => {
       gun.box.y += gun.box.dy;
     }
   }
-  if (avatarCount) {
-    avatarMeanX /= avatarCount;
-    avatarMeanY /= avatarCount;
+  // if (avatarCount) {
+  //   avatarMeanX /= avatarCount;
+  //   avatarMeanY /= avatarCount;
 
-    const targetX = avatarMeanX;
-    const targetY = avatarMeanY;
-    game.camera.x -= (game.camera.x - targetX) / 32;
-    game.camera.y -= (game.camera.y - targetY) / 32;
-    let targetScale = 400 / highestDistanceToCamera;
-    targetScale = Math.min(targetScale, 50);
-    game.camera.scale -= (game.camera.scale - targetScale) / 50;
-  }
+  //   const targetX = avatarMeanX;
+  //   const targetY = avatarMeanY;
+  //   game.camera.x -= (game.camera.x - targetX) / 32;
+  //   game.camera.y -= (game.camera.y - targetY) / 32;
+  //   let targetScale = 400 / highestDistanceToCamera;
+  //   targetScale = Math.min(targetScale, 50);
+  //   game.camera.scale -= (game.camera.scale - targetScale) / 50;
+  // }
 };
 
 /** @type {RenderFunc<Game>} */

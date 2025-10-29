@@ -29,6 +29,61 @@ bindSelect(peerIDElement, peerID, {
   "Peer 4": "4",
 });
 
+const clearButton = qs("#clear", "button");
+clearButton.addEventListener("click", () => {
+  timelineElement.innerHTML = "";
+  timeline.history = [{ inputs: {}, tick: 0, mergedInputs: {}, state: init() }];
+  tick.set(0);
+});
+
+const cameraOverlayElement = qs("#camera-overlay", "div");
+let camera = persistant("camera", () => ({ x: 0, y: 0, scalePos: 0 }));
+
+const resetCamera = qs("#reset-camera", "button");
+resetCamera.addEventListener("click", () => {
+  camera.set({ x: 0, y: 0, scalePos: 0 });
+});
+
+cameraOverlayElement.addEventListener(
+  "wheel",
+  (event) => {
+    const cam = camera();
+    cam.scalePos -= event.deltaY / 1000;
+    camera.set(cam);
+  },
+  { passive: true }
+);
+
+cameraOverlayElement.addEventListener("pointerdown", (event) => {
+  let startX = event.clientX;
+  let startY = event.clientY;
+  let { x, y } = camera();
+
+  /**
+   * @param {PointerEvent} event
+   */
+  function onpointermove(event) {
+    const scalePos = camera().scalePos;
+    const scale = Math.pow(2, scalePos);
+    const movementX = startX - event.clientX;
+    const movementY = startY - event.clientY;
+    x += movementX / scale;
+    y += movementY / scale;
+    camera.set({ x, y, scalePos });
+    startX = event.clientX;
+    startY = event.clientY;
+  }
+
+  document.addEventListener("pointermove", onpointermove, { passive: true });
+  document.addEventListener(
+    "pointerup",
+    () => {
+      document.removeEventListener("pointermove", onpointermove);
+    },
+    { once: true }
+  );
+});
+
 const onionTickSpacingElement = qs("#onion-tick-spacing", "input");
 const onionTickSpacing = persistant("onionTickSpacing", () => 0);
 const onionTickSubElement = qs("#onion-tick-sub", "button");
@@ -89,7 +144,7 @@ const updateTimelineHistory = debounce(() => {
   ]);
 }, 50);
 
-await sleep(100);
+await sleep(10);
 
 let mousedown = false;
 
@@ -115,11 +170,31 @@ function scrollTimeline(smooth = false) {
   currentButton.scrollIntoView({ inline: "center", block: "center" });
 }
 
+/**
+ *
+ * @param {KeyboardEvent} event
+ */
+function cameraOverlayKeydown(event) {
+  if (event.key === " ") {
+    cameraOverlayElement.style.display = "initial";
+
+    document.addEventListener("keyup", () => {
+      cameraOverlayElement.style.display = "none";
+    });
+  }
+}
+
+document.addEventListener("keydown", cameraOverlayKeydown);
+
 renderElement.addEventListener("focusin", async () => {
   let hasFocus = true;
 
   /** @type {(() => any)[]} */
-  const cleanups = [];
+  const cleanups = [
+    () => {
+      document.addEventListener("keydown", cameraOverlayKeydown);
+    },
+  ];
   const cleanup = () => {
     hasFocus = false;
     for (const fn of cleanups) fn();
@@ -132,6 +207,7 @@ renderElement.addEventListener("focusin", async () => {
   cleanups.push(() => renderElement.removeEventListener("dblclick", ondblclick));
 
   renderElement.addEventListener("focusout", cleanup, { once: true });
+  document.removeEventListener("keydown", cameraOverlayKeydown);
 
   await sleep(500);
 
@@ -242,6 +318,15 @@ function updateRenderPreview() {
 
   io.ctx.clearRect(0, 0, io.ctx.canvas.width, io.ctx.canvas.height);
 
+  const { x, y, scalePos } = camera();
+  const scale = Math.pow(2, scalePos);
+
+  io.ctx.save();
+  io.ctx.imageSmoothingEnabled = false;
+  io.ctx.translate(io.ctx.canvas.width / 2, io.ctx.canvas.height / 2);
+  io.ctx.scale(scale, scale);
+  io.ctx.translate(-x - io.ctx.canvas.width / 2, -y - io.ctx.canvas.height / 2);
+
   if (onionTickSpacing() > 0) {
     const firstItem = timeline.history[0] ?? fail();
     const beforeTick = tick() - onionTickSpacing();
@@ -277,6 +362,8 @@ function updateRenderPreview() {
     io.ctx.filter = "none";
   }
 
+  io.ctx.restore();
+
   updateTimelineHistory();
 }
 
@@ -287,6 +374,15 @@ tick.subscribe(() => {
 
 onionTickSpacing.subscribe(() => {
   updateInputPreview();
+  updateRenderPreview();
+});
+
+camera.subscribe((value) => {
+  if (value.x === 0 && value.y === 0 && value.scalePos === 0) {
+    resetCamera.disabled = true;
+  } else {
+    resetCamera.disabled = false;
+  }
   updateRenderPreview();
 });
 

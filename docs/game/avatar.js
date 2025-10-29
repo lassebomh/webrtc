@@ -816,12 +816,13 @@ export function avatarRender(ctx, game, prevAvatar, avatar, alpha) {
   ctx.restore();
 
   ctx.save();
+  const squish = faceX - bodyX;
   ctx.translate(faceX - faceSize / 2, faceY - faceSize / 2);
   if (primaryArmVX < 0) {
     ctx.scale(-1, 1);
     ctx.translate(-faceSize, 0);
   }
-  renderTile(ctx, faceSize, faceSize, face, "face");
+  renderTile(ctx, faceSize - Math.abs(squish) / 2, faceSize, face, "face");
   ctx.restore();
 
   ctx.save();
