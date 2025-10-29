@@ -645,8 +645,8 @@ export function avatarTick(game, level, avatar) {
 
     if (boxOnBoxCollision(avatar.box, gun.box)) {
       if (Math.hypot(gun.box.dx, gun.box.dy) > 0.6 && gunID !== avatar.rope.grabbingGunID) {
-        avatar.body.dx += gun.box.dx;
-        avatar.body.dy += gun.box.dy;
+        avatar.body.dx += gun.box.dx * 4;
+        avatar.body.dy += gun.box.dy * 4;
         avatar.box.dx += gun.box.dx / 2;
         avatar.box.dy += gun.box.dy / 2;
         avatarTakeDamage(game, avatar, 1, gun.box.dx, gun.box.dy);
@@ -801,8 +801,8 @@ export function avatarRender(ctx, game, prevAvatar, avatar, alpha) {
   ctx.quadraticCurveTo(armElbowX, armElbowY, armEndX, armEndY);
   ctx.stroke();
 
-  const faceX = bodyX + bodyDX / 2 + (primaryArmDDistance < 0 ? (primaryArmVX * -primaryArmDDistance) / 2 : 0);
-  const faceY = bodyY + bodyDY / 2 + (primaryArmDDistance < 0 ? (primaryArmVY * -primaryArmDDistance) / 2 : 0);
+  const faceX = bodyX + bodyDX / 8 + (primaryArmDDistance < 0 ? (primaryArmVX * -primaryArmDDistance) / 8 : 0);
+  const faceY = bodyY + bodyDY / 8 + (primaryArmDDistance < 0 ? (primaryArmVY * -primaryArmDDistance) / 8 : 0);
   const face = (FACES[avatar.face.index] ?? fail())[avatar.face.type] ?? fail();
   const faceSize = avatar.box.width;
 
@@ -816,13 +816,17 @@ export function avatarRender(ctx, game, prevAvatar, avatar, alpha) {
   ctx.restore();
 
   ctx.save();
-  const squish = faceX - bodyX;
-  ctx.translate(faceX - faceSize / 2, faceY - faceSize / 2);
-  if (primaryArmVX < 0) {
+  let squish = avatar.face.type === "hurt" ? (faceX - bodyX) * 8 : 0;
+  let maxSquish = 0.35;
+  squish = Math.min(squish, maxSquish);
+  squish = Math.max(squish, -maxSquish);
+
+  ctx.translate(faceX - faceSize / 2 + squish, faceY - faceSize / 2);
+  if (squish !== 0 ? squish < 0 : primaryArmVX < 0) {
     ctx.scale(-1, 1);
     ctx.translate(-faceSize, 0);
   }
-  renderTile(ctx, faceSize - Math.abs(squish) / 2, faceSize, face, "face");
+  renderTile(ctx, faceSize - Math.abs(squish), faceSize, face, "face");
   ctx.restore();
 
   ctx.save();

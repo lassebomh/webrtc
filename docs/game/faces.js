@@ -109,16 +109,6 @@ const faceTilemap = await Tilemap.fromUrls(
 
 export const FACES = [
   {
-    hurt: faceTilemap.getTile(2, 3),
-    passive: faceTilemap.getTile(2, 3),
-    angry: faceTilemap.getTile(2, 3),
-  },
-  {
-    hurt: faceTilemap.getTile(3, 0),
-    passive: faceTilemap.getTile(3, 0),
-    angry: faceTilemap.getTile(3, 0),
-  },
-  {
     passive: faceTilemap.getTile(0, 0),
     hurt: faceTilemap.getTile(0, 1),
     angry: faceTilemap.getTile(0, 2),
@@ -127,6 +117,16 @@ export const FACES = [
     passive: faceTilemap.getTile(1, 2),
     hurt: faceTilemap.getTile(1, 1),
     angry: faceTilemap.getTile(1, 0),
+  },
+  {
+    hurt: faceTilemap.getTile(2, 3),
+    passive: faceTilemap.getTile(2, 3),
+    angry: faceTilemap.getTile(2, 3),
+  },
+  {
+    hurt: faceTilemap.getTile(3, 0),
+    passive: faceTilemap.getTile(3, 0),
+    angry: faceTilemap.getTile(3, 0),
   },
   {
     hurt: faceTilemap.getTile(2, 0),

@@ -36,7 +36,6 @@ clearButton.addEventListener("click", () => {
   tick.set(0);
 });
 
-const cameraOverlayElement = qs("#camera-overlay", "div");
 let camera = persistant("camera", () => ({ x: 0, y: 0, scalePos: 0 }));
 
 const resetCamera = qs("#reset-camera", "button");
@@ -44,7 +43,7 @@ resetCamera.addEventListener("click", () => {
   camera.set({ x: 0, y: 0, scalePos: 0 });
 });
 
-cameraOverlayElement.addEventListener(
+renderElement.addEventListener(
   "wheel",
   (event) => {
     const cam = camera();
@@ -54,35 +53,45 @@ cameraOverlayElement.addEventListener(
   { passive: true }
 );
 
-cameraOverlayElement.addEventListener("pointerdown", (event) => {
-  let startX = event.clientX;
-  let startY = event.clientY;
-  let { x, y } = camera();
+renderElement.addEventListener(
+  "pointerdown",
+  (event) => {
+    if (event.button !== 1) return;
+    event.stopPropagation();
+    event.preventDefault();
+    renderElement.style.cursor = "move";
 
-  /**
-   * @param {PointerEvent} event
-   */
-  function onpointermove(event) {
-    const scalePos = camera().scalePos;
-    const scale = Math.pow(2, scalePos);
-    const movementX = startX - event.clientX;
-    const movementY = startY - event.clientY;
-    x += movementX / scale;
-    y += movementY / scale;
-    camera.set({ x, y, scalePos });
-    startX = event.clientX;
-    startY = event.clientY;
-  }
+    let startX = event.clientX;
+    let startY = event.clientY;
+    let { x, y } = camera();
 
-  document.addEventListener("pointermove", onpointermove, { passive: true });
-  document.addEventListener(
-    "pointerup",
-    () => {
-      document.removeEventListener("pointermove", onpointermove);
-    },
-    { once: true }
-  );
-});
+    /**
+     * @param {PointerEvent} event
+     */
+    function onpointermove(event) {
+      const scalePos = camera().scalePos;
+      const scale = Math.pow(2, scalePos);
+      const movementX = startX - event.clientX;
+      const movementY = startY - event.clientY;
+      x += movementX / scale;
+      y += movementY / scale;
+      camera.set({ x, y, scalePos });
+      startX = event.clientX;
+      startY = event.clientY;
+    }
+
+    document.addEventListener("pointermove", onpointermove, { passive: true });
+    document.addEventListener(
+      "pointerup",
+      () => {
+        document.removeEventListener("pointermove", onpointermove);
+        renderElement.style.cursor = "initial";
+      },
+      { once: true }
+    );
+  },
+  { capture: true }
+);
 
 const onionTickSpacingElement = qs("#onion-tick-spacing", "input");
 const onionTickSpacing = persistant("onionTickSpacing", () => 0);
@@ -144,7 +153,7 @@ const updateTimelineHistory = debounce(() => {
   ]);
 }, 50);
 
-await sleep(10);
+await sleep(20);
 
 let mousedown = false;
 
@@ -170,31 +179,11 @@ function scrollTimeline(smooth = false) {
   currentButton.scrollIntoView({ inline: "center", block: "center" });
 }
 
-/**
- *
- * @param {KeyboardEvent} event
- */
-function cameraOverlayKeydown(event) {
-  if (event.key === " ") {
-    cameraOverlayElement.style.display = "initial";
-
-    document.addEventListener("keyup", () => {
-      cameraOverlayElement.style.display = "none";
-    });
-  }
-}
-
-document.addEventListener("keydown", cameraOverlayKeydown);
-
 renderElement.addEventListener("focusin", async () => {
   let hasFocus = true;
 
   /** @type {(() => any)[]} */
-  const cleanups = [
-    () => {
-      document.addEventListener("keydown", cameraOverlayKeydown);
-    },
-  ];
+  const cleanups = [];
   const cleanup = () => {
     hasFocus = false;
     for (const fn of cleanups) fn();
@@ -207,7 +196,6 @@ renderElement.addEventListener("focusin", async () => {
   cleanups.push(() => renderElement.removeEventListener("dblclick", ondblclick));
 
   renderElement.addEventListener("focusout", cleanup, { once: true });
-  document.removeEventListener("keydown", cameraOverlayKeydown);
 
   await sleep(500);
 
