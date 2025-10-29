@@ -89,6 +89,8 @@ function mainLoop() {
 
     assert(frontFrameState?.state);
 
+    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+
     if (backFrameState?.state) {
       render(ctx, backFrameState.state, frontFrameState.state, roomNet.peerId, alpha);
     } else {

@@ -77,7 +77,7 @@ function createLevelFromText(text) {
         image.data[offset + 0] = 0;
         image.data[offset + 1] = 0;
         image.data[offset + 2] = 0;
-        image.data[offset + 3] = 255;
+        image.data[offset + 3] = 0;
       }
     }
   }

@@ -51,3 +51,19 @@ export const randInt = () => Math.trunc(Number.MIN_SAFE_INTEGER + Math.random() 
 export function lin(start, end, alpha) {
   return start === undefined || !Number.isFinite(start) ? end : start + (end - start) * alpha;
 }
+
+/**
+ * @template {(...args: any[]) => any} Fn
+ * @param {Fn} fn
+ * @param {number} ms
+ * @returns {(...args: Parameters<Fn>) => void}
+ */
+export function debounce(fn, ms) {
+  /** @type {number | undefined} */
+  let timeout;
+
+  return (...args) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => fn(...args), ms);
+  };
+}

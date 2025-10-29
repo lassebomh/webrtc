@@ -178,7 +178,6 @@ export const render = (ctx, prev, curr, peerID, alpha) => {
   const peerPlayers = curr.players[peerID];
 
   const { width, height } = ctx.canvas;
-  ctx.clearRect(0, 0, width, height);
 
   const level = levels[curr.level] ?? fail();
   /** @type {number} */

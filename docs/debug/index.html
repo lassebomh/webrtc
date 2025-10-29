@@ -12,31 +12,24 @@
       <div class="w-full grow">
         <div class="h-full grow">
           <aside id="sidebar">
-            <pre id="inputs"></pre>
-            <pre id="state"></pre>
+            <pre class="json" id="inputs"></pre>
+            <div class="relative grow h-full">
+              <pre class="json" id="state"></pre>
+            </div>
           </aside>
           <div class="w-full h-full" style="position: relative">
             <div class="w-full h-full" id="render"></div>
-            <canvas id="onion-before"></canvas>
-            <canvas id="onion-after"></canvas>
             <div style="position: absolute; top: 8px; left: 8px; gap: 8px">
               <select id="peer-id"></select>
-              <select id="playback-speed"></select>
-              <div>
-                <input
-                  id="onion-before-count"
-                  style="width: 40px; border-top-right-radius: 0; border-bottom-right-radius: 0"
-                  type="number"
-                  min="0"
-                  step="1"
-                />
-                <input
-                  id="onion-after-count"
-                  style="width: 40px; border-top-left-radius: 0; border-bottom-left-radius: 0"
-                  type="number"
-                  min="0"
-                  step="1"
-                />
+              <select id="slowdown"></select>
+              <div class="btn-group">
+                <button id="onion-tick-sub" type="button">-</button>
+                <input id="onion-tick-spacing" style="width: 50px" type="number" min="0" step="1" />
+                <button id="onion-tick-add" type="button">+</button>
+              </div>
+              <div class="btn-group">
+                <button id="wind-backward" type="button">◀</button>
+                <button id="wind-forward" type="button">▶</button>
               </div>
             </div>
           </div>

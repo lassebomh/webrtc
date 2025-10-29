@@ -1,12 +1,42 @@
 body {
-  --bg-color: #15151a;
+  --bg-1: #15151a;
+  --bg-2: #202027;
+  --bg-3: #292931;
+  --border-1: #313136;
+  --border-2: #202027;
+  --border-3: #4d4d52;
   position: fixed;
   inset: 0;
   margin: 0;
-  background-color: black;
   background-size: 100% 100%;
   color: white;
-  background-color: var(--bg-color);
+  background-color: var(--bg-1);
+  height: 100vh;
+}
+::-webkit-scrollbar {
+  height: 6px;
+  width: 6px;
+  background-color: var(--bg-1);
+}
+
+::-webkit-scrollbar-track {
+  background-color: var(--bg-2);
+  border: 1px solid var(--border-2);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--border-3);
+  border-radius: 4px;
+  border: 1px solid var(--bg-1);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--border-1);
+}
+
+::-webkit-scrollbar-corner {
+  background-color: var(--bg-2);
 }
 
 div {
@@ -34,6 +64,17 @@ div {
 .grow {
   flex-grow: 1;
 }
+.shrink {
+  flex-shrink: 1;
+}
+
+.absolute {
+  position: absolute;
+}
+
+.relative {
+  position: relative;
+}
 
 #timeline {
   --button-size: 40px;
@@ -50,29 +91,30 @@ div {
     font-family: monospace;
     background: none;
     border: none;
-    border-right: 1px solid #333;
-    background-color: var(--bg-color);
+    border-right: 1px solid var(--border-1);
+    background-color: var(--bg-1);
     color: #aaa;
     flex-shrink: 0;
     display: flex;
     justify-content: start;
     align-items: start;
     cursor: pointer;
+    border-radius: 0;
 
     &.has-state {
-      background-color: #222;
+      background-color: var(--bg-2);
       color: white;
     }
     &:hover {
-      background-color: #333;
+      background-color: var(--bg-3);
     }
     &.onion-before {
-      outline: 1px solid #f008;
-      outline-offset: -1px;
+      outline: 2px solid #fff4;
+      outline-offset: -2px;
     }
     &.onion-after {
-      outline: 1px solid #0f08;
-      outline-offset: -1px;
+      outline: 2px solid #fff4;
+      outline-offset: -2px;
     }
 
     &.is-current {
@@ -84,22 +126,23 @@ div {
 
 #sidebar {
   width: 400px;
-  border-right: 1px solid #333;
-  height: 100%;
+  border-right: 1px solid var(--border-1);
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  height: 100%;
 }
 
 #inputs {
   height: 400px;
-  border-bottom: 1px solid #333;
+  border-bottom: 1px solid var(--border-1);
   resize: vertical;
-  overflow: hidden;
+  overflow: scroll;
 }
 
 #state {
-  flex-grow: 1;
+  position: absolute;
+  inset: 0;
+  overflow: scroll;
 }
 
 #render {
@@ -109,31 +152,77 @@ div {
   }
 }
 
-#onion-before,
-#onion-after {
+#onion-render {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  opacity: 0.3;
+  background: transparent;
 }
 
-#onion-before {
-  filter: sepia(5000%) saturate(5000%) hue-rotate(0deg);
-}
-#onion-after {
-  filter: sepia(5000%) saturate(5000%) hue-rotate(82deg);
+input {
+  appearance: textfield;
 }
 
 select,
-input {
+input,
+button {
   color: white;
-  background-color: var(--bg-color);
-  border: 1px solid #333;
+  background-color: var(--bg-1);
+  border: 1px solid var(--border-1);
   padding: 4px 8px;
   border-radius: 3px;
+  height: 2.25em;
+  font-size: 0.8rem;
+  font-family: monospace;
+  box-sizing: border-box;
+
+  &:hover {
+    outline: 1px solid var(--border-3);
+    outline-offset: -1px;
+    z-index: 10;
+    background-color: var(--bg-3);
+  }
 }
 
-pre {
+button {
+  cursor: pointer;
+}
+
+.btn-group {
+  > button,
+  > input,
+  > select {
+    &:not(:last-child) {
+      border-top-right-radius: 0;
+      border-bottom-right-radius: 0;
+      border-right: none;
+    }
+    &:not(:first-child) {
+      border-top-left-radius: 0;
+      border-bottom-left-radius: 0;
+    }
+  }
+}
+
+pre.json {
+  user-select: none;
   padding: 8px;
   margin: 0;
+  color: #fff8;
+
+  .string {
+    color: #b5ff8a;
+  }
+  .number {
+    color: #98d2ff;
+  }
+  .boolean {
+    color: #968eff;
+  }
+  .null {
+    color: #9876aa;
+  }
+  .key {
+    color: #c689ff;
+  }
 }

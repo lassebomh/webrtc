@@ -1,18 +1,20 @@
 import { init, render, tick as tickFunc } from "../game/game.js";
 import { IOController } from "../lib/inputs.js";
 import { applyInputs, Timeline } from "../lib/timeline.js";
-import { bindNumber, bindSelect, persistant, qs, writable } from "../lib/ui.js";
+import { bindNumber, bindSelect, persistant, qs, syntaxHighlight } from "../lib/ui.js";
 import { autoreload } from "../lib/utils.js";
-import { assert, fail, sleep } from "../shared/utils.js";
+import { assert, debounce, fail, sleep } from "../shared/utils.js";
 
 autoreload();
 
-const inputsElement = qs("#inputs", "div");
-const stateElement = qs("#state", "div");
+const inputsElement = qs("#inputs", "pre");
+const stateElement = qs("#state", "pre");
 const renderElement = qs("#render", "div");
 
+/** @type {Store<HistoryEntry<*>[]>} */
+const timelineHistory = persistant("timelineHistory", () => [{ inputs: {}, tick: 0, mergedInputs: {}, state: init() }]);
 const timelineElement = qs("#timeline", "div");
-const timeline = new Timeline([{ inputs: {}, tick: 0, mergedInputs: {}, state: init() }], tickFunc);
+const timeline = new Timeline(timelineHistory(), tickFunc);
 
 const io = new IOController(renderElement);
 
@@ -27,19 +29,65 @@ bindSelect(peerIDElement, peerID, {
   "Peer 4": "4",
 });
 
-const playing = writable(false);
+const onionTickSpacingElement = qs("#onion-tick-spacing", "input");
+const onionTickSpacing = persistant("onionTickSpacing", () => 0);
+const onionTickSubElement = qs("#onion-tick-sub", "button");
+const onionTickAddElement = qs("#onion-tick-add", "button");
 
-const onionBeforeElement = qs("#onion-before", "canvas");
-const onionBeforeCountElement = qs("#onion-before-count", "input");
-const onionBeforeCount = persistant("onionBeforeCount", () => 0);
-bindNumber(onionBeforeCountElement, onionBeforeCount);
+onionTickSubElement.addEventListener("click", () => {
+  onionTickSpacing.set(Math.max(onionTickSpacing() - 1, 0));
+});
 
-const onionAfterElement = qs("#onion-after", "canvas");
-const onionAfterCountElement = qs("#onion-after-count", "input");
-const onionAfterCount = persistant("onionAfterCount", () => 0);
-bindNumber(onionAfterCountElement, onionAfterCount);
+onionTickAddElement.addEventListener("click", () => {
+  onionTickSpacing.set(onionTickSpacing() + 1);
+});
 
-const playbackSpeedElement = qs("#playback-speed", "select");
+const windBackwardElement = qs("#wind-backward", "button");
+const windForwardElement = qs("#wind-forward", "button");
+
+windForwardElement.addEventListener("mousedown", () => {
+  tick.set(tick() + 1);
+  const interval = setInterval(() => {
+    tick.set(tick() + 1);
+    scrollTimeline();
+  }, (1000 / 60) * slowdown);
+
+  document.addEventListener("mouseup", () => clearInterval(interval));
+});
+
+windBackwardElement.addEventListener("mousedown", () => {
+  tick.set(Math.max(tick() - 1, 0));
+  const interval = setInterval(() => {
+    tick.set(Math.max(tick() - 1, 0));
+    scrollTimeline();
+  }, (1000 / 60) * slowdown);
+
+  document.addEventListener("mouseup", () => clearInterval(interval));
+});
+
+bindNumber(onionTickSpacingElement, onionTickSpacing);
+
+const slowdownString = persistant("slowdownString", () => "1");
+const slowdownStringSelect = qs("#slowdown", "select");
+
+bindSelect(slowdownStringSelect, slowdownString, {
+  "1x": "1",
+  "2x": "2",
+  "4x": "4",
+  "8x": "8",
+  "16x": "16",
+});
+
+let slowdown = 1;
+
+slowdownString.subscribe((value) => (slowdown = parseFloat(value)));
+
+const updateTimelineHistory = debounce(() => {
+  timelineHistory.set([
+    timeline.history[0] ?? fail(),
+    ...timeline.history.slice(1).map((x) => ({ ...x, state: null, mergedInputs: null })),
+  ]);
+}, 50);
 
 await sleep(100);
 
@@ -59,45 +107,76 @@ renderElement.addEventListener(
 window.addEventListener("mousedown", () => (mousedown = true));
 window.addEventListener("mouseup", () => (mousedown = false));
 
-renderElement.addEventListener("focusin", () => {
-  const interval = setInterval(() => {
-    const existingInputs = timeline.getState(tick())?.inputs?.[peerID()];
-    let inputs = io.flush();
-    if (existingInputs !== undefined) {
-      applyInputs(inputs, existingInputs);
-      timeline.addInputs(tick(), peerID(), existingInputs);
-    } else {
+/**
+ * @param {boolean} smooth
+ */
+function scrollTimeline(smooth = false) {
+  const currentButton = /** @type {HTMLButtonElement} */ (timelineElement.childNodes.item(tick()));
+  currentButton.scrollIntoView({ inline: "center", block: "center" });
+}
+
+renderElement.addEventListener("focusin", async () => {
+  let hasFocus = true;
+
+  /** @type {(() => any)[]} */
+  const cleanups = [];
+  const cleanup = () => {
+    hasFocus = false;
+    for (const fn of cleanups) fn();
+  };
+
+  let play = false;
+  const ondblclick = () => (play = true);
+
+  renderElement.addEventListener("dblclick", ondblclick, { once: true });
+  cleanups.push(() => renderElement.removeEventListener("dblclick", ondblclick));
+
+  renderElement.addEventListener("focusout", cleanup, { once: true });
+
+  await sleep(500);
+
+  if (!hasFocus) return;
+
+  if (play) {
+    for (const item of timeline.history) {
+      if (item.tick > tick()) {
+        const existingInputs = item.inputs[peerID()];
+
+        if (existingInputs) {
+          existingInputs.gamepadInputs = [];
+          existingInputs.keyboard = {};
+          existingInputs.mouse = {};
+          item.inputs[peerID()] = existingInputs;
+        }
+      }
+    }
+
+    const interval = setInterval(() => {
+      const inputs = io.flush();
+      inputs.canvasWidth = io.ctx.canvas.width;
+      inputs.canvasHeight = io.ctx.canvas.height;
       timeline.addInputs(tick(), peerID(), inputs);
-    }
-    updateInputPreview();
-    updateRenderPreview();
-  }, 1000 / 20);
+      tick.set(tick() + 1);
+      scrollTimeline();
+    }, (1000 / 60) * slowdown);
 
-  const unsubPlaying = playing.subscribe((playing) => {
-    if (playing) {
-      clearInterval(interval);
-      unsubPlaying();
-    }
-  });
+    cleanups.push(() => clearInterval(interval));
+  } else {
+    const interval = setInterval(() => {
+      const existingInputs = timeline.getState(tick())?.inputs?.[peerID()];
+      let inputs = io.flush();
+      if (existingInputs !== undefined) {
+        applyInputs(inputs, existingInputs);
+        timeline.addInputs(tick(), peerID(), existingInputs);
+      } else {
+        timeline.addInputs(tick(), peerID(), inputs);
+      }
+      updateInputPreview();
+      updateRenderPreview();
+    }, 1000 / 20);
 
-  renderElement.addEventListener(
-    "keydown",
-    (event) => {
-      event.key === "Escape";
-    },
-    {
-      capture: true,
-    }
-  );
-
-  renderElement.addEventListener(
-    "focusout",
-    () => {
-      clearInterval(interval);
-      unsubPlaying();
-    },
-    { once: true }
-  );
+    cleanups.push(() => clearInterval(interval));
+  }
 });
 
 function updateTimelineButtons() {
@@ -125,13 +204,13 @@ function updateTimelineButtons() {
     } else {
       button.classList.remove("is-current");
 
-      if (tickDiff > 0 && onionAfterCount() === tickDiff) {
+      if (tickDiff > 0 && onionTickSpacing() === tickDiff) {
         button.classList.add("onion-after");
       } else {
         button.classList.remove("onion-after");
       }
 
-      if (tickDiff < 0 && onionBeforeCount() === -tickDiff) {
+      if (tickDiff < 0 && onionTickSpacing() === -tickDiff) {
         button.classList.add("onion-before");
       } else {
         button.classList.remove("onion-before");
@@ -154,45 +233,51 @@ function updateTimelineButtons() {
 
 function updateInputPreview() {
   const history = timeline.getState(tick());
-  inputsElement.textContent = JSON.stringify(history?.inputs, undefined, 2);
+  inputsElement.innerHTML = syntaxHighlight(history?.inputs);
+  stateElement.innerHTML = syntaxHighlight(history?.state);
 }
 
 function updateRenderPreview() {
-  timeline.getState(tick() + onionAfterCount());
-  const history = timeline.getState(tick());
-  assert(history?.state);
-  updateTimelineButtons();
-  render(io.ctx, history.state, history.state, peerID(), 1);
+  timeline.getState(tick() + onionTickSpacing());
 
-  const firstItem = timeline.history[0] ?? fail();
+  io.ctx.clearRect(0, 0, io.ctx.canvas.width, io.ctx.canvas.height);
 
-  onionBeforeElement.style.opacity = "0";
-  onionAfterElement.style.opacity = "0";
-  if (onionBeforeCount() > 0) {
-    const beforeTick = tick() - onionBeforeCount();
+  if (onionTickSpacing() > 0) {
+    const firstItem = timeline.history[0] ?? fail();
+    const beforeTick = tick() - onionTickSpacing();
 
     if (firstItem.tick <= beforeTick) {
-      const ctx = onionBeforeElement.getContext("2d") ?? fail();
-      onionBeforeElement.width = io.ctx.canvas.width;
-      onionBeforeElement.height = io.ctx.canvas.height;
+      io.ctx.globalAlpha = 0.5;
       const historyBefore = timeline.getState(beforeTick);
       assert(historyBefore?.state);
-      render(ctx, historyBefore.state, historyBefore.state, peerID(), 1);
-      onionBeforeElement.style.opacity = "0.3";
+
+      // io.ctx.filter = "sepia(100%) saturate(2000%) hue-rotate(0deg)";
+      render(io.ctx, historyBefore.state, historyBefore.state, peerID(), 1);
+      io.ctx.globalAlpha = 1;
+      io.ctx.filter = "none";
     }
   }
 
-  if (onionAfterCount() > 0) {
-    const afterTick = tick() + onionAfterCount();
+  {
+    const history = timeline.getState(tick());
+    assert(history?.state);
+    updateTimelineButtons();
 
-    const ctx = onionAfterElement.getContext("2d") ?? fail();
-    onionAfterElement.width = io.ctx.canvas.width;
-    onionAfterElement.height = io.ctx.canvas.height;
-    const historyAfter = timeline.getState(afterTick);
-    assert(historyAfter?.state);
-    render(ctx, historyAfter.state, historyAfter.state, peerID(), 1);
-    onionAfterElement.style.opacity = "0.3";
+    render(io.ctx, history.state, history.state, peerID(), 1);
   }
+
+  if (onionTickSpacing() > 0) {
+    io.ctx.globalAlpha = 0.5;
+    const historyAfter = timeline.getState(tick() + onionTickSpacing());
+    assert(historyAfter?.state);
+
+    // io.ctx.filter = "sepia(100%) saturate(2000%) hue-rotate(90deg)";
+    render(io.ctx, historyAfter.state, historyAfter.state, peerID(), 1);
+    io.ctx.globalAlpha = 1;
+    io.ctx.filter = "none";
+  }
+
+  updateTimelineHistory();
 }
 
 tick.subscribe(() => {
@@ -200,13 +285,9 @@ tick.subscribe(() => {
   updateRenderPreview();
 });
 
-onionBeforeCount.subscribe(() => {
-  updateInputPreview();
-  updateRenderPreview();
-});
-onionAfterCount.subscribe(() => {
+onionTickSpacing.subscribe(() => {
   updateInputPreview();
   updateRenderPreview();
 });
 
-tick.set(5);
+scrollTimeline();

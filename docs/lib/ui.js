@@ -75,7 +75,7 @@ export function writable(init) {
  * @param {Storage} storage
  * @returns {Store<T>}
  */
-export function persistant(key, fallback, storage = sessionStorage) {
+export function persistant(key, fallback, storage = localStorage) {
   const raw = storage.getItem(key);
   /** @type {T} */
   let init;
@@ -156,4 +156,30 @@ export function bindSelect(element, store, options) {
  */
 export function qs(query, tag) {
   return document.querySelector(query) ?? fail();
+}
+
+/**
+ *
+ * @param {string | object | null | undefined} json
+ * @returns
+ */
+export function syntaxHighlight(json) {
+  if (typeof json != "string") {
+    json = JSON.stringify(json, undefined, 2);
+  }
+  json = json.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return json.replace(
+    /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,
+    (match) => {
+      let cls = "number";
+      if (/^"/.test(match)) {
+        cls = /:$/.test(match) ? "key" : "string";
+      } else if (/true|false/.test(match)) {
+        cls = "boolean";
+      } else if (/null/.test(match)) {
+        cls = "null";
+      }
+      return `<span class="${cls}">${match}</span>`;
+    }
+  );
 }
