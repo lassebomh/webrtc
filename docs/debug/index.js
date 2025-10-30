@@ -29,6 +29,12 @@ bindSelect(peerIDElement, peerID, {
   "Peer 4": "4",
 });
 
+const transparent = persistant("transparent", () => false);
+const transparentButton = qs("#transparent", "button");
+transparentButton.addEventListener("click", () => {
+  transparent.set(!transparent());
+});
+
 const clearButton = qs("#clear", "button");
 clearButton.addEventListener("click", () => {
   timelineElement.innerHTML = "";
@@ -295,11 +301,11 @@ function updateTimelineButtons() {
   }
 }
 
-function updateInputPreview() {
+const updateInputPreview = debounce(() => {
   const history = timeline.getState(tick());
   inputsElement.innerHTML = syntaxHighlight(history?.inputs);
   stateElement.innerHTML = syntaxHighlight(history?.state);
-}
+}, 50);
 
 function updateRenderPreview() {
   timeline.getState(tick() + onionTickSpacing());
@@ -336,6 +342,10 @@ function updateRenderPreview() {
     assert(history?.state);
     updateTimelineButtons();
 
+    if (transparent()) {
+      io.ctx.globalAlpha = 0.6;
+    }
+
     render(io.ctx, history.state, history.state, peerID(), 1);
   }
 
@@ -362,6 +372,10 @@ tick.subscribe(() => {
 
 onionTickSpacing.subscribe(() => {
   updateInputPreview();
+  updateRenderPreview();
+});
+
+transparent.subscribe(() => {
   updateRenderPreview();
 });
 
