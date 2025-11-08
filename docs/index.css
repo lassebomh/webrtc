@@ -1,18 +1,149 @@
-:root {
-  --bg: #121212;
-  --fg: white;
-  --color: #e1e1e1;
-  --accent: #1e88e5;
-  --border: #3a3a3a;
-  --hover: #2f2f2f;
+body {
+  --bg-1: #15151a;
+  --bg-2: #202027;
+  --bg-3: #292931;
+  --border-1: #313136;
+  --border-2: #202027;
+  --border-3: #4d4d52;
+  position: fixed;
+  inset: 0;
+  margin: 0;
+  background-size: 100% 100%;
+  color: white;
+  background-color: var(--bg-1);
+  height: 100vh;
+}
+::-webkit-scrollbar {
+  height: 6px;
+  width: 6px;
+  background-color: var(--bg-1);
 }
 
-body {
-  margin: 0;
-  color: var(--color);
+::-webkit-scrollbar-track {
+  background-color: var(--bg-2);
+  border: 1px solid var(--border-2);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--border-3);
+  border-radius: 4px;
+  border: 1px solid var(--bg-1);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--border-1);
+}
+
+::-webkit-scrollbar-corner {
+  background-color: var(--bg-2);
+}
+
+div {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.row {
+  flex-direction: row;
+}
+
+.column {
+  flex-direction: column;
+}
+
+.w-full {
+  width: 100%;
+}
+
+.h-full {
+  height: 100%;
+}
+
+.grow {
+  flex-grow: 1;
+}
+.shrink {
+  flex-shrink: 1;
+}
+
+.absolute {
+  position: absolute;
+}
+
+.relative {
+  position: relative;
+}
+
+input {
+  appearance: textfield;
+}
+
+select,
+input,
+button {
+  color: white;
+  background-color: var(--bg-1);
+  border: 1px solid var(--border-1);
+  padding: 4px 8px;
+  border-radius: 3px;
+  height: 2.25em;
+  font-size: 0.8rem;
   font-family: monospace;
-  font-size: 14px;
-  font-weight: 400;
-  line-height: 2ch;
-  background: black;
+  box-sizing: border-box;
+
+  &:hover:not(:disabled) {
+    outline: 1px solid var(--border-3);
+    outline-offset: -1px;
+    z-index: 10;
+    background-color: var(--bg-3);
+  }
+
+  &:disabled {
+    color: #fff9;
+  }
+}
+
+button:not(:disabled) {
+  cursor: pointer;
+}
+
+.btn-group {
+  > button,
+  > input,
+  > select {
+    &:not(:last-child) {
+      border-top-right-radius: 0;
+      border-bottom-right-radius: 0;
+      border-right: none;
+    }
+    &:not(:first-child) {
+      border-top-left-radius: 0;
+      border-bottom-left-radius: 0;
+    }
+  }
+}
+
+pre.json {
+  user-select: none;
+  padding: 8px;
+  margin: 0;
+  color: #fff8;
+
+  .string {
+    color: #b5ff8a;
+  }
+  .number {
+    color: #98d2ff;
+  }
+  .boolean {
+    color: #968eff;
+  }
+  .null {
+    color: #9876aa;
+  }
+  .key {
+    color: #c689ff;
+  }
 }
