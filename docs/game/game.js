@@ -1,265 +1,199 @@
-import { fail, lin } from "../shared/utils.js";
-import { avatarRender, avatarTakeDamage, avatarTick } from "./avatar.js";
+import { point } from "./point.js";
 
-import { boxLevelTick, boxOnBoxCollision, boxOnPointCollision, boxRender } from "./collision.js";
-import { BULLET, gunCreate, pistolRender, uziRender } from "./guns.js";
-import { getTile, levels } from "./levels.js";
-import { particleCreate, particleRender, particleTick } from "./particle.js";
-import { peerPlayersTick } from "./player.js";
-import { random } from "./utils.js";
+export const TICK_RATE = 1000 / 60;
+const dt = TICK_RATE / 1000;
 
-// MARK: Todo add params
+const ax = 0.0;
+const ay = -5;
+
+/**
+ * @param {State} state
+ * @param {Partial<Box>} box_init
+ */
+function create_box(state, box_init) {
+  /** @type {Box} */
+  const box = {
+    type: "box",
+    mass: 0,
+    fixed: false,
+    id: (state.autoid++).toString(),
+    a: point.create(0, 0),
+    b: point.create(1, 0),
+    c: point.create(0, -1),
+    d: point.create(1, -1),
+    w: 0,
+    h: 0,
+    ...box_init,
+  };
+
+  state.objects[box.id] = box;
+
+  return box;
+}
+
+/**
+ * @param {State} state
+ * @param {Partial<Circle>} circle_init
+ */
+function create_circle(state, circle_init) {
+  /** @type {Circle} */
+  const circle = {
+    type: "circle",
+    id: (state.autoid++).toString(),
+    ...point.create(circle_init.x ?? 0, circle_init.y ?? 0),
+    radius: 1,
+    fixed: false,
+    mass: 0,
+    ...circle_init,
+  };
+
+  state.objects[circle.id] = circle;
+
+  return circle;
+}
+
+/**
+ *
+ * @param {Point} a
+ * @param {Point} b
+ * @param {number} target
+ */
+function constraint_dist(a, b, target) {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const dist = Math.hypot(dx, dy);
+
+  if (dist === 0) {
+    return;
+  }
+
+  const diff = (target - dist) / dist;
+  a.x -= 0.5 * diff * dx;
+  a.y -= 0.5 * diff * dy;
+  b.x += 0.5 * diff * dx;
+  b.y += 0.5 * diff * dy;
+}
+
+/**
+ *
+ * @param {State} state
+ */
+function physics_tick(state) {
+  for (const object of Object.values(state.objects)) {
+    if (object.type === "box") {
+      const { a, b, c, d } = object;
+      a.ppx = a.x;
+      a.ppy = a.y;
+      b.ppx = b.x;
+      b.ppy = b.y;
+      c.ppx = c.x;
+      c.ppy = c.y;
+      d.ppx = d.x;
+      d.ppy = d.y;
+    } else if (object.type === "circle") {
+      object.ppx = object.x;
+      object.ppy = object.y;
+    }
+  }
+
+  for (const box of Object.values(state.objects)) {
+    if (box.type === "box") {
+      const { a, b, c, d, w, h } = box;
+
+      a.x += a.x - a.px + dt * dt * ax;
+      a.y += a.y - a.py + dt * dt * ay;
+      b.x += b.x - b.px + dt * dt * ax;
+      b.y += b.y - b.py + dt * dt * ay;
+      c.x += c.x - c.px + dt * dt * ax;
+      c.y += c.y - c.py + dt * dt * ay;
+      d.x += d.x - d.px + dt * dt * ax;
+      d.y += d.y - d.py + dt * dt * ay;
+
+      for (let i = 0; i < 5; i++) {
+        constraint_dist(a, b, w);
+        constraint_dist(c, d, w);
+        constraint_dist(a, c, h);
+        constraint_dist(b, d, h);
+        constraint_dist(a, d, Math.hypot(w, h));
+        constraint_dist(b, c, Math.hypot(w, h));
+      }
+    } else if (box.type === "circle") {
+    }
+  }
+
+  for (const object of Object.values(state.objects)) {
+    if (object.type === "box") {
+      const { a, b, c, d } = object;
+      a.px = a.ppx;
+      a.py = a.ppy;
+      b.px = b.ppx;
+      b.py = b.ppy;
+      c.px = c.ppx;
+      c.py = c.ppy;
+      d.px = d.ppx;
+      d.py = d.ppy;
+    } else if (object.type === "circle") {
+      object.px = object.ppx;
+      object.py = object.ppy;
+    }
+  }
+}
+
 export const init = () => {
-  const levelIndex = 0;
-  const level = levels[levelIndex] ?? fail();
-
-  return /** @type {Game} */ ({
-    players: {},
-    avatars: {},
-    bullets: {},
-    particles: {},
+  /** @type {State} */
+  const game = {
     autoid: 0,
     random: 0,
-    camera: {
-      x: level.box.width / 2,
-      y: level.box.height / 2,
-      scale: 1000 / level.box.width,
-    },
-    level: levelIndex,
-    guns: {},
-    debug_points: [],
-  });
+    objects: {},
+  };
+
+  return game;
 };
 
-/** @type {StateFunc<Game>} */
-export const tick = (game, peerInputs) => {
-  const level = levels[game.level] ?? fail();
+/** @type {StateFunc<State>} */
+export const tick = (state, peerInputs) => {
+  const first_tick = state.autoid === 0;
 
-  let gunsCount = Object.keys(game.guns).length;
+  if (first_tick) {
+    const box = create_box(state, { w: 2.5, h: 1.5, mass: 1 });
+    box.a.py -= 0.5;
+    box.d.py += 0.5;
 
-  for (const peerID in peerInputs) {
-    const inputs = peerInputs[peerID] ?? fail();
-    peerPlayersTick(game, level, peerID, inputs);
+    const circle = create_circle(state, { x: 2, y: 2, radius: 1 });
   }
 
-  let avatarMeanX = 0;
-  let avatarMeanY = 0;
-  let avatarCount = 0;
-  let highestDistanceToCamera = 0;
-
-  for (const avatarID in game.avatars) {
-    const avatar = game.avatars[avatarID] ?? fail();
-    avatarTick(game, level, avatar);
-
-    avatarMeanX += avatar.body.x;
-    avatarMeanY += avatar.body.y;
-    avatarCount += 1;
-
-    const distanceToCamera = Math.hypot(avatar.body.x - game.camera.x, avatar.body.y - game.camera.y);
-
-    if (distanceToCamera > highestDistanceToCamera) {
-      highestDistanceToCamera = distanceToCamera;
-    }
-
-    if (avatar.gun) {
-      gunsCount++;
-    }
-  }
-
-  for (const particleID in game.particles) {
-    const particle = game.particles[particleID] ?? fail();
-    particleTick(game, particle);
-  }
-
-  bulletLoop: for (const bulletId in game.bullets) {
-    const bullet = game.bullets[bulletId] ?? fail();
-    bullet.dy += BULLET.GRAVITY;
-    for (let i = 0; i < 3; i++) {
-      bullet.x += bullet.dx / 3;
-      bullet.y += bullet.dy / 3;
-
-      if (
-        Math.floor(bullet.x) <= 0 ||
-        Math.floor(bullet.x) >= level.box.width - 1 ||
-        Math.floor(bullet.y) <= 0 ||
-        Math.floor(bullet.y) >= level.box.height - 1 ||
-        getTile(level, bullet.x, bullet.y) === 1
-      ) {
-        for (let i = 0; i < 2; i++) {
-          particleCreate(
-            game,
-            bullet.x,
-            bullet.y,
-            -bullet.dx / 4 + random(game, -0.1, 0.1),
-            -bullet.dy / 4 + random(game, -0.1, 0.1),
-            0.05,
-            1.3,
-            1.15,
-            0.1,
-            "white"
-          );
-        }
-        delete game.bullets[bulletId];
-        continue;
-      }
-
-      for (const avatarID in game.avatars) {
-        const avatar = game.avatars[avatarID] ?? fail();
-
-        if (boxOnPointCollision(avatar.box, bullet.x, bullet.y)) {
-          avatar.body.dx += bullet.dx;
-          avatar.body.dy += bullet.dy;
-
-          avatarTakeDamage(game, avatar, 1, bullet.dx / 3, bullet.dy / 3);
-          delete game.bullets[bulletId];
-          continue bulletLoop;
-        }
-      }
-    }
-  }
-
-  while (level.gunLocations.length - gunsCount > 0) {
-    gunsCount++;
-
-    const gunLocations = level.gunLocations
-      .map((gunLocation) => {
-        const guns = Object.values(game.guns);
-        const distances = guns.map((g) => Math.hypot(g.box.x - gunLocation.x, g.box.y - gunLocation.y));
-        return /** @type {const} */ ([gunLocation, Math.min(...distances)]);
-      })
-      .toSorted(([_, aDist], [__, bDist]) => bDist - aDist);
-
-    const { x, y } = gunLocations[0]?.[0] ?? fail();
-    gunCreate(game, x, y, 1); //  Math.floor(random(game, 0, GUN_TYPES.length)));
-  }
-
-  for (const gunID in game.guns) {
-    const gun = game.guns[gunID] ?? fail();
-    if (gun.ticksUntilPickup > 0) {
-      gun.ticksUntilPickup--;
-    }
-
-    gun.box.dy += 0.02;
-    gun.box.dy /= 1.01;
-    if (gun.box.wallBottom) {
-      gun.box.dx /= 1.1;
-    }
-
-    if (!boxOnBoxCollision(gun.box, level.box)) {
-      delete game.guns[gunID];
-    } else if (gun.bullets) {
-      boxLevelTick(level, gun.box);
-
-      if (gun.box.wallBottom === 2) {
-        delete game.guns[gunID];
-      }
-    } else {
-      gun.box.x += gun.box.dx;
-      gun.box.y += gun.box.dy;
-    }
-  }
-  // if (avatarCount) {
-  //   avatarMeanX /= avatarCount;
-  //   avatarMeanY /= avatarCount;
-
-  //   const targetX = avatarMeanX;
-  //   const targetY = avatarMeanY;
-  //   game.camera.x -= (game.camera.x - targetX) / 32;
-  //   game.camera.y -= (game.camera.y - targetY) / 32;
-  //   let targetScale = 400 / highestDistanceToCamera;
-  //   targetScale = Math.min(targetScale, 50);
-  //   game.camera.scale -= (game.camera.scale - targetScale) / 50;
-  // }
+  physics_tick(state);
 };
 
-/** @type {RenderFunc<Game>} */
+/** @type {RenderFunc<State>} */
 export const render = (ctx, prev, curr, peerID, alpha) => {
-  const prevPeerPlayers = prev.players[peerID];
-  const peerPlayers = curr.players[peerID];
-
-  const { width, height } = ctx.canvas;
-
-  const level = levels[curr.level] ?? fail();
-  /** @type {number} */
-  let cameraX;
-  /** @type {number} */
-  let cameraY;
-  /** @type {number} */
-  let cameraScale;
-
-  if (peerPlayers) {
-    cameraX = lin(prevPeerPlayers?.camera.x, peerPlayers.camera.x, alpha);
-    cameraY = lin(prevPeerPlayers?.camera.y, peerPlayers.camera.y, alpha);
-    cameraScale = lin(prevPeerPlayers?.camera.scale, peerPlayers.camera.scale, alpha);
-  } else {
-    cameraX = lin(prev?.camera.x, curr.camera.x, alpha);
-    cameraY = lin(prev?.camera.y, curr.camera.y, alpha);
-    cameraScale = lin(prev?.camera.scale, curr.camera.scale, alpha);
-  }
-
   ctx.save();
-  ctx.imageSmoothingEnabled = false;
-  ctx.translate(width / 2, height / 2);
-  ctx.scale(cameraScale, cameraScale);
-  ctx.translate(-cameraX, -cameraY);
+  ctx.translate(ctx.canvas.width / 2, ctx.canvas.height / 2);
+  ctx.scale(50, -50);
 
-  ctx.drawImage(level.canvas, 0, 0);
+  for (const object of Object.values(curr.objects)) {
+    ctx.save();
+    ctx.fillStyle = "darkblue";
+    ctx.strokeStyle = "red";
+    ctx.lineWidth = 0.03;
 
-  for (const gunID in curr.guns) {
-    const prevGun = prev.guns[gunID];
-    const gun = curr.guns[gunID] ?? fail();
-    const x = lin(prevGun?.box.x, gun.box.x, alpha);
-    const y = lin(prevGun?.box.y, gun.box.y, alpha);
+    ctx.beginPath();
 
-    // boxRender(ctx, prevGun?.box, gun.box, "red", alpha);
-    if (gun.type === 0) {
-      pistolRender(ctx, x + gun.box.width / 2, y + gun.box.height / 2, x);
-    } else if (gun.type === 1) {
-      uziRender(ctx, x + gun.box.width / 2, y + gun.box.height / 2, x);
-    } else {
-      boxRender(ctx, prevGun?.box, gun.box, "red", alpha);
+    if (object.type === "box") {
+      ctx.moveTo(object.a.x, object.a.y);
+      ctx.lineTo(object.b.x, object.b.y);
+      ctx.lineTo(object.d.x, object.d.y);
+      ctx.lineTo(object.c.x, object.c.y);
+      ctx.lineTo(object.a.x, object.a.y);
+      ctx.lineTo(object.b.x, object.b.y);
+    } else if (object.type === "circle") {
+      ctx.moveTo(object.x, object.y);
+      ctx.arc(object.x, object.y, object.radius, 0, Math.PI * 2);
     }
-  }
 
-  for (const avatarID in curr.avatars) {
-    const avatar = curr.avatars[avatarID] ?? fail();
-    const prevAvatar = prev.avatars[avatarID];
-
-    // boxRender(ctx, prevAvatar?.box, avatar.box, "red", alpha);
-    avatarRender(ctx, curr, prevAvatar, avatar, alpha);
-  }
-
-  for (const bulletId in curr.bullets) {
-    const prevBullet = prev.bullets[bulletId];
-    const bullet = curr.bullets[bulletId] ?? fail();
-
-    ctx.beginPath();
-    const x = lin(prevBullet?.x, bullet.x, alpha);
-    const y = lin(prevBullet?.y, bullet.y, alpha);
-    const dx = lin(prevBullet?.dx, bullet.dx, alpha);
-    const dy = lin(prevBullet?.dy, bullet.dy, alpha);
-    const size = 0.05;
-    const particleAngle = Math.atan2(dy, dx);
-    const mag = Math.hypot(dx, dy);
-    if (size <= 0 || Math.max(size, mag / 1.3, 0) <= 0) continue;
-    ctx.ellipse(x + dx / 2, y + dy / 2, size, Math.max(size, mag / 1.3), particleAngle + Math.PI / 2, 0, Math.PI * 2);
-    ctx.fillStyle = "yellow";
     ctx.fill();
+    ctx.stroke();
+    ctx.restore();
   }
-
-  for (const particleId in curr.particles) {
-    const prevParticle = prev.particles[particleId];
-    const particle = curr.particles[particleId] ?? fail();
-
-    particleRender(ctx, prevParticle, particle, alpha);
-  }
-
-  for (const [x, y] of curr.debug_points) {
-    ctx.fillStyle = "red";
-    ctx.beginPath();
-    ctx.arc(x, y, 0.1, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
   ctx.restore();
 };

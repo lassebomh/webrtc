@@ -36,7 +36,7 @@ export function getPointAtDistance(startX, startY, endX, endY, value) {
 }
 
 /**
- * @param {Game} game
+ * @param {State} game
  * @param {number} a
  * @param {number} b
  * @returns {number}

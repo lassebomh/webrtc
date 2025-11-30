@@ -1,12 +1,10 @@
 import { server } from "./lib/server.js";
 import { Net } from "./shared/net.js";
 import { assert, fail, sleep } from "./shared/utils.js";
-import { init, render, tick } from "./game/game.js";
+import { init, render, tick, TICK_RATE } from "./game/game.js";
 import { IOController } from "./lib/inputs.js";
 import { DesyncError, Timeline } from "./lib/timeline.js";
 import "./lib/ui.js";
-
-const TICK_RATE = 1000 / 60;
 
 let roomID = (await server.listRooms())[0]?.roomID;
 
