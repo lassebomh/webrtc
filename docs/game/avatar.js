@@ -149,7 +149,7 @@ export function avatarTick(game, level, avatar) {
   const targetHeight = lin(
     AVATAR.HEIGHT,
     AVATAR.CROUCH_HEIGHT,
-    Math.min(1, Math.max(0, (avatar.inputs.moveY - 0.6) / (1 - 0.6)))
+    Math.min(1, Math.max(0, (avatar.inputs.moveY - 0.6) / (1 - 0.6))),
   );
   const heightDiff = avatar.box.height - targetHeight;
 
@@ -285,7 +285,7 @@ export function avatarTick(game, level, avatar) {
         4,
         1,
         0.0,
-        "#ff5100b0"
+        "#ff5100b0",
       );
       particleCreate(
         game,
@@ -297,7 +297,7 @@ export function avatarTick(game, level, avatar) {
         4,
         1,
         0.0,
-        "yellow"
+        "yellow",
       );
       particleCreate(
         game,
@@ -309,7 +309,7 @@ export function avatarTick(game, level, avatar) {
         4,
         1,
         0.0,
-        "white"
+        "white",
       );
       // for (let i = 0; i < 4; i++) {
       //   const angle = aimAngle + random(game, -1, 1) * (Math.PI / 4);
@@ -359,7 +359,7 @@ export function avatarTick(game, level, avatar) {
     if (
       Math.hypot(
         avatar.body.x - (avatar.rope.box.x + avatar.rope.box.width / 2),
-        avatar.body.y - (avatar.rope.box.y + avatar.rope.box.height / 2)
+        avatar.body.y - (avatar.rope.box.y + avatar.rope.box.height / 2),
       ) > 2
     ) {
       avatar.rope.box.x -= (avatar.rope.box.x - (avatar.box.x + avatar.box.width / 2 - avatar.rope.box.width / 2)) / 4;
@@ -429,7 +429,7 @@ export function avatarTick(game, level, avatar) {
       avatar.rope.box.wallBottom ?? 0,
       avatar.rope.box.wallLeft ?? 0,
       avatar.rope.box.wallRight ?? 0,
-      avatar.rope.box.wallTop ?? 0
+      avatar.rope.box.wallTop ?? 0,
     );
 
     if (touchingWall === 1) {
@@ -480,7 +480,7 @@ export function avatarTick(game, level, avatar) {
       !avatar.rope.grabbingAvatarID &&
       Math.hypot(
         avatar.body.x - (avatar.rope.box.x + avatar.rope.box.width / 2),
-        avatar.body.y - (avatar.rope.box.y + avatar.rope.box.height / 2)
+        avatar.body.y - (avatar.rope.box.y + avatar.rope.box.height / 2),
       ) > 12
     ) {
       avatar.rope.active = false;
@@ -575,7 +575,7 @@ export function avatarTick(game, level, avatar) {
   avatar.feet.leftX = lin(baseLeftX, baseLeftX + Math.cos(gaitAngle) * gaitMagnitudeHorizontal, movingLegAlpha);
   avatar.feet.leftY = Math.min(
     baseLeftY,
-    lin(baseLeftY, baseLeftY + Math.sin(gaitAngle) * gaitMagnitudeVertical, movingLegAlpha)
+    lin(baseLeftY, baseLeftY + Math.sin(gaitAngle) * gaitMagnitudeVertical, movingLegAlpha),
   );
 
   avatar.feet.leftStartX = avatar.body.x - avatar.box.width / 3;
@@ -587,11 +587,11 @@ export function avatarTick(game, level, avatar) {
   avatar.feet.rightX = lin(
     baseRightX,
     baseRightX + Math.cos(Math.PI + gaitAngle) * gaitMagnitudeHorizontal,
-    movingLegAlpha
+    movingLegAlpha,
   );
   avatar.feet.rightY = Math.min(
     baseRightY,
-    lin(baseRightY, baseRightY + Math.sin(Math.PI + gaitAngle) * gaitMagnitudeVertical, movingLegAlpha)
+    lin(baseRightY, baseRightY + Math.sin(Math.PI + gaitAngle) * gaitMagnitudeVertical, movingLegAlpha),
   );
 
   avatar.feet.rightStartX = avatar.body.x + avatar.box.width / 3;
@@ -603,7 +603,7 @@ export function avatarTick(game, level, avatar) {
       avatar.feet.leftY,
       avatar.feet.leftStartX,
       avatar.feet.leftStartY,
-      AVATAR.LEG_LENGTH
+      AVATAR.LEG_LENGTH,
     );
 
     [avatar.feet.rightKneeX, avatar.feet.rightKneeY] = getPointAtDistance(
@@ -611,7 +611,7 @@ export function avatarTick(game, level, avatar) {
       avatar.feet.rightY,
       avatar.feet.rightStartX,
       avatar.feet.rightStartY,
-      AVATAR.LEG_LENGTH
+      AVATAR.LEG_LENGTH,
     );
   } else {
     [avatar.feet.leftKneeX, avatar.feet.leftKneeY] = getPointAtDistance(
@@ -619,14 +619,14 @@ export function avatarTick(game, level, avatar) {
       avatar.feet.leftStartY,
       avatar.feet.leftX,
       avatar.feet.leftY,
-      AVATAR.LEG_LENGTH
+      AVATAR.LEG_LENGTH,
     );
     [avatar.feet.rightKneeX, avatar.feet.rightKneeY] = getPointAtDistance(
       avatar.feet.rightStartX,
       avatar.feet.rightStartY,
       avatar.feet.rightX,
       avatar.feet.rightY,
-      AVATAR.LEG_LENGTH
+      AVATAR.LEG_LENGTH,
     );
   }
 
@@ -945,7 +945,7 @@ export function avatarTakeDamage(game, avatar, damage, dx, dy) {
       1.2,
       1.1,
       0.01,
-      avatar.color
+      avatar.color,
     );
   }
 
@@ -971,7 +971,7 @@ export function avatarTakeDamage(game, avatar, damage, dx, dy) {
         1.05,
         1.1,
         0.05,
-        avatar.color
+        avatar.color,
       );
     }
     for (let i = 0; i < 3; i++) {
@@ -985,7 +985,7 @@ export function avatarTakeDamage(game, avatar, damage, dx, dy) {
         1.05,
         1.1,
         0.05,
-        avatar.color
+        avatar.color,
       );
     }
     if (avatar.gun) {

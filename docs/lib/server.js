@@ -109,7 +109,7 @@ export class ServerNet {
             peerID,
             peer.createDataChannel("default", {
               ordered: false,
-            })
+            }),
           );
           const offer = await peer.createOffer();
           await peer.setLocalDescription(offer);
@@ -135,7 +135,7 @@ export class ServerNet {
             this.#peerIceCandidateQueue[peerID].push(request);
           }
         },
-      }
+      },
       // true
     );
 
@@ -259,7 +259,7 @@ export class ServerNet {
           }
         }
       },
-      receiver
+      receiver,
       // true
     );
 
@@ -279,7 +279,7 @@ export class ServerNet {
         const answer = await peer.createAnswer();
         await peer.setLocalDescription(answer);
         await this.#server.request("roomRtcAnswer", peerID, answer.sdp);
-      })
+      }),
     );
 
     return roomNet;

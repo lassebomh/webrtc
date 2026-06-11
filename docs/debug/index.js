@@ -56,7 +56,7 @@ renderElement.addEventListener(
     cam.scalePos -= event.deltaY / 1000;
     camera.set(cam);
   },
-  { passive: true }
+  { passive: true },
 );
 
 renderElement.addEventListener(
@@ -93,10 +93,10 @@ renderElement.addEventListener(
         document.removeEventListener("pointermove", onpointermove);
         renderElement.style.cursor = "initial";
       },
-      { once: true }
+      { once: true },
     );
   },
-  { capture: true }
+  { capture: true },
 );
 
 const onionTickSpacingElement = qs("#onion-tick-spacing", "input");
@@ -117,20 +117,26 @@ const windForwardElement = qs("#wind-forward", "button");
 
 windForwardElement.addEventListener("mousedown", () => {
   tick.set(tick() + 1);
-  const interval = setInterval(() => {
-    tick.set(tick() + 1);
-    scrollTimeline();
-  }, (1000 / 60) * slowdown);
+  const interval = setInterval(
+    () => {
+      tick.set(tick() + 1);
+      scrollTimeline();
+    },
+    (1000 / 60) * slowdown,
+  );
 
   document.addEventListener("mouseup", () => clearInterval(interval));
 });
 
 windBackwardElement.addEventListener("mousedown", () => {
   tick.set(Math.max(tick() - 1, 0));
-  const interval = setInterval(() => {
-    tick.set(Math.max(tick() - 1, 0));
-    scrollTimeline();
-  }, (1000 / 60) * slowdown);
+  const interval = setInterval(
+    () => {
+      tick.set(Math.max(tick() - 1, 0));
+      scrollTimeline();
+    },
+    (1000 / 60) * slowdown,
+  );
 
   document.addEventListener("mouseup", () => clearInterval(interval));
 });
@@ -171,7 +177,7 @@ renderElement.addEventListener(
       renderElement.blur();
     }
   },
-  { capture: true }
+  { capture: true },
 );
 
 window.addEventListener("mousedown", () => (mousedown = true));
@@ -221,14 +227,17 @@ renderElement.addEventListener("focusin", async () => {
       }
     }
 
-    const interval = setInterval(() => {
-      const inputs = io.flush();
-      inputs.canvasWidth = io.ctx.canvas.width;
-      inputs.canvasHeight = io.ctx.canvas.height;
-      timeline.addInputs(tick(), peerID(), inputs);
-      tick.set(tick() + 1);
-      scrollTimeline();
-    }, (1000 / 60) * slowdown);
+    const interval = setInterval(
+      () => {
+        const inputs = io.flush();
+        inputs.canvasWidth = io.ctx.canvas.width;
+        inputs.canvasHeight = io.ctx.canvas.height;
+        timeline.addInputs(tick(), peerID(), inputs);
+        tick.set(tick() + 1);
+        scrollTimeline();
+      },
+      (1000 / 60) * slowdown,
+    );
 
     cleanups.push(() => clearInterval(interval));
   } else {
@@ -257,9 +266,13 @@ function updateTimelineButtons() {
     button.textContent = i.toString();
     button.addEventListener("mousedown", () => tick.set(i));
     button.addEventListener("mouseup", () =>
-      button.scrollIntoView({ behavior: "smooth", inline: "center", block: "center" })
+      button.scrollIntoView({ behavior: "smooth", inline: "center", block: "center" }),
     );
-    button.addEventListener("mouseover", () => mousedown && tick.set(i));
+    button.addEventListener("mouseover", (e) => {
+      if (mousedown) {
+        tick.set(i);
+      }
+    });
     timelineElement.appendChild(button);
   }
 

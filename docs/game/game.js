@@ -10,7 +10,7 @@ import { random } from "./utils.js";
 
 // MARK: Todo add params
 export const init = () => {
-  const levelIndex = 0;
+  const levelIndex = 2;
   const level = levels[levelIndex] ?? fail();
 
   return /** @type {Game} */ ({
@@ -96,7 +96,7 @@ export const tick = (game, peerInputs) => {
             1.3,
             1.15,
             0.1,
-            "white"
+            "white",
           );
         }
         delete game.bullets[bulletId];
