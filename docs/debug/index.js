@@ -19,6 +19,7 @@ const timeline = new Timeline(timelineHistory(), tickFunc);
 const io = new IOController(renderElement);
 
 const tick = persistant("tick", () => 0);
+const alpha = persistant("alpha", () => 0);
 
 const peerIDElement = qs("#peer-id", "select");
 const peerID = persistant("currentPeerID", () => "1");
@@ -40,6 +41,7 @@ clearButton.addEventListener("click", () => {
   timelineElement.innerHTML = "";
   timeline.history = [{ inputs: {}, tick: 0, mergedInputs: {}, state: init() }];
   tick.set(0);
+  alpha.set(0);
 });
 
 let camera = persistant("camera", () => ({ x: 0, y: 0, scalePos: 0 }));
@@ -117,9 +119,11 @@ const windForwardElement = qs("#wind-forward", "button");
 
 windForwardElement.addEventListener("mousedown", () => {
   tick.set(tick() + 1);
+  alpha.set(0);
   const interval = setInterval(
     () => {
       tick.set(tick() + 1);
+      alpha.set(0);
       scrollTimeline();
     },
     (1000 / 60) * slowdown,
@@ -130,9 +134,11 @@ windForwardElement.addEventListener("mousedown", () => {
 
 windBackwardElement.addEventListener("mousedown", () => {
   tick.set(Math.max(tick() - 1, 0));
+  alpha.set(0);
   const interval = setInterval(
     () => {
       tick.set(Math.max(tick() - 1, 0));
+      alpha.set(0);
       scrollTimeline();
     },
     (1000 / 60) * slowdown,
@@ -191,6 +197,16 @@ function scrollTimeline(smooth = false) {
   currentButton.scrollIntoView({ inline: "center", block: "center" });
 }
 
+/**
+ * @param {MouseEvent} event
+ * @param {HTMLButtonElement} button
+ */
+function getAlphaFromMouseEvent(event, button) {
+  const rect = button.getBoundingClientRect();
+  const x = event.clientX - rect.left;
+  return Math.max(0, Math.min(1, x / rect.width));
+}
+
 renderElement.addEventListener("focusin", async () => {
   let hasFocus = true;
 
@@ -234,6 +250,7 @@ renderElement.addEventListener("focusin", async () => {
         inputs.canvasHeight = io.ctx.canvas.height;
         timeline.addInputs(tick(), peerID(), inputs);
         tick.set(tick() + 1);
+        alpha.set(0);
         scrollTimeline();
       },
       (1000 / 60) * slowdown,
@@ -264,13 +281,22 @@ function updateTimelineButtons() {
   for (let i = timelineElement.childNodes.length; i <= lastItem.tick + 15; i++) {
     const button = document.createElement("button");
     button.textContent = i.toString();
-    button.addEventListener("mousedown", () => tick.set(i));
+    button.addEventListener("mousedown", (e) => {
+      tick.set(i);
+      alpha.set(getAlphaFromMouseEvent(e, button));
+    });
     button.addEventListener("mouseup", () =>
       button.scrollIntoView({ behavior: "smooth", inline: "center", block: "center" }),
     );
     button.addEventListener("mouseover", (e) => {
       if (mousedown) {
         tick.set(i);
+        alpha.set(getAlphaFromMouseEvent(e, button));
+      }
+    });
+    button.addEventListener("mousemove", (e) => {
+      if (mousedown) {
+        alpha.set(getAlphaFromMouseEvent(e, button));
       }
     });
     timelineElement.appendChild(button);
@@ -333,7 +359,6 @@ function updateRenderPreview() {
   io.ctx.translate(io.ctx.canvas.width / 2, io.ctx.canvas.height / 2);
   io.ctx.scale(scale, scale);
   io.ctx.translate(-x - io.ctx.canvas.width / 2, -y - io.ctx.canvas.height / 2);
-
   if (onionTickSpacing() > 0) {
     const firstItem = timeline.history[0] ?? fail();
     const beforeTick = tick() - onionTickSpacing();
@@ -341,34 +366,39 @@ function updateRenderPreview() {
     if (firstItem.tick <= beforeTick) {
       io.ctx.globalAlpha = 0.5;
       const historyBefore = timeline.getState(beforeTick);
+      const historyBeforeNext = timeline.getState(beforeTick + 1);
       assert(historyBefore?.state);
+      assert(historyBeforeNext?.state);
 
-      // io.ctx.filter = "sepia(100%) saturate(2000%) hue-rotate(0deg)";
-      render(io.ctx, historyBefore.state, historyBefore.state, peerID(), 1);
+      render(io.ctx, historyBefore.state, historyBeforeNext.state, peerID(), alpha());
       io.ctx.globalAlpha = 1;
       io.ctx.filter = "none";
     }
   }
 
   {
-    const history = timeline.getState(tick());
-    assert(history?.state);
+    const currentHistory = timeline.getState(tick());
+    const nextHistory = timeline.getState(tick() + 1);
+    assert(currentHistory?.state);
+    assert(nextHistory?.state);
     updateTimelineButtons();
 
     if (transparent()) {
       io.ctx.globalAlpha = 0.6;
     }
 
-    render(io.ctx, history.state, history.state, peerID(), 1);
+    render(io.ctx, currentHistory.state, nextHistory.state, peerID(), alpha());
   }
 
   if (onionTickSpacing() > 0) {
     io.ctx.globalAlpha = 0.5;
-    const historyAfter = timeline.getState(tick() + onionTickSpacing());
+    const afterTick = tick() + onionTickSpacing();
+    const historyAfter = timeline.getState(afterTick);
+    const historyAfterNext = timeline.getState(afterTick + 1);
     assert(historyAfter?.state);
+    assert(historyAfterNext?.state);
 
-    // io.ctx.filter = "sepia(100%) saturate(2000%) hue-rotate(90deg)";
-    render(io.ctx, historyAfter.state, historyAfter.state, peerID(), 1);
+    render(io.ctx, historyAfter.state, historyAfterNext.state, peerID(), alpha());
     io.ctx.globalAlpha = 1;
     io.ctx.filter = "none";
   }
@@ -380,6 +410,10 @@ function updateRenderPreview() {
 
 tick.subscribe(() => {
   updateInputPreview();
+  updateRenderPreview();
+});
+
+alpha.subscribe(() => {
   updateRenderPreview();
 });
 
