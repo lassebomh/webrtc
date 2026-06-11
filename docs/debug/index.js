@@ -118,33 +118,60 @@ const windBackwardElement = qs("#wind-backward", "button");
 const windForwardElement = qs("#wind-forward", "button");
 
 windForwardElement.addEventListener("mousedown", () => {
-  tick.set(tick() + 1);
-  alpha.set(0);
-  const interval = setInterval(
-    () => {
-      tick.set(tick() + 1);
-      alpha.set(0);
-      scrollTimeline();
-    },
-    (1000 / 60) * slowdown,
-  );
+  let running = true;
+  let lastTime = performance.now();
 
-  document.addEventListener("mouseup", () => clearInterval(interval));
+  /**
+   * @param {number} now
+   */
+  function step(now) {
+    if (!running) return;
+    const dt = (now - lastTime) / ((1000 / 60) * slowdown);
+    lastTime = now;
+
+    let a = alpha() + dt;
+    while (a >= 1) {
+      a -= 1;
+      tick.set(tick() + 1);
+    }
+    alpha.set(a);
+    scrollTimeline();
+    requestAnimationFrame(step);
+  }
+
+  requestAnimationFrame(step);
+  document.addEventListener("mouseup", () => (running = false), { once: true });
 });
 
 windBackwardElement.addEventListener("mousedown", () => {
-  tick.set(Math.max(tick() - 1, 0));
-  alpha.set(0);
-  const interval = setInterval(
-    () => {
-      tick.set(Math.max(tick() - 1, 0));
-      alpha.set(0);
-      scrollTimeline();
-    },
-    (1000 / 60) * slowdown,
-  );
+  let running = true;
+  let lastTime = performance.now();
 
-  document.addEventListener("mouseup", () => clearInterval(interval));
+  /**
+   * @param {number} now
+   */
+  function step(now) {
+    if (!running) return;
+    const dt = (now - lastTime) / ((1000 / 60) * slowdown);
+    lastTime = now;
+
+    let a = alpha() - dt;
+    while (a < 0) {
+      a += 1;
+      if (tick() > 0) {
+        tick.set(tick() - 1);
+      } else {
+        a = 0;
+        break;
+      }
+    }
+    alpha.set(a);
+    scrollTimeline();
+    requestAnimationFrame(step);
+  }
+
+  requestAnimationFrame(step);
+  document.addEventListener("mouseup", () => (running = false), { once: true });
 });
 
 bindNumber(onionTickSpacingElement, onionTickSpacing);
