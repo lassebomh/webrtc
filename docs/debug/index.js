@@ -470,6 +470,7 @@ const timeline = new Timeline(
       for (const historyEntry of timeline.history) {
         if (historyEntry.tick >= lastFlushedTick) {
           delete historyEntry.inputs[peer];
+          historyEntry.mergedInputs = null;
         }
       }
     } else {
