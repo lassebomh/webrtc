@@ -7,8 +7,8 @@ const PLAYER_COLORS = ["#cc2222", "#2288cc", "#22aa22", "#cccc22"];
 
 const TICK_RATE = 1000 / 60;
 
-let viewStart = -60;
-let viewEnd = 60;
+let viewStart = -30;
+let viewEnd = 30;
 let viewChange = 0;
 let selectedTrack = 0;
 let playSpeed = 1;
@@ -22,13 +22,28 @@ let cameraZoomPosition = 0;
 let cameraZoomPositionChange = 0;
 let cameraZoom = 1;
 
+const timeline = new Timeline(
+  [
+    {
+      tick: 0,
+      state: init(0, false),
+      inputs: {},
+      mergedInputs: {},
+    },
+  ],
+  tick,
+);
+
 {
   // Interaction state
   /** @type {{ x: number; prevX: number, viewStart: number; viewEnd: number } | null} */
   let drag = null;
 
+  const tracksContainer = /** @type {HTMLCanvasElement} */ (
+    document.getElementById("tracks-canvas-container") ?? fail()
+  );
   const tracks = /** @type {HTMLCanvasElement} */ (document.getElementById("tracks-canvas") ?? fail());
-  const tracksRect = tracks.getBoundingClientRect();
+  const tracksRect = tracksContainer.getBoundingClientRect();
   const tracksCtx = tracks.getContext("2d") ?? fail();
 
   // Track label selection
@@ -49,8 +64,9 @@ let cameraZoom = 1;
     tracks.style.height = blockSize + "px";
     tracksRect.width = inlineSize;
     tracksRect.height = blockSize;
+    renderTracks(performance.now(), false);
   });
-  tracksObserver.observe(tracks);
+  tracksObserver.observe(tracksContainer);
 
   // Zoom with scroll wheel
   tracks.addEventListener(
@@ -118,7 +134,7 @@ let cameraZoom = 1;
   /**
    * @param {number} time
    */
-  function renderTracks(time) {
+  function renderTracks(time, loop = true) {
     const dt = time - prevTime;
     prevTime = time;
 
@@ -186,6 +202,30 @@ let cameraZoom = 1;
       tracksCtx.stroke();
     }
 
+    if (onion) {
+      tracksCtx.setLineDash([3]);
+      tracksCtx.strokeStyle = "#fff5";
+      tracksCtx.lineWidth = dpr;
+
+      {
+        const x = w / 2 - (onion / range) * w;
+        // Playhead line
+        tracksCtx.beginPath();
+        tracksCtx.moveTo(x, 0);
+        tracksCtx.lineTo(x, h);
+        tracksCtx.stroke();
+      }
+      {
+        const x = w / 2 + (onion / range) * w;
+        // Playhead line
+        tracksCtx.beginPath();
+        tracksCtx.moveTo(x, 0);
+        tracksCtx.lineTo(x, h);
+        tracksCtx.stroke();
+      }
+      tracksCtx.setLineDash([]);
+    }
+
     for (let tick = firstTick; tick <= viewEnd; tick += subStep) {
       if (tick < -0.000001) {
         continue;
@@ -229,7 +269,7 @@ let cameraZoom = 1;
       tracksCtx.fill();
     }
 
-    requestAnimationFrame(renderTracks);
+    if (loop) requestAnimationFrame(renderTracks);
   }
 
   renderTracks(performance.now());
@@ -268,17 +308,6 @@ let cameraZoom = 1;
   const canvasContainer = /** @type {HTMLElement} */ (document.getElementById("canvas-container") ?? fail());
   const canvasOverlay = /** @type {HTMLElement} */ (document.getElementById("canvas-overlay") ?? fail());
 
-  const timeline = new Timeline(
-    [
-      {
-        tick: 0,
-        state: init(0, false),
-        inputs: {},
-        mergedInputs: {},
-      },
-    ],
-    tick,
-  );
   let recording = false;
 
   let canvasWidth = -1;
@@ -287,7 +316,7 @@ let cameraZoom = 1;
   let io = new IOController(canvasContainer, (w, h) => {
     canvasWidth = w;
     canvasHeight = h;
-    rendercanvas(performance.now());
+    rendercanvas(performance.now(), false);
   });
   canvasWidth = io.canvasWidth ?? fail();
   canvasHeight = io.canvasHeight ?? fail();
@@ -298,7 +327,7 @@ let cameraZoom = 1;
   /**
    * @param {number} time
    */
-  function rendercanvas(time) {
+  function rendercanvas(time, loop = true) {
     const dt = time - prevTime;
     prevTime = time;
 
@@ -376,7 +405,7 @@ let cameraZoom = 1;
 
     io.ctx.restore();
 
-    requestAnimationFrame(rendercanvas);
+    if (loop) requestAnimationFrame(rendercanvas);
   }
   rendercanvas(performance.now());
 

@@ -116,15 +116,18 @@
       .track-label[data-track="3"] {
         --track-color: #ca0;
       }
-      .tracks-canvas {
+      #tracks-canvas-container {
         flex: 1;
         min-width: 0;
-      }
-      .tracks-canvas canvas {
         display: block;
         width: 100%;
         height: 100%;
+        position: relative;
+      }
+      #tracks-canvas {
         cursor: grab;
+        position: absolute;
+        inset: 0;
         &.panning {
           cursor: grabbing;
         }
@@ -249,7 +252,7 @@
           <div class="track-label" data-track="2">Player 3</div>
           <div class="track-label" data-track="3">Player 4</div>
         </div>
-        <div class="tracks-canvas">
+        <div id="tracks-canvas-container">
           <canvas id="tracks-canvas"></canvas>
         </div>
       </div>
