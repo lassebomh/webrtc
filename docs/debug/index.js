@@ -196,7 +196,7 @@ const timeline = new Timeline(
 
     {
       // Playhead line
-      tracksCtx.strokeStyle = "#fff5";
+      tracksCtx.strokeStyle = "#ffff";
       tracksCtx.lineWidth = dpr;
       tracksCtx.beginPath();
       tracksCtx.moveTo(w / 2, 0);

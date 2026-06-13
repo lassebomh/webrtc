@@ -15,7 +15,7 @@ export function peerPlayersTick(game, level, peerID, inputs) {
   const players = (game.players[peerID] ??= {
     keyboard: {
       avatarID: undefined,
-      color: AVATAR.COLORS[playersCount % AVATAR.COLORS.length] ?? fail(),
+      color: AVATAR.COLORS[parseInt(peerID) % AVATAR.COLORS.length] ?? fail(),
       face: playersCount % FACES.length,
     },
     gamepads: [], // MARK: Todo controller

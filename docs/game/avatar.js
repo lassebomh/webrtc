@@ -527,13 +527,24 @@ export function avatarTick(game, level, avatar) {
         const distance = Math.min(distanceToArm, distanceToBody);
 
         if (distance < 0.75) {
-          avatarTakeDamage(game, otherAvatar, 1, avatar.primaryArm.vx, avatar.primaryArm.vy);
+          const damage = 1;
+          const killingBlow = damage >= otherAvatar.health;
+          avatarTakeDamage(game, otherAvatar, damage, avatar.primaryArm.vx, avatar.primaryArm.vy);
           otherAvatar.box.dx += avatar.primaryArm.vx / 2;
           otherAvatar.box.dy += avatar.primaryArm.vy / 2;
           otherAvatar.body.dx += avatar.primaryArm.vx * 2;
           otherAvatar.body.dy += avatar.primaryArm.vy * 2;
-          avatar.box.dx -= avatar.primaryArm.vx / 3;
-          avatar.box.dy -= avatar.primaryArm.vy / 3;
+          if (killingBlow) {
+            avatar.box.dx = -avatar.primaryArm.vx * 0.5;
+            avatar.box.dy = -avatar.primaryArm.vy * 0.5;
+            avatar.body.dx = -avatar.primaryArm.vx * 0.5;
+            avatar.body.dy = -avatar.primaryArm.vy * 0.5;
+            avatar.primaryArm.vx *= 2;
+            avatar.primaryArm.vy *= 2;
+          } else {
+            avatar.box.dx -= avatar.primaryArm.vx * 0.3;
+            avatar.box.dy -= avatar.primaryArm.vy * 0.3;
+          }
           // avatar.body.dx -= avatar.primaryArm.vx * 2;
           // avatar.body.dy -= avatar.primaryArm.vy * 2;
           avatar.primaryArm.damage = 0;

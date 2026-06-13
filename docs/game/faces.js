@@ -126,14 +126,14 @@ export const FACES = [
     angry: faceTilemap.getTile(2, 3),
   },
   {
-    hurt: faceTilemap.getTile(3, 0),
-    passive: faceTilemap.getTile(3, 0),
-    angry: faceTilemap.getTile(3, 0),
-  },
-  {
     hurt: faceTilemap.getTile(2, 0),
     passive: faceTilemap.getTile(2, 1),
     angry: faceTilemap.getTile(2, 2),
+  },
+  {
+    hurt: faceTilemap.getTile(3, 0),
+    passive: faceTilemap.getTile(3, 0),
+    angry: faceTilemap.getTile(3, 0),
   },
 ];
 
