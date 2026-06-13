@@ -26,7 +26,7 @@ const timeline = new Timeline(
   [
     {
       tick: 0,
-      state: init(0, false),
+      state: init(2, false),
       inputs: {},
       mergedInputs: {},
     },
@@ -459,7 +459,8 @@ const timeline = new Timeline(
     if (recording) {
       canvasContainer.classList.add("recording");
       record.classList.add("recording");
-
+      record.blur();
+      canvasContainer.focus();
       playing = 1;
       io.flush();
       lastFlushedTick = Math.floor(Math.max(0, (viewEnd + viewStart) / 2));
