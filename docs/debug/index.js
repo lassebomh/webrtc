@@ -7,13 +7,20 @@ const PLAYER_COLORS = ["#cc2222", "#2288cc", "#22aa22", "#cccc22"];
 
 const TICK_RATE = 1000 / 60;
 
-let viewStart = -10;
-let viewEnd = 10;
+let viewStart = -60;
+let viewEnd = 60;
 let viewChange = 0;
 let selectedTrack = 0;
 let playSpeed = 1;
 let playing = 0;
-let recording = false;
+
+let onion = 0;
+
+let cameraX = 0;
+let cameraY = 0;
+let cameraZoomPosition = 0;
+let cameraZoomPositionChange = 0;
+let cameraZoom = 1;
 
 {
   // Interaction state
@@ -123,7 +130,7 @@ let recording = false;
       viewStart += viewChange;
       viewEnd += viewChange;
       viewChange *= Math.pow(0.5, dt / 150);
-    } else {
+    } else if (playing !== 0) {
       viewChange *= Math.pow(0.5, dt / 50);
     }
     const viewUnderflow = -Math.min(0, (viewEnd + viewStart) / 2);
@@ -258,11 +265,8 @@ let recording = false;
 }
 
 {
-  // Interaction state
-  /** @type {{ x: number; y: number; prevX: number, prevY: number } | null} */
-  let drag = null;
-
-  const canvasContainer = /** @type {HTMLCanvasElement} */ (document.getElementById("canvas-container") ?? fail());
+  const canvasContainer = /** @type {HTMLElement} */ (document.getElementById("canvas-container") ?? fail());
+  const canvasOverlay = /** @type {HTMLElement} */ (document.getElementById("canvas-overlay") ?? fail());
 
   const timeline = new Timeline(
     [
@@ -275,12 +279,22 @@ let recording = false;
     ],
     tick,
   );
+  let recording = false;
 
-  let io = new IOController(canvasContainer, () => {
+  let canvasWidth = -1;
+  let canvasHeight = -1;
+
+  let io = new IOController(canvasContainer, (w, h) => {
+    canvasWidth = w;
+    canvasHeight = h;
     rendercanvas(performance.now());
   });
+  canvasWidth = io.canvasWidth ?? fail();
+  canvasHeight = io.canvasHeight ?? fail();
 
   let prevTime = performance.now();
+  let lastFlushedTick = -1;
+
   /**
    * @param {number} time
    */
@@ -288,78 +302,158 @@ let recording = false;
     const dt = time - prevTime;
     prevTime = time;
 
-    if (io.canvasWidth && io.canvasHeight) {
-      const viewCenter = Math.max(0, (viewEnd + viewStart) / 2);
-      const tickLeft = Math.floor(viewCenter);
-      const tickRight = tickLeft + 1;
-      const alpha = viewCenter - tickLeft;
+    cameraZoomPosition += cameraZoomPositionChange / 2000;
+    cameraZoomPositionChange *= Math.pow(0.5, dt / 50);
+    cameraZoom = Math.pow(0.5, cameraZoomPosition / 10);
 
-      let stateLeft = timeline.getState(tickLeft);
-      let stateRight = timeline.getState(tickRight);
+    const viewCenter = Math.max(0, (viewEnd + viewStart) / 2);
+    const tickLeft = Math.floor(viewCenter);
+    const tickRight = tickLeft + 1;
+    const alpha = viewCenter - tickLeft;
 
-      if (stateLeft?.state && stateRight?.state) {
-        io.ctx.clearRect(0, 0, io.canvasWidth, io.canvasHeight);
-        render(io.ctx, stateLeft.state, stateRight.state, selectedTrack.toString(), alpha);
-      } else {
-        console.warn("not found", tickLeft, stateLeft, tickRight, stateRight);
+    io.ctx.save();
+    io.ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+
+    if (!recording) {
+      io.ctx.translate(canvasWidth / 2, canvasHeight / 2);
+      io.ctx.scale(cameraZoom, cameraZoom);
+      io.ctx.translate(-canvasWidth / 2 + cameraX, -canvasHeight / 2 + cameraY);
+    } else {
+      const flushTick = Math.floor(viewCenter);
+      if (flushTick > lastFlushedTick) {
+        const inputs = io.flush();
+        lastFlushedTick = flushTick;
+        timeline.addInputs(flushTick, selectedTrack.toString(), inputs);
       }
     }
+
+    if (!recording && onion > 0) {
+      const beforeTick = viewCenter - onion;
+      const tickLeft = Math.floor(beforeTick);
+      const tickRight = tickLeft + 1;
+      const alpha = beforeTick - tickLeft;
+
+      if (tickLeft >= 0) {
+        io.ctx.globalAlpha = 0.5;
+        const historyBefore = timeline.getState(tickLeft);
+        const historyBeforeNext = timeline.getState(tickRight);
+
+        if (historyBefore?.state && historyBeforeNext?.state) {
+          render(io.ctx, historyBefore.state, historyBeforeNext.state, selectedTrack.toString(), alpha);
+          io.ctx.globalAlpha = 1;
+          io.ctx.filter = "none";
+        }
+      }
+    }
+
+    let stateLeft = timeline.getState(tickLeft);
+    let stateRight = timeline.getState(tickRight);
+
+    if (stateLeft?.state && stateRight?.state) {
+      render(io.ctx, stateLeft.state, stateRight.state, selectedTrack.toString(), alpha);
+    } else {
+      console.warn("not found", tickLeft, stateLeft, tickRight, stateRight);
+    }
+
+    if (!recording && onion > 0) {
+      const afterTick = viewCenter + onion;
+      const tickLeft = Math.floor(afterTick);
+      const tickRight = tickLeft + 1;
+      const alpha = afterTick - tickLeft;
+
+      if (tickLeft > 0) {
+        io.ctx.globalAlpha = 0.5;
+        const historyAfter = timeline.getState(tickLeft);
+        const historyAfterNext = timeline.getState(tickRight);
+
+        if (historyAfter?.state && historyAfterNext?.state) {
+          render(io.ctx, historyAfter.state, historyAfterNext.state, selectedTrack.toString(), alpha);
+          io.ctx.globalAlpha = 1;
+          io.ctx.filter = "none";
+        }
+      }
+    }
+
+    io.ctx.restore();
 
     requestAnimationFrame(rendercanvas);
   }
   rendercanvas(performance.now());
 
-  // setInterval(() => {
-  //   console.log(io.flush());
-  // }, 1000);
-
-  // Zoom with scroll wheel
-  io.ctx.canvas.addEventListener(
+  canvasOverlay.addEventListener(
     "wheel",
     (e) => {
-      // e.preventDefault();
-      // const range = viewEnd - viewStart;
-      // if (e.shiftKey) {
-      //   viewChange += (range * e.deltaY) / -30000;
-      // } else {
-      //   const tickUnderMouse = viewStart + 0.5 * range;
-      //   const zoomFactor = e.deltaY > 0 ? 1.1 : 1 / 1.1;
-      //   const newRange = Math.max(4, Math.min(10000, range * zoomFactor));
-      //   viewStart = tickUnderMouse - 0.5 * newRange;
-      //   viewEnd = tickUnderMouse + 0.5 * newRange;
-      // }
+      e.preventDefault();
+      cameraZoomPositionChange += e.deltaY;
     },
     { passive: false },
   );
 
-  // Pan with mouse drag
-  io.ctx.canvas.addEventListener("mousedown", (e) => {
+  canvasOverlay.addEventListener("mousedown", (e) => {
     if (e.button === 0) {
-      // // Middle click or shift+left click to pan
-      // drag = {
-      //   x: e.clientX,
-      //   prevX: e.clientX,
-      //   viewStart,
-      //   viewEnd,
-      // };
-      // e.preventDefault();
-      // io.ctx.canvas.classList.add("panning");
+      canvasOverlay.classList.add("panning");
+      cameraZoomPositionChange = 0;
+
+      let lastX = e.clientX;
+      let lastY = e.clientY;
+      /**
+       * @param {MouseEvent} e
+       */
+      function onmove({ clientX, clientY }) {
+        const dx = clientX - lastX;
+        const dy = clientY - lastY;
+
+        cameraX += dx / cameraZoom;
+        cameraY += dy / cameraZoom;
+        lastX = clientX;
+        lastY = clientY;
+      }
+
+      window.addEventListener("mousemove", onmove);
+      window.addEventListener(
+        "mouseup",
+        (e) => {
+          window.removeEventListener("mousemove", onmove);
+
+          canvasOverlay.classList.remove("panning");
+        },
+        { once: true },
+      );
     }
   });
 
-  window.addEventListener("mousemove", (e) => {
-    if (drag) {
-      // const dx = e.clientX - drag.x;
-      // const tickDelta = (dx / canvasRect.width) * (drag.viewEnd - drag.viewStart);
-      // viewStart = drag.viewStart - tickDelta;
-      // viewEnd = drag.viewEnd - tickDelta;
-      // viewChange = -((e.clientX - drag.prevX) / canvasRect.width) * (drag.viewEnd - drag.viewStart);
-      // drag.prevX = e.clientX;
+  const record = document.getElementById("record") ?? fail();
+
+  record.addEventListener("click", () => {
+    recording = !recording;
+
+    if (recording) {
+      canvasContainer.classList.add("recording");
+      record.classList.add("recording");
+
+      playing = 1;
+      io.flush();
+      lastFlushedTick = Math.floor(Math.max(0, (viewEnd + viewStart) / 2));
+      io.canvasWidth = canvasWidth;
+      io.canvasHeight = canvasHeight;
+      const peer = selectedTrack.toString();
+      for (const historyEntry of timeline.history) {
+        if (historyEntry.tick >= lastFlushedTick) {
+          delete historyEntry.inputs[peer];
+        }
+      }
+    } else {
+      canvasContainer.classList.remove("recording");
+      record.classList.remove("recording");
+
+      playing = 0;
+      viewChange = 0;
     }
   });
 
-  window.addEventListener("mouseup", (e) => {
-    drag = null;
-    io.ctx.canvas.classList.remove("panning");
+  const onionInput = /** @type {HTMLInputElement} */ (document.getElementById("onion") ?? fail());
+
+  onionInput.addEventListener("change", () => {
+    onion = onionInput.valueAsNumber;
   });
 }
