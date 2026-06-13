@@ -2,10 +2,7 @@ import { init, render, tick as tickFunc } from "../game/game.js";
 import { IOController } from "../lib/inputs.js";
 import { applyInputs, Timeline } from "../lib/timeline.js";
 import { bindNumber, bindSelect, persistant, qs, syntaxHighlight } from "../lib/ui.js";
-import { autoreload } from "../lib/utils.js";
 import { assert, debounce, fail, sleep } from "../shared/utils.js";
-
-autoreload();
 
 const inputsElement = qs("#inputs", "pre");
 const stateElement = qs("#state", "pre");

@@ -24,7 +24,7 @@ export class Net {
         `${packet.receiver?.slice(0, 3).toUpperCase() ?? "ALL"} ${packet.sender
           .slice(0, 3)
           .toUpperCase()} %c<|| ${packet.type.toString()}`,
-        "font-weight: bold;"
+        "font-weight: bold;",
       );
       console.debug("request" in packet ? packet.request : packet.response);
     }
@@ -60,7 +60,7 @@ export class Net {
           `${packet.sender.slice(0, 3).toUpperCase()} ${
             packet.receiver?.slice(0, 3).toUpperCase() ?? "ALL"
           } %c||> ${packet.type.toString()}`,
-          "font-weight: bold;"
+          "font-weight: bold;",
         );
         console.debug("request" in packet ? packet.request : packet.response);
       }

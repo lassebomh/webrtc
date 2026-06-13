@@ -1,5 +1,5 @@
 import { Net } from "../shared/net.js";
-import { assert, fail, now, sleep } from "../shared/utils.js";
+import { assert, fail, lin, now, sleep } from "../shared/utils.js";
 import { init, render, tick } from "../game/game.js";
 import { IOController } from "../lib/inputs.js";
 import { DesyncError, Timeline } from "../lib/timeline.js";
@@ -8,6 +8,20 @@ import { joinRoom } from "../lib/room.js";
 import { createRelay } from "../lib/relay.js";
 
 const TICK_RATE = 1000 / 60;
+
+const timeOffsetInterval = 1000;
+let lastOffsetTime = now();
+let prevOffset = 0;
+let currOffset = 0;
+
+function synced_time() {
+  const t = now();
+  if (t >= lastOffsetTime + timeOffsetInterval) {
+    return t + currOffset;
+  } else {
+    return t + lin(prevOffset, currOffset, (t - lastOffsetTime) / timeOffsetInterval);
+  }
+}
 
 const params = new URLSearchParams(location.search);
 const roomId = params.get("id") ?? fail("missing id param");
@@ -23,7 +37,7 @@ const ctx = inputController.ctx;
 const DELAY_TICK = 1;
 
 let timeline = new Timeline([{ inputs: {}, mergedInputs: {}, state: init(), tick: 0 }], tick);
-let originTime = now();
+let originTime = synced_time();
 
 /** @type {number} */
 let inputFlushTick = 0;
@@ -32,7 +46,7 @@ let inputFlushTick = 0;
 let inputBuffer = [];
 
 function getRealTick() {
-  return (now() - originTime) / TICK_RATE;
+  return (synced_time() - originTime) / TICK_RATE;
 }
 
 /** @type {Net<GamePackets>} */
@@ -59,6 +73,9 @@ const roomNet =
         timeline.addInputs(tick, peerID, inputs);
       }
     },
+    getTime: async (localPeerID) => {
+      return now();
+    },
   })) ?? fail();
 
 // Broadcast room to public listing
@@ -77,6 +94,35 @@ if (roomIsPublic) {
   broadcast();
   setInterval(broadcast, 5000);
 }
+
+/** @type {string[]} */
+let peerIds = [];
+
+setInterval(async () => {
+  peerIds = Object.keys(await roomNet.requestAll("getTime", null, 1000));
+}, 3000);
+
+setInterval(async () => {
+  const timeDiffs = (
+    await Promise.all(
+      peerIds.map(async (peerId) => {
+        const t0 = now();
+        const peertime = await roomNet.request("getTime", peerId, null, 500).catch(() => null);
+        if (peertime === null) return null;
+        const t1 = now();
+
+        const rtt = t1 - t0;
+        const latency = rtt / 2;
+        const timeTiff = peertime - (t0 + latency);
+        return timeTiff;
+      }),
+    )
+  ).filter((x) => x !== null);
+
+  prevOffset = currOffset;
+  currOffset = timeDiffs.reduce((acc, x) => acc + x / (timeDiffs.length + 1), 0);
+  lastOffsetTime = now();
+}, timeOffsetInterval);
 
 await sleep(1000);
 
@@ -120,7 +166,7 @@ function mainLoop() {
     mainAnimationFrameRequest = requestAnimationFrame(mainLoop);
   } catch (error) {
     if (error instanceof DesyncError) {
-      console.warn(error);
+      // console.warn(error);
       hardSyncTimeline();
     } else {
       throw error;
@@ -156,7 +202,7 @@ async function hardSyncTimeline() {
         timeline.addInputs(tick, peerID, inputs);
       } catch (error) {
         if (error instanceof DesyncError) {
-          console.warn(error);
+          // console.warn(error);
           continue;
         } else {
           throw error;

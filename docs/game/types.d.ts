@@ -172,6 +172,10 @@ type GamePackets = {
       history: HistoryEntry<Game>[];
     };
   };
+  getTime: {
+    request: null;
+    response: number;
+  };
   inputs: {
     request: {
       tick: number;

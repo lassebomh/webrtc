@@ -81,12 +81,6 @@ export class ServerNet {
   constructor() {
     this.#ws = new WebSocket(`ws${window.location.protocol === "https:" ? "s" : ""}://${window.location.host}/`);
 
-    // if (LOCALHOST) {
-    this.#ws.onclose = async () => {
-      await sleep(75 + Math.random() * 150);
-      window.location.reload();
-    };
-    // }
     this.#wsReady = new Promise((res) => {
       this.#ws.addEventListener("open", () => res());
     });
