@@ -4,42 +4,235 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link href="/favicon.png" rel="shortcut icon" type="image/png" />
-    <link rel="stylesheet" href="style.css" />
-    <link rel="stylesheet" href="../index.css" />
+    <title>Debugger</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        height: 100%;
+        background: #000;
+        color: #ccc;
+        font-family: monospace;
+        font-size: 13px;
+      }
+
+      .app {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        position: relative;
+      }
+
+      #canvas-container {
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+      }
+
+      #canvas-overlay {
+        position: absolute;
+        inset: 0;
+        z-index: 10;
+        cursor: grab;
+        &.panning {
+          cursor: grabbing;
+        }
+      }
+
+      /* Tracks bar */
+      .tracks {
+        flex-shrink: 0;
+        display: flex;
+        height: 96px;
+        border-top: 1px solid #333;
+        background: #111;
+      }
+      .track-labels {
+        flex-shrink: 0;
+        display: flex;
+        flex-direction: column;
+      }
+      .track-label {
+        padding: 0 1em;
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+        color: white;
+        cursor: pointer;
+        user-select: none;
+        border-bottom: 1px solid #222;
+        background-color: color-mix(in srgb, var(--track-color) 20%, transparent);
+
+        &:hover {
+          background-color: color-mix(in srgb, var(--track-color) 40%, transparent);
+        }
+        &.selected {
+          font-weight: bold;
+          background-color: color-mix(in srgb, var(--track-color) 100%, transparent);
+          /* box-shadow: inset 0px 4px 4px #fff2; */
+          /* z-index: 100; */
+        }
+        &:active {
+          background-color: color-mix(in srgb, var(--track-color) 60%, transparent);
+        }
+      }
+      .track-label:last-child {
+        border-bottom: none;
+      }
+      .track-label[data-track="0"] {
+        --track-color: #c44;
+      }
+      .track-label[data-track="1"] {
+        --track-color: #48c;
+      }
+      .track-label[data-track="2"] {
+        --track-color: #4a4;
+      }
+      .track-label[data-track="3"] {
+        --track-color: #ca0;
+      }
+      .tracks-canvas {
+        flex: 1;
+        min-width: 0;
+      }
+      .tracks-canvas canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+        cursor: grab;
+        &.panning {
+          cursor: grabbing;
+        }
+      }
+
+      /* Floating controls */
+      .controls {
+        position: absolute;
+        bottom: calc(96px + 0.75rem);
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        align-items: center;
+        padding: 0.4rem 0.6rem;
+        gap: 0.5rem;
+        background: rgba(17, 17, 17, 0.9);
+        border: 1px solid #333;
+        border-radius: 8px;
+        backdrop-filter: blur(8px);
+        z-index: 20;
+      }
+      .controls-playback {
+        display: flex;
+        align-items: center;
+        gap: 0.15rem;
+      }
+      .controls button {
+        font-family: monospace;
+        font-size: 14px;
+        background: transparent;
+        color: #ccc;
+        border: none;
+        width: 2rem;
+        height: 2rem;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 4px;
+      }
+      .controls button:hover {
+        background: #333;
+        color: #fff;
+      }
+      .controls-settings {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+      .controls-settings label {
+        color: #666;
+        font-size: 11px;
+      }
+      .controls select,
+      .controls input[type="number"] {
+        font-family: monospace;
+        font-size: 12px;
+        background: #222;
+        color: #ccc;
+        border: 1px solid #333;
+        border-radius: 3px;
+        padding: 0.2rem 0.3rem;
+        height: 1.75rem;
+      }
+      .controls input[type="number"] {
+        width: 3.5rem;
+      }
+      .divider {
+        width: 1px;
+        height: 1.5rem;
+        background: #333;
+      }
+      .record-btn {
+        color: #c44 !important;
+        font-size: 12px !important;
+        width: auto !important;
+        padding: 0 0.5rem !important;
+        gap: 0.3rem;
+      }
+      .record-btn:hover {
+        background: #c44 !important;
+        color: #000 !important;
+      }
+    </style>
   </head>
   <body>
-    <div class="column w-full h-full">
-      <div id="timeline"></div>
-      <div class="w-full grow">
-        <div class="h-full grow">
-          <aside id="sidebar">
-            <pre class="json" id="inputs"></pre>
-            <div class="relative grow h-full">
-              <pre class="json" id="state"></pre>
-            </div>
-          </aside>
-          <div class="w-full h-full relative">
-            <div class="w-full h-full" id="render"></div>
-            <div style="position: absolute; top: 8px; left: 8px; gap: 8px">
-              <select id="peer-id"></select>
-              <select id="slowdown"></select>
-              <div class="btn-group">
-                <button id="onion-tick-sub" type="button">-</button>
-                <input id="onion-tick-spacing" style="width: 50px" type="number" min="0" step="1" />
-                <button id="onion-tick-add" type="button">+</button>
-              </div>
-              <div class="btn-group">
-                <button id="wind-backward" type="button">◀</button>
-                <button id="wind-forward" type="button">▶</button>
-              </div>
-              <button id="clear" type="button">Clear</button>
-              <button id="reset-camera" type="button">Reset camera</button>
-              <button id="transparent" type="button">Transparent</button>
-            </div>
-          </div>
+    <div class="app">
+      <div id="canvas-container">
+        <div id="canvas-overlay"></div>
+      </div>
+
+      <div class="controls">
+        <div class="controls-playback">
+          <button id="play-reverse" title="Play reverse">◀◀</button>
+          <button id="play" title="Play">▶▶</button>
+        </div>
+        <div class="divider"></div>
+        <div class="controls-settings">
+          <label>speed</label>
+          <select id="speed">
+            <option value="0.25">0.25x</option>
+            <option value="0.5">0.5x</option>
+            <option value="1" selected>1x</option>
+            <option value="2">2x</option>
+          </select>
+          <label>onion</label>
+          <input type="number" id="onion" value="0" min="0" />
+        </div>
+        <div class="divider"></div>
+        <button class="record-btn" id="record">⏺ REC</button>
+      </div>
+
+      <div class="tracks">
+        <div class="track-labels">
+          <div class="track-label selected" data-track="0">Player 1</div>
+          <div class="track-label" data-track="1">Player 2</div>
+          <div class="track-label" data-track="2">Player 3</div>
+          <div class="track-label" data-track="3">Player 4</div>
+        </div>
+        <div class="tracks-canvas">
+          <canvas id="tracks-canvas"></canvas>
         </div>
       </div>
     </div>
-    <script src="./index.js" type="module"></script>
+    <script type="module" src="./index.js"></script>
   </body>
 </html>

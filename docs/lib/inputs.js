@@ -16,8 +16,9 @@ export class IOController {
 
   /**
    * @param {HTMLElement} element
+   * @param {(width: number, height: number) => void} onresize
    */
-  constructor(element) {
+  constructor(element, onresize = () => {}) {
     element.tabIndex = 0;
     element.style.position = "relative";
     element.style.background = "black";
@@ -40,6 +41,7 @@ export class IOController {
         canvas.height = height;
         this.canvasWidth = width;
         this.canvasHeight = height;
+        onresize(this.canvasWidth, this.canvasHeight);
       }
     });
 
@@ -69,7 +71,7 @@ export class IOController {
         this.mouse.x = event.offsetX;
         this.mouse.y = event.offsetY;
       },
-      { passive: true }
+      { passive: true },
     );
     element.addEventListener("mousedown", (event) => {
       switch (event.button) {

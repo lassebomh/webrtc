@@ -57,8 +57,8 @@ class Tilemap {
           await new Promise((res) => (image.onload = res));
 
           return /** @type {const} */ ([layer, image]);
-        })
-      )
+        }),
+      ),
     );
 
     return new Tilemap(layers, width, height, innerWidth, innerHeight, offsetX, offsetY);
@@ -84,7 +84,7 @@ class Tilemap {
             ctx.drawImage(image, canvas.width * -x, canvas.height * -y);
 
             return [layer, canvas];
-          })
+          }),
         )
       ),
     });
@@ -95,16 +95,16 @@ class Tilemap {
 
 const faceTilemap = await Tilemap.fromUrls(
   {
-    hat: "/game/assets/faces/hat.PNG",
-    face: "/game/assets/faces/face.PNG",
-    body: "/game/assets/faces/body.PNG",
+    hat: "./assets/faces/hat.PNG",
+    face: "./assets/faces/face.PNG",
+    body: "./assets/faces/body.PNG",
   },
   300,
   320,
   185,
   185,
   57,
-  97
+  97,
 );
 
 export const FACES = [
@@ -155,7 +155,7 @@ export function renderTile(ctx, targetWidth, targetHeight, tile, layer) {
     -tile.offsetX * scaleX,
     -tile.offsetY * scaleY,
     tile.width * scaleX,
-    tile.height * scaleY
+    tile.height * scaleY,
   );
 
   // ctx.lineWidth = 0.02;
