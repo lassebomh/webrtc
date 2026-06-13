@@ -134,6 +134,7 @@ interface Game {
     x: number;
     y: number;
     scale: number;
+    follow: boolean;
   };
   level: number;
   guns: Record<string, Gun>;

@@ -9,8 +9,7 @@ import { peerPlayersTick } from "./player.js";
 import { random } from "./utils.js";
 
 // MARK: Todo add params
-export const init = () => {
-  const levelIndex = 2;
+export const init = (levelIndex = 2, cameraFollow = true) => {
   const level = levels[levelIndex] ?? fail();
 
   return /** @type {Game} */ ({
@@ -24,6 +23,7 @@ export const init = () => {
       x: level.box.width / 2,
       y: level.box.height / 2,
       scale: 1000 / level.box.width,
+      follow: cameraFollow,
     },
     level: levelIndex,
     guns: {},
@@ -158,18 +158,18 @@ export const tick = (game, peerInputs) => {
       gun.box.y += gun.box.dy;
     }
   }
-  // if (avatarCount) {
-  //   avatarMeanX /= avatarCount;
-  //   avatarMeanY /= avatarCount;
+  if (game.camera.follow && avatarCount) {
+    avatarMeanX /= avatarCount;
+    avatarMeanY /= avatarCount;
 
-  //   const targetX = avatarMeanX;
-  //   const targetY = avatarMeanY;
-  //   game.camera.x -= (game.camera.x - targetX) / 32;
-  //   game.camera.y -= (game.camera.y - targetY) / 32;
-  //   let targetScale = 400 / highestDistanceToCamera;
-  //   targetScale = Math.min(targetScale, 50);
-  //   game.camera.scale -= (game.camera.scale - targetScale) / 50;
-  // }
+    const targetX = avatarMeanX;
+    const targetY = avatarMeanY;
+    game.camera.x -= (game.camera.x - targetX) / 32;
+    game.camera.y -= (game.camera.y - targetY) / 32;
+    let targetScale = 400 / highestDistanceToCamera;
+    targetScale = Math.min(targetScale, 50);
+    game.camera.scale -= (game.camera.scale - targetScale) / 50;
+  }
 };
 
 /** @type {RenderFunc<Game>} */

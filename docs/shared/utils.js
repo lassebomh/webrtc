@@ -67,3 +67,27 @@ export function debounce(fn, ms) {
     timeout = setTimeout(() => fn(...args), ms);
   };
 }
+
+/**
+ * @template {any} T
+ * @returns {PromiseWithResolvers<T>}
+ */
+export function withResolvers() {
+  /** @type {*} */
+  let resolve;
+  /** @type {*} */
+  let reject;
+  const promise = new Promise((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+}
+/**
+ * @template T
+ * @param {Promise<T>[]} promises
+ * @returns {Promise<T>}
+ */
+export function race(...promises) {
+  return Promise.race(promises);
+}

@@ -1,13 +1,45 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="stylesheet" href="/index.css" />
-    <link href="/favicon.png" rel="shortcut icon" type="image/png" />
-    <script type="module" src="./index.js"></script>
-    <title>New game</title>
+    <title>WebRTC rollback demo</title>
+    <link rel="stylesheet" href="index.css" />
   </head>
-  <body></body>
-  <div id="render" style="width: 100vw; height: 100vh"></div>
+  <body>
+    <h1>WebRTC Rollback Demo</h1>
+
+    <section>
+      <h2>CREATE ROOM</h2>
+      <form id="create-room">
+        <label>TITLE</label>
+        <input type="text" name="title" placeholder="my room" required />
+
+        <label>MAP</label>
+        <select name="map">
+          <option value="1">arena_small</option>
+          <option value="2">arena_large</option>
+          <option value="3">corridor</option>
+        </select>
+
+        <div class="toggle">
+          <input type="checkbox" name="public" id="public" checked />
+          <label for="public">PUBLIC</label>
+        </div>
+
+        <button type="submit">CREATE</button>
+      </form>
+    </section>
+
+    <section>
+      <h2>PUBLIC ROOMS</h2>
+      <ul id="room-list" class="room-list">
+        <li class="empty">looking for rooms...</li>
+      </ul>
+    </section>
+
+    <a class="debug-btn" href="debug/">⚙ OPEN DEBUGGER</a>
+
+    <script type="module" src="./index.js"></script>
+  </body>
 </html>

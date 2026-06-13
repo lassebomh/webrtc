@@ -1,153 +1,55 @@
-import { server } from "./lib/server.js";
-import { Net } from "./shared/net.js";
-import { assert, fail, sleep } from "./shared/utils.js";
-import { init, render, tick } from "./game/game.js";
-import { IOController } from "./lib/inputs.js";
-import { DesyncError, Timeline } from "./lib/timeline.js";
-import "./lib/ui.js";
+import { createRelay } from "./lib/relay.js";
+import { fail } from "./shared/utils.js";
 
-const TICK_RATE = 1000 / 60;
+const relay = createRelay(() => new WebSocket("wss://relay.final.zip"));
+const publicRoomsTopic = relay.topic("webrtc-game-public-rooms");
 
-let roomID = (await server.listRooms())[0]?.roomID;
+const roomListEl = document.getElementById("room-list") ?? fail();
 
-if (!roomID) roomID = await server.createRoom("New room", 16, true);
+/** @type {Record<string, string>} */
+const mapNames = { 1: "arena_small", 2: "arena_large", 3: "corridor" };
 
-await sleep(1000 * Math.random());
+/** @type {Map<string, { id: string; title: string; map: string;  }>} */
+const rooms = new Map();
 
-const inputController = new IOController(document.getElementById("render") ?? fail());
-const ctx = inputController.ctx;
+function renderRooms() {
+  if (rooms.size === 0) {
+    roomListEl.innerHTML = `<li class="empty">no rooms found</li>`;
+    return;
+  }
+  roomListEl.innerHTML = "";
+  for (const room of rooms.values()) {
+    const li = document.createElement("li");
+    const a = document.createElement("a");
+    a.href = `room/?id=${encodeURIComponent(room.id)}&public=true&map=${encodeURIComponent(room.map)}`;
 
-const DELAY_TICK = 2;
+    const name = document.createElement("span");
+    name.textContent = `${room.title} · ${mapNames[room.map] ?? room.map}`;
 
-let timeline = new Timeline([{ inputs: {}, mergedInputs: {}, state: init(), tick: 0 }], tick);
-let originTime = server.time();
-
-/** @type {number} */
-let inputFlushTick = 0;
-
-/** @type {Array<{tick: number; peerID: PeerID, inputs: PeerInputs}> | undefined} */
-let inputBuffer = [];
-
-function getRealTick() {
-  return (server.time() - originTime) / TICK_RATE;
-}
-
-/** @type {Net<GamePackets>} */
-const roomNet =
-  (await server.joinRoom(roomID, {
-    stateSync: async (peer, request) => {
-      const [firstHistoryEntry, ...historyEntries] = structuredClone(timeline.history);
-      assert(firstHistoryEntry?.state && firstHistoryEntry?.mergedInputs);
-      for (const historyEntry of historyEntries) {
-        historyEntry.state = null;
-        historyEntry.mergedInputs = null;
-      }
-      historyEntries.unshift(firstHistoryEntry);
-
-      return {
-        originTime: originTime,
-        history: historyEntries,
-      };
-    },
-    inputs: async (peerID, { tick, inputs }) => {
-      if (inputBuffer) {
-        inputBuffer.push({ peerID, tick, inputs });
-      } else {
-        timeline.addInputs(tick, peerID, inputs);
-      }
-    },
-  })) ?? fail();
-
-await sleep(1000);
-
-/** @type {number | undefined} */
-let mainAnimationFrameRequest;
-
-function mainLoop() {
-  mainAnimationFrameRequest = undefined;
-  try {
-    const realTick = getRealTick();
-
-    if (Math.floor(realTick) > inputFlushTick) {
-      const inputs = inputController.flush();
-      inputFlushTick = Math.floor(realTick);
-
-      timeline.addInputs(inputFlushTick, roomNet.peerId, inputs);
-      roomNet.sendAll("inputs", { tick: inputFlushTick, inputs });
-      while (timeline.history.length > 200) {
-        timeline.history.shift();
-      }
-    }
-
-    let frontFrameTick = Math.floor(realTick);
-    const alpha = realTick - frontFrameTick;
-    frontFrameTick -= DELAY_TICK;
-    const backFrameTick = frontFrameTick - 1;
-
-    const backFrameState = timeline.getState(backFrameTick);
-    const frontFrameState = timeline.getState(frontFrameTick);
-
-    assert(frontFrameState?.state);
-
-    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-
-    if (backFrameState?.state) {
-      render(ctx, backFrameState.state, frontFrameState.state, roomNet.peerId, alpha);
-    } else {
-      render(ctx, frontFrameState.state, frontFrameState.state, roomNet.peerId, 1);
-    }
-
-    mainAnimationFrameRequest = requestAnimationFrame(mainLoop);
-  } catch (error) {
-    if (error instanceof DesyncError) {
-      console.warn(error);
-      hardSyncTimeline();
-    } else {
-      throw error;
-    }
+    a.appendChild(name);
+    li.appendChild(a);
+    roomListEl.appendChild(li);
   }
 }
 
-async function hardSyncTimeline() {
-  if (mainAnimationFrameRequest) {
-    cancelAnimationFrame(mainAnimationFrameRequest);
-    mainAnimationFrameRequest = undefined;
+publicRoomsTopic.listen(async (next) => {
+  while (true) {
+    /** @type {{ id: string; title: string; map: string;  }} */
+    const room = await next();
+    rooms.set(room.id, room);
+    renderRooms();
   }
-  if (!inputBuffer) {
-    inputBuffer = [];
-  }
+});
 
-  for (const [peerID, { originTime: otherOriginTime, history: otherHistory }] of Object.entries(
-    await roomNet.requestAll("stateSync", null, 500)
-  )) {
-    const currentFirstHistoryEntry = timeline.history[0] ?? fail();
-    const firstHistoryEntry = otherHistory[0] ?? fail();
+(document.getElementById("create-room") ?? fail()).addEventListener("submit", (e) => {
+  e.preventDefault();
+  /** @type {*} */
+  const form = e.target;
+  const title = form.title.value.trim();
+  const map = form.map.value;
+  const isPublic = form.public.checked;
+  const id = crypto.randomUUID();
 
-    if (currentFirstHistoryEntry.tick < firstHistoryEntry.tick || otherOriginTime < originTime) {
-      timeline.history = otherHistory;
-      originTime = otherOriginTime;
-    }
-  }
-
-  if (inputBuffer) {
-    while (inputBuffer.length) {
-      const { tick, peerID, inputs } = inputBuffer.pop() ?? fail();
-      try {
-        timeline.addInputs(tick, peerID, inputs);
-      } catch (error) {
-        if (error instanceof DesyncError) {
-          console.warn(error);
-          continue;
-        } else {
-          throw error;
-        }
-      }
-    }
-    inputBuffer = undefined;
-  }
-  inputFlushTick = Math.floor(getRealTick());
-
-  mainLoop();
-}
-
-await hardSyncTimeline();
+  const params = new URLSearchParams({ id, title, public: isPublic, map });
+  window.location.href = `room/?${params}`;
+});

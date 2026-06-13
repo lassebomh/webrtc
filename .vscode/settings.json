@@ -1,4 +1,5 @@
 {
   "javascript.preferences.importModuleSpecifierEnding": "js",
-  "liveServer.settings.root": "./docs"
+  "liveServer.settings.root": "./docs",
+  "liveServer.settings.port": 5501
 }
