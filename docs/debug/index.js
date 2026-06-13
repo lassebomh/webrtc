@@ -72,10 +72,9 @@ const timeline = new Timeline(
   tracks.addEventListener(
     "wheel",
     (e) => {
-      e.preventDefault();
       const range = viewEnd - viewStart;
       if (e.shiftKey) {
-        viewChange += (range * e.deltaY) / -30000;
+        viewChange += (range * e.deltaY) / -60000;
       } else {
         const tickUnderMouse = viewStart + 0.5 * range;
 
@@ -86,7 +85,7 @@ const timeline = new Timeline(
         viewEnd = tickUnderMouse + 0.5 * newRange;
       }
     },
-    { passive: false },
+    { passive: true },
   );
 
   // Pan with mouse drag
@@ -146,9 +145,12 @@ const timeline = new Timeline(
       viewStart += viewChange;
       viewEnd += viewChange;
       viewChange *= Math.pow(0.5, dt / 150);
-    } else if (playing !== 0) {
+    }
+
+    if (drag && playing === 0) {
       viewChange *= Math.pow(0.5, dt / 50);
     }
+
     const viewUnderflow = -Math.min(0, (viewEnd + viewStart) / 2);
     viewEnd += viewUnderflow;
     viewStart += viewUnderflow;
@@ -470,7 +472,6 @@ const timeline = new Timeline(
       for (const historyEntry of timeline.history) {
         if (historyEntry.tick >= lastFlushedTick) {
           delete historyEntry.inputs[peer];
-          historyEntry.mergedInputs = null;
         }
       }
     } else {
