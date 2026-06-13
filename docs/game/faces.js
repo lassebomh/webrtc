@@ -93,11 +93,13 @@ class Tilemap {
   }
 }
 
+const __dir = import.meta.url.split("/").slice(0, -1).join("/");
+
 const faceTilemap = await Tilemap.fromUrls(
   {
-    hat: "./assets/faces/hat.PNG",
-    face: "./assets/faces/face.PNG",
-    body: "./assets/faces/body.PNG",
+    hat: __dir + "/assets/faces/hat.PNG",
+    face: __dir + "/assets/faces/face.PNG",
+    body: __dir + "/assets/faces/body.PNG",
   },
   300,
   320,

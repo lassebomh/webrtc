@@ -222,10 +222,6 @@ let selectedTrack = 0;
 }
 
 {
-  const playButton = document.getElementById("");
-}
-
-{
   // Interaction state
   /** @type {{ x: number; y: number; prevX: number, prevY: number } | null} */
   let drag = null;
