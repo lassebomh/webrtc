@@ -3,14 +3,17 @@ import { IOController } from "../lib/inputs.js";
 import { Timeline } from "../lib/timeline.js";
 import { fail } from "../shared/utils.js";
 
-const TRACK_COLORS = ["#cc2222", "#2288cc", "#22aa22", "#cccc22"];
-const TRACK_COUNT = 4;
+const PLAYER_COLORS = ["#cc2222", "#2288cc", "#22aa22", "#cccc22"];
 
-// View state
+const TICK_RATE = 1000 / 60;
+
 let viewStart = -10;
 let viewEnd = 10;
 let viewChange = 0;
 let selectedTrack = 0;
+let playSpeed = 1;
+let playing = 0;
+let recording = false;
 
 {
   // Interaction state
@@ -112,10 +115,14 @@ let selectedTrack = 0;
     const dt = time - prevTime;
     prevTime = time;
 
+    if (playing !== 0) {
+      viewChange = (dt / TICK_RATE) * playing * playSpeed;
+    }
+
     if (!drag) {
-      viewChange *= Math.pow(0.5, dt / 150);
       viewStart += viewChange;
       viewEnd += viewChange;
+      viewChange *= Math.pow(0.5, dt / 150);
     } else {
       viewChange *= Math.pow(0.5, dt / 50);
     }
@@ -133,12 +140,12 @@ let selectedTrack = 0;
     tracksCtx.clearRect(0, 0, w, h);
 
     const range = viewEnd - viewStart;
-    const trackH = h / TRACK_COUNT;
+    const trackH = h / 4;
 
     // Draw track backgrounds
-    for (let i = 0; i < TRACK_COUNT; i++) {
+    for (let i = 0; i < 4; i++) {
       const y = i * trackH;
-      tracksCtx.fillStyle = i === selectedTrack ? (TRACK_COLORS[i] ?? fail()) + "20" : "transparent";
+      tracksCtx.fillStyle = i === selectedTrack ? (PLAYER_COLORS[i] ?? fail()) + "20" : "transparent";
       tracksCtx.fillRect(0, y, w, trackH);
 
       // Track divider
@@ -219,6 +226,35 @@ let selectedTrack = 0;
   }
 
   renderTracks(performance.now());
+}
+
+{
+  const playButtons = [document.getElementById("play-reverse") ?? fail(), document.getElementById("play") ?? fail()];
+
+  for (let i = 0; i < playButtons.length; i++) {
+    const direction = i === 0 ? -1 : 1;
+    const button = playButtons[i] ?? fail();
+
+    button.addEventListener("mousedown", () => {
+      playing = direction;
+
+      document.addEventListener(
+        "mouseup",
+        () => {
+          playing = 0;
+        },
+        { once: true },
+      );
+    });
+  }
+}
+
+{
+  const speedSelect = /** @type {HTMLSelectElement} */ (document.getElementById("speed") ?? fail());
+
+  speedSelect.addEventListener("change", () => {
+    playSpeed = parseFloat(speedSelect.value);
+  });
 }
 
 {
