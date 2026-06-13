@@ -26,7 +26,7 @@ const timeline = new Timeline(
   [
     {
       tick: 0,
-      state: init(2, false),
+      state: init(0, false),
       inputs: {},
       mergedInputs: {},
     },
@@ -299,7 +299,7 @@ const timeline = new Timeline(
 {
   const speedSelect = /** @type {HTMLSelectElement} */ (document.getElementById("speed") ?? fail());
 
-  speedSelect.addEventListener("change", () => {
+  speedSelect.addEventListener("input", () => {
     playSpeed = parseFloat(speedSelect.value);
   });
 }
@@ -483,7 +483,7 @@ const timeline = new Timeline(
 
   const onionInput = /** @type {HTMLInputElement} */ (document.getElementById("onion") ?? fail());
 
-  onionInput.addEventListener("change", () => {
+  onionInput.addEventListener("input", () => {
     onion = onionInput.valueAsNumber;
   });
 }

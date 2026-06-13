@@ -112,7 +112,7 @@ type RenderFunc<TState> = (
   previous: TState,
   current: TState,
   peerID: PeerID,
-  alpha: number
+  alpha: number,
 ) => void;
 
 type HistoryEntry<TState> = {
