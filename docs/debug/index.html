@@ -34,6 +34,7 @@
         align-items: center;
         justify-content: center;
         position: relative;
+        user-select: none;
 
         &:focus {
           outline: none;
@@ -73,6 +74,7 @@
         height: 96px;
         border-top: 1px solid #333;
         background: #111;
+        user-select: none;
       }
       .track-labels {
         flex-shrink: 0;
@@ -137,7 +139,6 @@
         }
       }
 
-      /* Floating controls */
       .controls {
         position: absolute;
         bottom: calc(96px + 0.75rem);
@@ -150,7 +151,6 @@
         background-color: rgba(17, 17, 17, 0.9);
         border: 1px solid #333;
         border-radius: 8px;
-        backdrop-filter: blur(8px);
         z-index: 20;
       }
       .controls-playback {
@@ -164,7 +164,7 @@
         background-color: transparent;
         color: #ccc;
         border: none;
-        width: 2rem;
+        padding: 0 0.5rem;
         height: 2rem;
         cursor: pointer;
         display: flex;
@@ -227,6 +227,86 @@
         background-color: #c44 !important;
         color: #000 !important;
       }
+      .dropdown {
+        position: relative;
+        display: flex;
+        align-items: center;
+      }
+      .dropdown-selected {
+        font-family: monospace;
+        font-size: 12px;
+        background-color: #222;
+        color: #ccc;
+        border: 1px solid #333;
+        border-radius: 3px;
+        padding: 0.2rem 0.5rem;
+        height: 1.75rem;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        user-select: none;
+      }
+      .dropdown-selected:hover {
+        border-color: #555;
+        color: #fff;
+      }
+      .dropdown-menu {
+        display: none;
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        padding-bottom: 1.75rem;
+        flex-direction: column;
+        min-width: 100%;
+        z-index: -1;
+      }
+      .dropdown-menu-inner {
+        background-color: rgba(17, 17, 17, 0.95);
+        border: 1px solid #333;
+        border-radius: 4px;
+        overflow: hidden;
+      }
+      .dropdown.open .dropdown-menu {
+        display: flex;
+      }
+      @media (hover: hover) {
+        .dropdown:hover .dropdown-menu {
+          display: flex;
+        }
+      }
+      .dropdown-option {
+        font-family: monospace;
+        font-size: 12px;
+        color: #999;
+        padding: 0.35rem 0.5rem;
+        cursor: pointer;
+        white-space: nowrap;
+        user-select: none;
+      }
+      .dropdown-option:hover {
+        background-color: #333;
+        color: #fff;
+      }
+      .dropdown-option.selected {
+        color: #fff;
+        background-color: #2a2a2a;
+      }
+      #speed .dropdown-selected {
+        width: 4em;
+      }
+
+      #inputs-viewer {
+        position: absolute;
+        top: 8px;
+        left: 8px;
+        width: 200px;
+        font-size: 10px;
+        padding: 0.4rem 0.6rem;
+        background-color: rgba(17, 17, 17, 0.9);
+        border: 1px solid #333;
+        border-radius: 8px;
+        z-index: 20;
+      }
     </style>
   </head>
   <body>
@@ -235,21 +315,43 @@
         <div id="canvas-overlay"></div>
       </div>
 
+      <pre id="inputs-viewer"></pre>
+
       <div class="controls">
         <div class="controls-playback">
           <button id="play-reverse" title="Play reverse">◀◀</button>
           <button id="play" title="Play">▶▶</button>
         </div>
         <div class="divider"></div>
+
+        <div class="dropdown" id="reset">
+          <button class="dropdown-selected">Reset</button>
+          <div class="dropdown-menu">
+            <div class="dropdown-menu-inner">
+              <div class="dropdown-option" data-value="0">Small Arena</div>
+              <div class="dropdown-option" data-value="1">Wide Corridor</div>
+              <div class="dropdown-option" data-value="2">Quad Rooms</div>
+              <div class="dropdown-option" data-value="3">Tower</div>
+            </div>
+          </div>
+        </div>
+        <div class="divider"></div>
         <div class="controls-settings">
           <label>speed</label>
-          <select id="speed">
-            <option value="0.0625">1/16</option>
-            <option value="0.125">1/8</option>
-            <option value="0.25">1/4</option>
-            <option value="0.5">1/2</option>
-            <option value="1" selected>1/1</option>
-          </select>
+          <div class="dropdown" id="speed">
+            <div class="dropdown-selected">1/1</div>
+            <div class="dropdown-menu">
+              <div class="dropdown-menu-inner">
+                <div class="dropdown-option" data-value="0.015625">1/64</div>
+                <div class="dropdown-option" data-value="0.03125">1/32</div>
+                <div class="dropdown-option" data-value="0.0625">1/16</div>
+                <div class="dropdown-option" data-value="0.125">1/8</div>
+                <div class="dropdown-option" data-value="0.25">1/4</div>
+                <div class="dropdown-option" data-value="0.5">1/2</div>
+                <div class="dropdown-option" data-value="1">1/1</div>
+              </div>
+            </div>
+          </div>
           <label>onion</label>
           <input type="number" id="onion" value="0" min="0" />
         </div>
@@ -259,7 +361,7 @@
 
       <div class="tracks">
         <div class="track-labels">
-          <div class="track-label selected" data-track="0">Player 1</div>
+          <div class="track-label" data-track="0">Player 1</div>
           <div class="track-label" data-track="1">Player 2</div>
           <div class="track-label" data-track="2">Player 3</div>
           <div class="track-label" data-track="3">Player 4</div>

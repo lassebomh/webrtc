@@ -1,19 +1,5 @@
 import { fail } from "../shared/utils.js";
 
-class Tile extends OffscreenCanvas {
-  /**
-   * @param {number} width
-   * @param {number} height
-   * @param {number} offsetX
-   * @param {number} offsetY
-   */
-  constructor(width, height, offsetX, offsetY) {
-    super(width, height);
-    this.offsetX = offsetX;
-    this.offsetY = offsetY;
-  }
-}
-
 /**
  * @template {string} TLayer
  */
@@ -67,21 +53,29 @@ class Tilemap {
   /**
    * @param {number} x
    * @param {number} y
+   * @param {number} scale
    */
-  getTile(x, y) {
+  getTile(x, y, scale = 0.2) {
+    const w = Math.round(this.width * scale);
+    const h = Math.round(this.height * scale);
+
     const out = /** @type {const} */ ({
-      width: this.width,
-      height: this.height,
-      innerWidth: this.innerWidth,
-      innerHeight: this.innerHeight,
-      offsetX: this.offsetX,
-      offsetY: this.offsetY,
+      width: w,
+      height: h,
+      innerWidth: this.innerWidth * scale,
+      innerHeight: this.innerHeight * scale,
+      offsetX: this.offsetX * scale,
+      offsetY: this.offsetY * scale,
       layer: /** @type {Record<TLayer, OffscreenCanvas>} */ (
         Object.fromEntries(
           Object.entries(this.layers).map(([layer, image]) => {
-            const canvas = new OffscreenCanvas(this.width, this.height);
+            const canvas = new OffscreenCanvas(w, h);
             const ctx = canvas.getContext("2d") ?? fail();
-            ctx.drawImage(image, canvas.width * -x, canvas.height * -y);
+            ctx.imageSmoothingEnabled = false;
+            // ctx.imageSmoothingQuality = "high";
+            ctx.drawImage(image, w * -x, h * -y, image.width * scale, image.height * scale);
+            // ctx.drawImage(image, w * -x, h * -y, image.width * scale, image.height * scale);
+            // ctx.drawImage(image, w * -x, h * -y, image.width * scale, image.height * scale);
 
             return [layer, canvas];
           }),
