@@ -221,7 +221,7 @@ export function avatarTick(game, level, avatar) {
 
   avatar.box.dx /= 1.2;
 
-  avatar.primaryArm.flashOpacity /= 3;
+  avatar.primaryArm.flashOpacity /= 1.5;
 
   if (!pressingCrouch && (avatar.box.wallLeft || avatar.box.wallRight) && avatar.box.dy > 0) {
     avatar.box.dy /= AVATAR.VERTICAL_FRICTION;
@@ -246,6 +246,10 @@ export function avatarTick(game, level, avatar) {
   } else if (avatar.secondaryCooldown === 1 && !avatar.inputs.secondary) {
     avatar.secondaryCooldown = 0;
   }
+
+  avatar.primaryArm.distance -= (avatar.primaryArm.distance - primaryArmDistance) / 4;
+
+  avatar.primaryArm.ddistance /= 1.3;
 
   if (avatar.primaryCooldown === 0 && avatar.inputs.primary) {
     if (avatar.gun) {
@@ -333,15 +337,15 @@ export function avatarTick(game, level, avatar) {
       avatar.body.dy += avatar.primaryArm.vy / (avatar.box.wallBottom ? 1 : 3);
       avatar.primaryArm.damage = 1;
       avatar.primaryCooldown = 10;
-      avatar.primaryArm.flashOpacity = 0.5;
+      avatar.primaryArm.flashOpacity = 0.7;
 
-      avatar.primaryArm.flashStartX = avatar.body.x;
-      avatar.primaryArm.flashStartY = avatar.body.y;
+      avatar.primaryArm.flashStartX = 0;
+      avatar.primaryArm.flashStartY = 0;
 
       avatar.primaryArm.flashEndX =
-        avatar.body.x + avatar.primaryArm.vx * (avatar.primaryArm.distance + avatar.primaryArm.ddistance);
+        0 + avatar.primaryArm.vx * (avatar.primaryArm.distance + avatar.primaryArm.ddistance) * 1.1;
       avatar.primaryArm.flashEndY =
-        avatar.body.y + avatar.primaryArm.vy * (avatar.primaryArm.distance + avatar.primaryArm.ddistance);
+        0 + avatar.primaryArm.vy * (avatar.primaryArm.distance + avatar.primaryArm.ddistance) * 1.1;
     }
   }
 
@@ -545,16 +549,29 @@ export function avatarTick(game, level, avatar) {
 
         if (distance < 0.75) {
           const damage = 1;
-          avatarTakeDamage(game, otherAvatar, damage, avatar.primaryArm.vx, avatar.primaryArm.vy);
           otherAvatar.box.dx += avatar.primaryArm.vx / 2;
           otherAvatar.box.dy += avatar.primaryArm.vy / 2;
-          otherAvatar.body.dx += avatar.primaryArm.vx * 2;
-          otherAvatar.body.dy += avatar.primaryArm.vy * 2;
+          otherAvatar.body.dx += avatar.primaryArm.vx;
+          otherAvatar.body.dy += avatar.primaryArm.vy;
 
-          avatar.primaryArm.distance = (distance + maxDistance) / 2;
+          otherAvatar.body.x += avatar.primaryArm.vx;
+          otherAvatar.body.y += avatar.primaryArm.vy;
+          otherAvatar.feet.leftStartX += avatar.primaryArm.vx;
+          otherAvatar.feet.leftStartY += avatar.primaryArm.vy;
+          otherAvatar.feet.rightStartX += avatar.primaryArm.vx;
+          otherAvatar.feet.rightStartY += avatar.primaryArm.vy;
+          otherAvatar.feet.leftKneeX += avatar.primaryArm.vx;
+          otherAvatar.feet.leftKneeY += avatar.primaryArm.vy;
+          otherAvatar.feet.rightKneeX += avatar.primaryArm.vx;
+          otherAvatar.feet.rightKneeY += avatar.primaryArm.vy;
+          avatarTakeDamage(game, otherAvatar, damage, avatar.primaryArm.vx, avatar.primaryArm.vy);
+
+          avatar.primaryArm.distance = distance / 2;
 
           avatar.body.dx -= avatar.primaryArm.vx * 0.5;
           avatar.body.dy -= avatar.primaryArm.vy * 0.5;
+          avatar.box.dx -= avatar.primaryArm.vx * 0.5;
+          avatar.box.dy -= avatar.primaryArm.vy * 0.5;
           avatar.primaryArm.damage = 0;
 
           for (let i = 0; i < 5; i++) {
@@ -567,7 +584,7 @@ export function avatarTick(game, level, avatar) {
               random(game, -0.4, 0.4) - avatar.primaryArm.vy,
               radius,
               0.3,
-              2,
+              1.2,
               1.5,
               0.03,
               "white",
@@ -578,9 +595,6 @@ export function avatarTick(game, level, avatar) {
     }
   }
 
-  avatar.primaryArm.distance -= (avatar.primaryArm.distance - primaryArmDistance) / 4;
-
-  avatar.primaryArm.ddistance /= 1.3;
   if (avatar.gun?.automatic) {
     avatar.primaryArm.dangle /= 1.5;
   } else {
@@ -732,10 +746,10 @@ export function avatarRender(ctx, game, prevAvatar, avatar, alpha) {
   const primaryArmDistance =
     lin(prevAvatar?.primaryArm.distance, avatar.primaryArm.distance, alpha) + primaryArmDDistance;
 
-  const primaryArmFlashStartX = lin(prevAvatar?.primaryArm.flashStartX, avatar.primaryArm.flashStartX, 1);
-  const primaryArmFlashStartY = lin(prevAvatar?.primaryArm.flashStartY, avatar.primaryArm.flashStartY, 1);
-  const primaryArmFlashEndX = lin(prevAvatar?.primaryArm.flashEndX, avatar.primaryArm.flashEndX, 1);
-  const primaryArmFlashEndY = lin(prevAvatar?.primaryArm.flashEndY, avatar.primaryArm.flashEndY, 1);
+  const primaryArmFlashStartX = bodyX + lin(prevAvatar?.primaryArm.flashStartX, avatar.primaryArm.flashStartX, 1);
+  const primaryArmFlashStartY = bodyY + lin(prevAvatar?.primaryArm.flashStartY, avatar.primaryArm.flashStartY, 1);
+  const primaryArmFlashEndX = bodyX + lin(prevAvatar?.primaryArm.flashEndX, avatar.primaryArm.flashEndX, 1);
+  const primaryArmFlashEndY = bodyY + lin(prevAvatar?.primaryArm.flashEndY, avatar.primaryArm.flashEndY, 1);
   const primaryArmFlashOpacity = lin(prevAvatar?.primaryArm.flashOpacity, avatar.primaryArm.flashOpacity, alpha);
 
   const feetLeftStartX = lin(prevAvatar?.feet.leftStartX, avatar.feet.leftStartX, alpha);
@@ -771,27 +785,31 @@ export function avatarRender(ctx, game, prevAvatar, avatar, alpha) {
   const ropeStartY = bodyY;
   const distance = Math.hypot(ropeY - ropeStartY, ropeX - ropeStartX);
 
-  if (primaryArmFlashOpacity > 0) {
-    const flashDist = Math.hypot(
-      primaryArmFlashStartX - primaryArmFlashEndX,
-      primaryArmFlashStartY - primaryArmFlashEndY,
-    );
-    ctx.lineWidth = Math.sqrt(flashDist * 2) / 4;
+  // if (primaryArmFlashOpacity > 0) {
+  //   const flashDist = Math.hypot(
+  //     primaryArmFlashStartX - primaryArmFlashEndX,
+  //     primaryArmFlashStartY - primaryArmFlashEndY,
+  //   );
+  //   ctx.lineWidth = Math.sqrt(flashDist * 2) / 3;
 
-    const grad = ctx.createLinearGradient(
-      primaryArmFlashStartX,
-      primaryArmFlashStartY,
-      primaryArmFlashEndX,
-      primaryArmFlashEndY,
-    );
-    grad.addColorStop(0, "transparent");
-    grad.addColorStop(1, `rgb(255 255 255 / ${primaryArmFlashOpacity})`);
-    ctx.strokeStyle = grad;
-    ctx.beginPath();
-    ctx.moveTo(primaryArmFlashStartX, primaryArmFlashStartY);
-    ctx.lineTo(primaryArmFlashEndX, primaryArmFlashEndY);
-    ctx.stroke();
-  }
+  //   const grad = ctx.createLinearGradient(
+  //     primaryArmFlashStartX,
+  //     primaryArmFlashStartY,
+  //     primaryArmFlashEndX,
+  //     primaryArmFlashEndY,
+  //   );
+
+  //   grad.addColorStop(0, "transparent");
+  //   grad.addColorStop(0.85, avatar.color);
+  //   grad.addColorStop(0.9, `transparent`);
+  //   ctx.globalAlpha = primaryArmFlashOpacity;
+  //   ctx.strokeStyle = grad;
+  //   ctx.beginPath();
+  //   ctx.moveTo(primaryArmFlashStartX, primaryArmFlashStartY);
+  //   ctx.lineTo(primaryArmFlashEndX, primaryArmFlashEndY);
+  //   ctx.stroke();
+  //   ctx.globalAlpha = 1;
+  // }
   ctx.lineWidth = 0.05;
   ctx.strokeStyle = "#fff5";
   ctx.setLineDash([0.05, 0.05]);
@@ -859,7 +877,7 @@ export function avatarRender(ctx, game, prevAvatar, avatar, alpha) {
     [armElbowX, armElbowY] = getPointAtDistance(armStartX, armStartY, armEndX, armEndY, armLength);
   }
 
-  ctx.lineWidth = 0.1 * (1 + primaryArmFlashOpacity * 2);
+  ctx.lineWidth = 0.1 * (1 + primaryArmFlashOpacity * 3);
   ctx.beginPath();
   ctx.moveTo(armStartX, armStartY);
   ctx.quadraticCurveTo(armElbowX, armElbowY, armEndX, armEndY);
@@ -1043,8 +1061,8 @@ export function avatarTakeDamage(game, avatar, damage, dx, dy) {
       const radius = random(game, 0.3, 0.7) * (avatar.box.width / 2);
       particleCreate(
         game,
-        avatar.body.x + Math.cos(angle) * (avatar.box.width / 2 - radius),
-        avatar.body.y + Math.sin(angle) * (avatar.box.width / 2 - radius),
+        avatar.body.x + Math.cos(angle) * (avatar.box.width / 2 - radius) - dx,
+        avatar.body.y + Math.sin(angle) * (avatar.box.width / 2 - radius) - dy,
         random(game, -0.3, 0.3) + dx / 4,
         random(game, -0.3, 0.3) + dy / 4,
         radius,
