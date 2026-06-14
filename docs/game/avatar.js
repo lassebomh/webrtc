@@ -105,6 +105,11 @@ export function createAvatar(game, x, y, color, face) {
       rightKneeY: y,
     },
     primaryArm: {
+      flashStartX: x,
+      flashStartY: y,
+      flashEndX: x,
+      flashEndY: y,
+      flashOpacity: 0,
       vx: 1,
       vy: 0,
       dangle: 0,
@@ -216,6 +221,8 @@ export function avatarTick(game, level, avatar) {
 
   avatar.box.dx /= 1.2;
 
+  avatar.primaryArm.flashOpacity /= 3;
+
   if (!pressingCrouch && (avatar.box.wallLeft || avatar.box.wallRight) && avatar.box.dy > 0) {
     avatar.box.dy /= AVATAR.VERTICAL_FRICTION;
   }
@@ -326,6 +333,15 @@ export function avatarTick(game, level, avatar) {
       avatar.body.dy += avatar.primaryArm.vy / (avatar.box.wallBottom ? 1 : 3);
       avatar.primaryArm.damage = 1;
       avatar.primaryCooldown = 10;
+      avatar.primaryArm.flashOpacity = 0.5;
+
+      avatar.primaryArm.flashStartX = avatar.body.x;
+      avatar.primaryArm.flashStartY = avatar.body.y;
+
+      avatar.primaryArm.flashEndX =
+        avatar.body.x + avatar.primaryArm.vx * (avatar.primaryArm.distance + avatar.primaryArm.ddistance);
+      avatar.primaryArm.flashEndY =
+        avatar.body.y + avatar.primaryArm.vy * (avatar.primaryArm.distance + avatar.primaryArm.ddistance);
     }
   }
 
@@ -716,6 +732,12 @@ export function avatarRender(ctx, game, prevAvatar, avatar, alpha) {
   const primaryArmDistance =
     lin(prevAvatar?.primaryArm.distance, avatar.primaryArm.distance, alpha) + primaryArmDDistance;
 
+  const primaryArmFlashStartX = lin(prevAvatar?.primaryArm.flashStartX, avatar.primaryArm.flashStartX, 1);
+  const primaryArmFlashStartY = lin(prevAvatar?.primaryArm.flashStartY, avatar.primaryArm.flashStartY, 1);
+  const primaryArmFlashEndX = lin(prevAvatar?.primaryArm.flashEndX, avatar.primaryArm.flashEndX, 1);
+  const primaryArmFlashEndY = lin(prevAvatar?.primaryArm.flashEndY, avatar.primaryArm.flashEndY, 1);
+  const primaryArmFlashOpacity = lin(prevAvatar?.primaryArm.flashOpacity, avatar.primaryArm.flashOpacity, alpha);
+
   const feetLeftStartX = lin(prevAvatar?.feet.leftStartX, avatar.feet.leftStartX, alpha);
   const feetLeftStartY = lin(prevAvatar?.feet.leftStartY, avatar.feet.leftStartY, alpha);
   const feetLeftEndX = lin(prevAvatar?.feet.leftX, avatar.feet.leftX, alpha);
@@ -749,6 +771,27 @@ export function avatarRender(ctx, game, prevAvatar, avatar, alpha) {
   const ropeStartY = bodyY;
   const distance = Math.hypot(ropeY - ropeStartY, ropeX - ropeStartX);
 
+  if (primaryArmFlashOpacity > 0) {
+    const flashDist = Math.hypot(
+      primaryArmFlashStartX - primaryArmFlashEndX,
+      primaryArmFlashStartY - primaryArmFlashEndY,
+    );
+    ctx.lineWidth = Math.sqrt(flashDist * 2) / 4;
+
+    const grad = ctx.createLinearGradient(
+      primaryArmFlashStartX,
+      primaryArmFlashStartY,
+      primaryArmFlashEndX,
+      primaryArmFlashEndY,
+    );
+    grad.addColorStop(0, "transparent");
+    grad.addColorStop(1, `rgb(255 255 255 / ${primaryArmFlashOpacity})`);
+    ctx.strokeStyle = grad;
+    ctx.beginPath();
+    ctx.moveTo(primaryArmFlashStartX, primaryArmFlashStartY);
+    ctx.lineTo(primaryArmFlashEndX, primaryArmFlashEndY);
+    ctx.stroke();
+  }
   ctx.lineWidth = 0.05;
   ctx.strokeStyle = "#fff5";
   ctx.setLineDash([0.05, 0.05]);
@@ -816,6 +859,7 @@ export function avatarRender(ctx, game, prevAvatar, avatar, alpha) {
     [armElbowX, armElbowY] = getPointAtDistance(armStartX, armStartY, armEndX, armEndY, armLength);
   }
 
+  ctx.lineWidth = 0.1 * (1 + primaryArmFlashOpacity * 2);
   ctx.beginPath();
   ctx.moveTo(armStartX, armStartY);
   ctx.quadraticCurveTo(armElbowX, armElbowY, armEndX, armEndY);

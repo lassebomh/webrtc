@@ -63,6 +63,11 @@ type Avatar = {
     dangle: number;
     ddistance: number;
     damage: number;
+    flashStartX: number;
+    flashStartY: number;
+    flashEndX: number;
+    flashEndY: number;
+    flashOpacity: number;
   };
   gun?: Gun | undefined;
   rope: {
