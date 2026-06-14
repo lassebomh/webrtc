@@ -231,7 +231,8 @@ export function jsonToYaml(obj, roundTo = 3) {
       }
       if (inlineKey) out.push("\n");
       for (let i = 0; i < val.length; i++) {
-        const item = val[i] ?? fail();
+        const item = val[i];
+        if (item === undefined) fail();
         const isScalar = item === null || typeof item !== "object";
         out.push(`${pad}<span class="y-dash">-</span> `);
         if (isScalar) {
@@ -277,7 +278,8 @@ export function jsonToYaml(obj, roundTo = 3) {
     }
 
     for (let i = 0; i < keys.length; i++) {
-      const k = keys[i] ?? fail();
+      const k = keys[i];
+      if (k === undefined) fail();
       const v = o[k] ?? undefined;
       const isScalar =
         v === null ||

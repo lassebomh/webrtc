@@ -481,13 +481,14 @@ function refreshDataViewers() {
 {
   const canvasContainer = /** @type {HTMLElement} */ (document.getElementById("canvas-container") ?? fail());
   const canvasOverlay = /** @type {HTMLElement} */ (document.getElementById("canvas-overlay") ?? fail());
+  const canvasTarget = /** @type {HTMLElement} */ (document.getElementById("canvas-target") ?? fail());
 
   let recording = false;
 
   let canvasWidth = -1;
   let canvasHeight = -1;
 
-  let io = new IOController(canvasContainer, (w, h) => {
+  let io = new IOController(canvasTarget, (w, h) => {
     canvasWidth = w;
     canvasHeight = h;
     rendercanvas(performance.now(), false);
@@ -598,10 +599,9 @@ function refreshDataViewers() {
     "wheel",
     (e) => {
       if (e.target !== canvasOverlay) return;
-      e.preventDefault();
       state.cameraZoomPositionChange += e.deltaY;
     },
-    { passive: false },
+    { passive: true },
   );
 
   canvasOverlay.addEventListener("mousedown", (e) => {
