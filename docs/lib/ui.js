@@ -180,6 +180,131 @@ export function syntaxHighlight(json) {
         cls = "null";
       }
       return `<span class="${cls}">${match}</span>`;
-    }
+    },
   );
+}
+
+/**
+ * Converts a JSON object to syntax-highlighted YAML HTML string.
+ * @param {unknown} obj
+ * @param {number} [roundTo=3] - decimal places to round floats to
+ * @returns {string} HTML string
+ */
+export function jsonToYaml(obj, roundTo = 3) {
+  /** @type {string[]} */
+  const out = [];
+
+  /**
+   * @param {unknown} val
+   * @param {number} indent
+   * @param {boolean} inlineKey
+   */
+  function write(val, indent, inlineKey) {
+    const pad = indent <= 0 ? "" : "   ".repeat(indent - 1) + " - ";
+
+    if (val === null || val === undefined) {
+      out.push(`<span class="y-null">null</span>\n`);
+      return;
+    }
+
+    if (typeof val === "boolean") {
+      out.push(`<span class="y-bool">${val}</span>\n`);
+      return;
+    }
+
+    if (typeof val === "string") {
+      out.push(`<span class="y-str">"${val}"</span>\n`);
+      return;
+    }
+
+    if (typeof val === "number") {
+      const v = Number.isInteger(val) ? String(val) : val.toFixed(roundTo);
+      out.push(`<span class="y-num">${v}</span>\n`);
+      return;
+    }
+
+    if (Array.isArray(val)) {
+      if (val.length === 0) {
+        out.push(`<span class="y-bracket">[]</span>\n`);
+        return;
+      }
+      if (inlineKey) out.push("\n");
+      for (let i = 0; i < val.length; i++) {
+        const item = val[i] ?? fail();
+        const isScalar = item === null || typeof item !== "object";
+        out.push(`${pad}<span class="y-dash">-</span> `);
+        if (isScalar) {
+          write(item, indent + 1, false);
+        } else {
+          out.push("\n");
+          write(item, indent + 1, false);
+        }
+      }
+      return;
+    }
+
+    const keys = Object.keys(/** @type {object} */ (val));
+    if (keys.length === 0) {
+      out.push(`<span class="y-bracket">{}</span>\n`);
+      return;
+    }
+    if (inlineKey) out.push("\n");
+
+    const o = /** @type {Record<string, unknown>} */ (val);
+
+    let maxKey = 0;
+    for (let i = 0; i < keys.length; i++) {
+      const k = keys[i] ?? fail();
+      if (k.length > maxKey) maxKey = k.length;
+    }
+
+    let maxBefore = 2;
+    let maxAfter = 0;
+    for (let i = 0; i < keys.length; i++) {
+      const v = o[keys[i] ?? fail()] ?? undefined;
+      if (typeof v === "number") {
+        const s = Number.isInteger(v) ? String(v) : v.toFixed(roundTo);
+        const dot = s.indexOf(".");
+        if (dot === -1) {
+          if (s.length > maxBefore) maxBefore = s.length;
+        } else {
+          if (dot > maxBefore) maxBefore = dot;
+          const after = s.length - dot;
+          if (after > maxAfter) maxAfter = after;
+        }
+      }
+    }
+
+    for (let i = 0; i < keys.length; i++) {
+      const k = keys[i] ?? fail();
+      const v = o[k] ?? undefined;
+      const isScalar =
+        v === null ||
+        v === undefined ||
+        typeof v !== "object" ||
+        (Array.isArray(v) && v.length === 0) ||
+        (typeof v === "object" && !Array.isArray(v) && Object.keys(/** @type {object} */ (v)).length === 0);
+
+      const keyPad = " ".repeat(maxKey - k.length + 1);
+
+      if (typeof v === "number") {
+        const s = Number.isInteger(v) ? String(v) + "." : v.toFixed(roundTo);
+        const dot = s.indexOf(".");
+        const before = dot === -1 ? s.length : dot;
+        const numPad = " ".repeat(maxBefore - before);
+        out.push(
+          `${pad}<span class="y-key">${k}</span><span class="y-colon">:</span>${keyPad}${numPad}<span class="y-num">${s}</span>\n`,
+        );
+      } else if (isScalar) {
+        out.push(`${pad}<span class="y-key">${k}</span><span class="y-colon">:</span>${keyPad}`);
+        write(v, indent + 1, false);
+      } else {
+        out.push(`${pad}<span class="y-key">${k}</span><span class="y-colon">:</span> `);
+        write(v, indent + 1, true);
+      }
+    }
+  }
+
+  write(obj, 0, false);
+  return out.join("");
 }

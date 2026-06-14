@@ -1,6 +1,7 @@
 import { init, render, tick } from "../game/game.js";
 import { IOController } from "../lib/inputs.js";
 import { Timeline } from "../lib/timeline.js";
+import { jsonToYaml } from "../lib/ui.js";
 import { fail } from "../shared/utils.js";
 
 const PLAYER_COLORS = ["#cc2222", "#2288cc", "#22aa22", "#cccc22"];
@@ -74,10 +75,11 @@ refreshStateViewer();
 
 function refreshStateViewer() {
   try {
-    stateViewerInputFunc = new Function("$", `return ${state.stateQuery}`);
+    stateViewerInputFunc = state.stateQuery
+      ? new Function("$", "$player", "$avatar", `return ${state.stateQuery};`)
+      : null;
     stateViewerInput.classList.remove("invalid");
   } catch (error) {
-    stateViewerInputFunc = null;
     stateViewerInput.classList.add("invalid");
   }
 
@@ -85,30 +87,40 @@ function refreshStateViewer() {
 }
 
 function refreshDataViewers() {
-  const viewCenter = Math.max(0, (state.viewEnd + state.viewStart) / 2);
-  const tickLeft = Math.floor(viewCenter);
-  const peer = state.selectedTrack.toString();
-  let stateLeft = timeline.getState(tickLeft);
+  requestIdleCallback(() => {
+    const viewCenter = Math.max(0, (state.viewEnd + state.viewStart) / 2);
+    const tickLeft = Math.ceil(viewCenter);
+    const peer = state.selectedTrack.toString();
+    let stateLeft = timeline.getState(tickLeft);
 
-  if (stateLeft?.state) {
-    inputsViewer.textContent = JSON.stringify(stateLeft.mergedInputs?.[peer] ?? null, undefined, 2);
+    if (stateLeft?.state) {
+      inputsViewer.innerHTML = jsonToYaml(stateLeft.mergedInputs?.[peer] ?? null);
 
-    if (stateViewerInputFunc) {
-      /** @type {string | undefined} */
-      let value;
-      try {
-        value = JSON.stringify(stateViewerInputFunc(stateLeft.state), undefined, 2);
-      } catch (error) {
-        value = /** @type {Error} */ (error).message;
-      }
-      if (value === undefined) {
-        stateViewerOutput.style.display = "none";
-      } else {
-        stateViewerOutput.textContent = value;
+      if (stateViewerInputFunc) {
         stateViewerOutput.style.display = "";
+
+        let value;
+        try {
+          // MARK: HARDCODED VALUE!
+
+          value = stateViewerInputFunc(
+            stateLeft.state,
+            peer,
+            stateLeft.state.avatars[stateLeft.state.players[peer]?.keyboard.avatarID ?? ""],
+          );
+        } catch (error) {
+          value = /** @type {Error} */ (error).message;
+        }
+        if (value === undefined) {
+          stateViewerOutput.textContent = "undefined";
+        } else {
+          stateViewerOutput.innerHTML = jsonToYaml(value);
+        }
+      } else {
+        stateViewerOutput.style.display = "none";
       }
     }
-  }
+  });
 }
 
 {

@@ -318,12 +318,12 @@
         right: 8px;
         display: flex;
         flex-direction: column;
+        width: 250px;
       }
 
       #state-viewer-input {
         background: none;
         border: none;
-        border-bottom: 1px solid #333;
         color: white;
         font: inherit;
         padding: 0.4rem 0.6rem;
@@ -334,14 +334,44 @@
           outline: none;
         }
         &.invalid {
-          border-color: #770000;
-          background-color: #77000030;
+          background-color: #77000050;
         }
       }
       #state-viewer-output {
+        border-top: 1px solid #333;
         padding: 0.4rem 0.6rem;
         overflow-y: scroll;
         max-height: 50vh;
+      }
+
+      .yaml {
+        .y-key {
+          color: #9cdcfe;
+        }
+        .y-colon {
+          color: #888;
+        }
+        .y-str {
+          color: #ce9178;
+        }
+        .y-num {
+          color: #b5cea8;
+        }
+        .y-bool {
+          color: #569cd6;
+          font-weight: 700;
+        }
+        .y-null {
+          color: #569cd6;
+          font-weight: 500;
+          font-style: italic;
+        }
+        .y-dash {
+          color: #888;
+        }
+        .y-bracket {
+          color: #888;
+        }
       }
     </style>
   </head>
@@ -351,11 +381,11 @@
         <div id="canvas-overlay"></div>
       </div>
 
-      <pre id="inputs-viewer"></pre>
-      <pre id="state-viewer">
-        <input type="text" id="state-viewer-input">
-        <pre id="state-viewer-output"></pre>
-      </pre>
+      <pre class="yaml" id="inputs-viewer"></pre>
+      <div id="state-viewer">
+        <input type="text" id="state-viewer-input" placeholder="Type $ to query the state" />
+        <pre class="yaml" id="state-viewer-output"></pre>
+      </div>
 
       <div class="controls">
         <div class="controls-playback">
