@@ -597,6 +597,7 @@ function refreshDataViewers() {
   canvasOverlay.addEventListener(
     "wheel",
     (e) => {
+      if (e.target !== canvasOverlay) return;
       e.preventDefault();
       state.cameraZoomPositionChange += e.deltaY;
     },
@@ -604,6 +605,8 @@ function refreshDataViewers() {
   );
 
   canvasOverlay.addEventListener("mousedown", (e) => {
+    if (e.target !== canvasOverlay) return;
+
     if (e.button === 0) {
       canvasOverlay.classList.add("panning");
       state.cameraZoomPositionChange = 0;

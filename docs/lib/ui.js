@@ -185,7 +185,8 @@ export function syntaxHighlight(json) {
 }
 
 /**
- * Converts a JSON object to syntax-highlighted YAML HTML string.
+ * CLANKER WARNING
+ *
  * @param {unknown} obj
  * @param {number} [roundTo=3] - decimal places to round floats to
  * @returns {string} HTML string

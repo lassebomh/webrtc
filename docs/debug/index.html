@@ -100,8 +100,6 @@
         &.selected {
           font-weight: bold;
           background-color: color-mix(in srgb, var(--track-color) 100%, transparent);
-          /* box-shadow: inset 0px 4px 4px #fff2; */
-          /* z-index: 100; */
         }
         &:active {
           background-color: color-mix(in srgb, var(--track-color) 60%, transparent);
@@ -301,6 +299,8 @@
 
       #inputs-viewer,
       #state-viewer {
+        z-index: 20;
+
         position: absolute;
         top: 8px;
         left: 8px;
@@ -311,6 +311,9 @@
         border-radius: 8px;
         z-index: 20;
         overflow: hidden;
+        user-select: text;
+        pointer-events: all;
+        cursor: auto;
       }
 
       #state-viewer {
@@ -378,13 +381,13 @@
   <body>
     <div class="app">
       <div id="canvas-container">
-        <div id="canvas-overlay"></div>
-      </div>
-
-      <pre class="yaml" id="inputs-viewer"></pre>
-      <div id="state-viewer">
-        <input type="text" id="state-viewer-input" placeholder="Type $ to query the state" />
-        <pre class="yaml" id="state-viewer-output"></pre>
+        <div id="canvas-overlay">
+          <pre class="yaml" id="inputs-viewer"></pre>
+          <div id="state-viewer">
+            <input type="text" id="state-viewer-input" placeholder="Type $ to query the state" />
+            <pre class="yaml" id="state-viewer-output"></pre>
+          </div>
+        </div>
       </div>
 
       <div class="controls">
