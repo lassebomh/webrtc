@@ -117,7 +117,8 @@ type Particle = {
   y: number;
   dx: number;
   dy: number;
-  size: number;
+  width: number;
+  height: number;
   sizeDiv: number;
   speedDiv: number;
   speedRandom: number;

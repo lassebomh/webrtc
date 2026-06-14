@@ -5,3 +5,5 @@
 - use chrome to debug trashing.
 
 - snap arm to target when punching. increase width
+
+- arm swing flash swoop

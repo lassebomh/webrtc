@@ -3,7 +3,7 @@ import { fail, lin } from "../shared/utils.js";
 import { boxLevelTick, boxOnBoxCollision, boxRender } from "./collision.js";
 import { FACES, renderTile } from "./faces.js";
 import { BULLET, pistolRender, uziRender } from "./guns.js";
-import { particleCreate } from "./particle.js";
+import { particleCreate, particleCreate2 } from "./particle.js";
 import { getPointAtDistance, random } from "./utils.js";
 
 export const AVATAR = {
@@ -525,29 +525,38 @@ export function avatarTick(game, level, avatar) {
         const distanceToBody = Math.hypot(otherAvatar.body.x - avatar.body.x, otherAvatar.body.y - avatar.body.y);
 
         const distance = Math.min(distanceToArm, distanceToBody);
+        const maxDistance = Math.max(distanceToArm, distanceToBody);
 
         if (distance < 0.75) {
           const damage = 1;
-          const killingBlow = damage >= otherAvatar.health;
           avatarTakeDamage(game, otherAvatar, damage, avatar.primaryArm.vx, avatar.primaryArm.vy);
           otherAvatar.box.dx += avatar.primaryArm.vx / 2;
           otherAvatar.box.dy += avatar.primaryArm.vy / 2;
           otherAvatar.body.dx += avatar.primaryArm.vx * 2;
           otherAvatar.body.dy += avatar.primaryArm.vy * 2;
-          if (killingBlow) {
-            avatar.box.dx = -avatar.primaryArm.vx * 0.5;
-            avatar.box.dy = -avatar.primaryArm.vy * 0.5;
-            avatar.body.dx = -avatar.primaryArm.vx * 0.5;
-            avatar.body.dy = -avatar.primaryArm.vy * 0.5;
-            avatar.primaryArm.vx *= 2;
-            avatar.primaryArm.vy *= 2;
-          } else {
-            avatar.box.dx -= avatar.primaryArm.vx * 0.3;
-            avatar.box.dy -= avatar.primaryArm.vy * 0.3;
-          }
-          // avatar.body.dx -= avatar.primaryArm.vx * 2;
-          // avatar.body.dy -= avatar.primaryArm.vy * 2;
+
+          avatar.primaryArm.distance = (distance + maxDistance) / 2;
+
+          avatar.body.dx -= avatar.primaryArm.vx * 0.5;
+          avatar.body.dy -= avatar.primaryArm.vy * 0.5;
           avatar.primaryArm.damage = 0;
+
+          for (let i = 0; i < 5; i++) {
+            const radius = random(game, 0.01, 0.03) * (otherAvatar.box.width / 2);
+            particleCreate2(
+              game,
+              otherAvatar.body.x + avatar.primaryArm.vx,
+              otherAvatar.body.y + avatar.primaryArm.vy,
+              random(game, -0.4, 0.4) - avatar.primaryArm.vx,
+              random(game, -0.4, 0.4) - avatar.primaryArm.vy,
+              radius,
+              0.3,
+              2,
+              1.5,
+              0.03,
+              "white",
+            );
+          }
         }
       }
     }
@@ -948,8 +957,8 @@ export function avatarTakeDamage(game, avatar, damage, dx, dy) {
     const radius = random(game, 0.2, 0.5) * (avatar.box.width / 2);
     particleCreate(
       game,
-      avatar.body.x + dx,
-      avatar.body.y + dy,
+      avatar.body.x - dx,
+      avatar.body.y - dy,
       random(game, -0.2, 0.2) + dx,
       random(game, -0.2, 0.2) + dy,
       radius,
@@ -968,6 +977,22 @@ export function avatarTakeDamage(game, avatar, damage, dx, dy) {
         player.keyboard.avatarID = undefined;
         break;
       }
+    }
+    for (const avatarID in game.avatars) {
+      if (avatarID === avatar.id) continue;
+
+      const otherAvatar = game.avatars[avatarID] ?? fail();
+
+      let diffx = otherAvatar.body.x - avatar.body.x - dx;
+      let diffy = otherAvatar.body.y - avatar.body.y - dy;
+
+      const dist = Math.hypot(diffx, diffy);
+
+      diffx /= Math.pow(dist, 2);
+      diffy /= Math.pow(dist, 2);
+
+      otherAvatar.box.dx += diffx;
+      otherAvatar.box.dy += diffy;
     }
     for (let i = 0; i < 10; i++) {
       const angle = random(game, 0, Math.PI * 2);

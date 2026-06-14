@@ -674,7 +674,7 @@ refreshStateViewer();
     canvasContainer.classList.add("recording");
     record.classList.add("recording");
     record.blur();
-    canvasContainer.focus();
+    canvasTarget.focus();
 
     const inputRange = {
       startTick: startTick,
