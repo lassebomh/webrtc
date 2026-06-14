@@ -55,7 +55,7 @@ class Tilemap {
    * @param {number} y
    * @param {number} scale
    */
-  getTile(x, y, scale = 0.2) {
+  getTile(x, y, scale = 0.25) {
     const w = Math.round(this.width * scale);
     const h = Math.round(this.height * scale);
 
@@ -72,7 +72,7 @@ class Tilemap {
             const canvas = new OffscreenCanvas(w, h);
             const ctx = canvas.getContext("2d") ?? fail();
             ctx.imageSmoothingEnabled = false;
-            // ctx.imageSmoothingQuality = "high";
+            // ctx.imageSmoothingQuality = "low";
             ctx.drawImage(image, w * -x, h * -y, image.width * scale, image.height * scale);
             // ctx.drawImage(image, w * -x, h * -y, image.width * scale, image.height * scale);
             // ctx.drawImage(image, w * -x, h * -y, image.width * scale, image.height * scale);

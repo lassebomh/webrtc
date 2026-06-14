@@ -2,7 +2,7 @@ import { init, render, tick } from "../game/game.js";
 import { IOController } from "../lib/inputs.js";
 import { Timeline } from "../lib/timeline.js";
 import { jsonToYaml } from "../lib/ui.js";
-import { fail } from "../shared/utils.js";
+import { debounce, fail, now } from "../shared/utils.js";
 
 const PLAYER_COLORS = ["#cc2222", "#2288cc", "#22aa22", "#cccc22"];
 
@@ -70,9 +70,6 @@ stateViewerInput.addEventListener("input", () => {
   refreshStateViewer();
 });
 
-stateViewerInput.value = state.stateQuery;
-refreshStateViewer();
-
 function refreshStateViewer() {
   try {
     stateViewerInputFunc = state.stateQuery
@@ -83,45 +80,58 @@ function refreshStateViewer() {
     stateViewerInput.classList.add("invalid");
   }
 
-  refreshDataViewers();
+  throttledRefreshDataViewers();
 }
+
+let lastDataViewerRefresh = 0;
 
 function refreshDataViewers() {
-  requestIdleCallback(() => {
-    const viewCenter = Math.max(0, (state.viewEnd + state.viewStart) / 2);
-    const tickLeft = Math.ceil(viewCenter);
-    const peer = state.selectedTrack.toString();
-    let stateLeft = timeline.getState(tickLeft);
+  lastDataViewerRefresh = now();
+  const viewCenter = Math.max(0, (state.viewEnd + state.viewStart) / 2);
+  const tickLeft = Math.ceil(viewCenter);
+  const peer = state.selectedTrack.toString();
+  let stateLeft = timeline.getState(tickLeft);
 
-    if (stateLeft?.state) {
-      inputsViewer.innerHTML = jsonToYaml(stateLeft.mergedInputs?.[peer] ?? null);
+  if (stateLeft?.state) {
+    inputsViewer.innerHTML = jsonToYaml(stateLeft.mergedInputs?.[peer] ?? null);
 
-      if (stateViewerInputFunc) {
-        stateViewerOutput.style.display = "";
+    if (stateViewerInputFunc) {
+      stateViewerOutput.style.display = "";
 
-        let value;
-        try {
-          // MARK: HARDCODED VALUE!
+      let value;
+      try {
+        // MARK: HARDCODED VALUE!
 
-          value = stateViewerInputFunc(
-            stateLeft.state,
-            peer,
-            stateLeft.state.avatars[stateLeft.state.players[peer]?.keyboard.avatarID ?? ""],
-          );
-        } catch (error) {
-          value = /** @type {Error} */ (error).message;
-        }
-        if (value === undefined) {
-          stateViewerOutput.textContent = "undefined";
-        } else {
-          stateViewerOutput.innerHTML = jsonToYaml(value);
-        }
-      } else {
-        stateViewerOutput.style.display = "none";
+        value = stateViewerInputFunc(
+          stateLeft.state,
+          peer,
+          stateLeft.state.avatars[stateLeft.state.players[peer]?.keyboard.avatarID ?? ""],
+        );
+      } catch (error) {
+        value = /** @type {Error} */ (error).message;
       }
+      if (value === undefined) {
+        stateViewerOutput.textContent = "undefined";
+      } else {
+        stateViewerOutput.innerHTML = jsonToYaml(value);
+      }
+    } else {
+      stateViewerOutput.style.display = "none";
     }
-  });
+  }
 }
+
+function throttledRefreshDataViewers() {
+  if (lastDataViewerRefresh + 250 < now()) {
+    refreshDataViewers();
+  }
+  debounceRefreshDataViewers();
+}
+
+const debounceRefreshDataViewers = debounce(refreshDataViewers, 250);
+
+stateViewerInput.value = state.stateQuery;
+refreshStateViewer();
 
 {
   const speedDropdown = document.getElementById("speed") ?? fail();
@@ -161,7 +171,7 @@ function refreshDataViewers() {
     refreshSelectedMap();
     refreshSelectedTrack();
     refreshSelectedSpeed();
-    refreshDataViewers();
+    throttledRefreshDataViewers();
   });
 
   for (const option of resetOptions) {
@@ -174,7 +184,7 @@ function refreshDataViewers() {
       refreshSelectedMap();
       refreshSelectedTrack();
       refreshSelectedSpeed();
-      refreshDataViewers();
+      throttledRefreshDataViewers();
     });
   }
 
@@ -216,7 +226,7 @@ function refreshDataViewers() {
     label.addEventListener("click", () => {
       state.selectedTrack = Number(label.dataset.track);
       refreshSelectedTrack();
-      refreshDataViewers();
+      throttledRefreshDataViewers();
     });
   }
   refreshSelectedTrack();
@@ -269,17 +279,21 @@ function refreshDataViewers() {
     }
   });
 
-  window.addEventListener("mousemove", (e) => {
-    if (drag) {
-      const dx = e.clientX - drag.x;
-      const tickDelta = (dx / tracksRect.width) * (drag.viewEnd - drag.viewStart);
-      state.viewStart = drag.viewStart - tickDelta;
-      state.viewEnd = drag.viewEnd - tickDelta;
+  window.addEventListener(
+    "mousemove",
+    (e) => {
+      if (drag) {
+        const dx = e.clientX - drag.x;
+        const tickDelta = (dx / tracksRect.width) * (drag.viewEnd - drag.viewStart);
+        state.viewStart = drag.viewStart - tickDelta;
+        state.viewEnd = drag.viewEnd - tickDelta;
 
-      state.viewChange = -((e.clientX - drag.prevX) / tracksRect.width) * (drag.viewEnd - drag.viewStart);
-      drag.prevX = e.clientX;
-    }
-  });
+        state.viewChange = -((e.clientX - drag.prevX) / tracksRect.width) * (drag.viewEnd - drag.viewStart);
+        drag.prevX = e.clientX;
+      }
+    },
+    { passive: true },
+  );
 
   window.addEventListener("mouseup", (e) => {
     drag = null;
@@ -333,6 +347,42 @@ function refreshDataViewers() {
     const range = state.viewEnd - state.viewStart;
     const trackH = h / 4;
 
+    // Tick marks
+    const logStep = 5;
+    const step = Math.max(1, Math.pow(logStep, Math.round(getBaseLog(logStep, range / 20))));
+    const subStep = Math.max(1, step / logStep);
+    const firstTick = Math.floor(state.viewStart / subStep) * subStep;
+
+    for (let tick = firstTick; tick <= state.viewEnd; tick += subStep) {
+      if (tick < -0.000001) {
+        continue;
+      }
+      const x = ((tick - state.viewStart) / range) * w;
+      const isMajor = Math.abs(tick - Math.round(tick / step) * step) < subStep * 0.1;
+
+      if (isMajor) {
+        // Major tick line
+        tracksCtx.strokeStyle = "#666666";
+        tracksCtx.lineWidth = dpr;
+        tracksCtx.beginPath();
+        tracksCtx.moveTo(x, 0);
+        tracksCtx.lineTo(x, h);
+        tracksCtx.stroke();
+
+        // Label
+        tracksCtx.fillStyle = "#aaaaaa";
+        tracksCtx.fillText(String(Math.round(tick)), x, 2 * dpr);
+      } else {
+        // Minor tick line
+        tracksCtx.strokeStyle = "#444444";
+        tracksCtx.lineWidth = dpr;
+        tracksCtx.beginPath();
+        tracksCtx.moveTo(x, 0);
+        tracksCtx.lineTo(x, h);
+        tracksCtx.stroke();
+      }
+    }
+
     // Draw track backgrounds
     for (let i = 0; i < 4; i++) {
       const y = i * trackH;
@@ -355,7 +405,7 @@ function refreshDataViewers() {
       }
       // Track divider
       if (i > 0) {
-        tracksCtx.strokeStyle = "#333";
+        tracksCtx.strokeStyle = "#333333";
         tracksCtx.lineWidth = dpr;
         tracksCtx.beginPath();
         tracksCtx.moveTo(0, y);
@@ -364,19 +414,13 @@ function refreshDataViewers() {
       }
     }
 
-    // Tick marks
-    const logStep = 5;
-    const step = Math.max(1, Math.pow(logStep, Math.round(getBaseLog(logStep, range / 20))));
-    const subStep = Math.max(1, step / logStep);
-    const firstTick = Math.floor(state.viewStart / subStep) * subStep;
-
     tracksCtx.textAlign = "center";
     tracksCtx.textBaseline = "top";
     tracksCtx.font = `900 ${10 * dpr}px monospace`;
 
     {
       // Playhead line
-      tracksCtx.strokeStyle = "#ffff";
+      tracksCtx.strokeStyle = "#ffffff";
       tracksCtx.lineWidth = dpr;
       tracksCtx.beginPath();
       tracksCtx.moveTo(w / 2, 0);
@@ -386,7 +430,7 @@ function refreshDataViewers() {
 
     if (state.onion) {
       tracksCtx.setLineDash([3]);
-      tracksCtx.strokeStyle = "#fff5";
+      tracksCtx.strokeStyle = "#777777";
       tracksCtx.lineWidth = dpr;
 
       {
@@ -408,41 +452,11 @@ function refreshDataViewers() {
       tracksCtx.setLineDash([]);
     }
 
-    for (let tick = firstTick; tick <= state.viewEnd; tick += subStep) {
-      if (tick < -0.000001) {
-        continue;
-      }
-      const x = ((tick - state.viewStart) / range) * w;
-      const isMajor = Math.abs(tick - Math.round(tick / step) * step) < subStep * 0.1;
-
-      if (isMajor) {
-        // Major tick line
-        tracksCtx.strokeStyle = "#fff4";
-        tracksCtx.lineWidth = dpr;
-        tracksCtx.beginPath();
-        tracksCtx.moveTo(x, 0);
-        tracksCtx.lineTo(x, h);
-        tracksCtx.stroke();
-
-        // Label
-        tracksCtx.fillStyle = "#aaa";
-        tracksCtx.fillText(String(Math.round(tick)), x, 2 * dpr);
-      } else {
-        // Minor tick line
-        tracksCtx.strokeStyle = "#fff2";
-        tracksCtx.lineWidth = dpr;
-        tracksCtx.beginPath();
-        tracksCtx.moveTo(x, 0);
-        tracksCtx.lineTo(x, h);
-        tracksCtx.stroke();
-      }
-    }
-
     {
       // Playhead chevron
       const chevH = 6 * dpr;
       const chevW = 6 * dpr;
-      tracksCtx.fillStyle = "#fff";
+      tracksCtx.fillStyle = "#ffffff";
       tracksCtx.beginPath();
       tracksCtx.moveTo(w / 2 + chevW, h);
       tracksCtx.lineTo(w / 2 - chevW, h);
@@ -564,7 +578,7 @@ function refreshDataViewers() {
       render(io.ctx, stateLeft.state, stateRight.state, peer, alpha);
 
       if (tickUpdate) {
-        refreshDataViewers();
+        throttledRefreshDataViewers();
       }
     } else {
       console.warn("not found", tickLeft, stateLeft, tickRight, stateRight);
@@ -673,8 +687,10 @@ function refreshDataViewers() {
       if (range.startTick >= startTick) {
         ranges.splice(i, 1);
         i--;
-      } else if (range.endTick ?? fail() > startTick) {
-        range.endTick = startTick;
+      } else {
+        if (range.startTick < startTick && (range.endTick ?? fail()) > startTick) {
+          range.endTick = startTick;
+        }
       }
     }
 
