@@ -27,6 +27,7 @@ function getDefaultState(mapIndex) {
     cameraZoomPosition: 0,
     cameraZoomPositionChange: 0,
     cameraZoom: 1,
+    stateQuery: "$",
     mapIndex: mapIndex,
     history: /** @type {HistoryEntry<Game>[]} */ ([
       {
@@ -57,7 +58,33 @@ setInterval(() => {
 }, 2000);
 
 const inputsViewer = /** @type {HTMLElement} */ (document.getElementById("inputs-viewer") ?? fail());
-function updateInputsViewer() {
+const stateViewerInput = /** @type {HTMLInputElement} */ (document.getElementById("state-viewer-input") ?? fail());
+const stateViewerOutput = /** @type {HTMLElement} */ (document.getElementById("state-viewer-output") ?? fail());
+
+/** @type {(Function) | null} */
+let stateViewerInputFunc = null;
+
+stateViewerInput.addEventListener("input", () => {
+  state.stateQuery = stateViewerInput.value;
+  refreshStateViewer();
+});
+
+stateViewerInput.value = state.stateQuery;
+refreshStateViewer();
+
+function refreshStateViewer() {
+  try {
+    stateViewerInputFunc = new Function("$", `return ${state.stateQuery}`);
+    stateViewerInput.classList.remove("invalid");
+  } catch (error) {
+    stateViewerInputFunc = null;
+    stateViewerInput.classList.add("invalid");
+  }
+
+  refreshDataViewers();
+}
+
+function refreshDataViewers() {
   const viewCenter = Math.max(0, (state.viewEnd + state.viewStart) / 2);
   const tickLeft = Math.floor(viewCenter);
   const peer = state.selectedTrack.toString();
@@ -65,6 +92,22 @@ function updateInputsViewer() {
 
   if (stateLeft?.state) {
     inputsViewer.textContent = JSON.stringify(stateLeft.mergedInputs?.[peer] ?? null, undefined, 2);
+
+    if (stateViewerInputFunc) {
+      /** @type {string | undefined} */
+      let value;
+      try {
+        value = JSON.stringify(stateViewerInputFunc(stateLeft.state), undefined, 2);
+      } catch (error) {
+        value = /** @type {Error} */ (error).message;
+      }
+      if (value === undefined) {
+        stateViewerOutput.style.display = "none";
+      } else {
+        stateViewerOutput.textContent = value;
+        stateViewerOutput.style.display = "";
+      }
+    }
   }
 }
 
@@ -106,7 +149,7 @@ function updateInputsViewer() {
     refreshSelectedMap();
     refreshSelectedTrack();
     refreshSelectedSpeed();
-    updateInputsViewer();
+    refreshDataViewers();
   });
 
   for (const option of resetOptions) {
@@ -119,7 +162,7 @@ function updateInputsViewer() {
       refreshSelectedMap();
       refreshSelectedTrack();
       refreshSelectedSpeed();
-      updateInputsViewer();
+      refreshDataViewers();
     });
   }
 
@@ -161,7 +204,7 @@ function updateInputsViewer() {
     label.addEventListener("click", () => {
       state.selectedTrack = Number(label.dataset.track);
       refreshSelectedTrack();
-      updateInputsViewer();
+      refreshDataViewers();
     });
   }
   refreshSelectedTrack();
@@ -508,7 +551,7 @@ function updateInputsViewer() {
       render(io.ctx, stateLeft.state, stateRight.state, peer, alpha);
 
       if (tickUpdate) {
-        updateInputsViewer();
+        refreshDataViewers();
       }
     } else {
       console.warn("not found", tickLeft, stateLeft, tickRight, stateRight);
