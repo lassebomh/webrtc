@@ -28,7 +28,7 @@ function getDefaultState(mapIndex) {
     cameraZoomPosition: 0,
     cameraZoomPositionChange: 0,
     cameraZoom: 1,
-    stateQuery: "$",
+    stateQuery: "",
     mapIndex: mapIndex,
     history: /** @type {HistoryEntry<Game>[]} */ ([
       {

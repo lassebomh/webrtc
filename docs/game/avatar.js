@@ -342,6 +342,9 @@ export function avatarTick(game, level, avatar) {
       avatar.primaryArm.flashStartX = 0;
       avatar.primaryArm.flashStartY = 0;
 
+      avatar.face.type = "angry";
+      avatar.face.ticks = 30;
+
       avatar.primaryArm.flashEndX =
         0 + avatar.primaryArm.vx * (avatar.primaryArm.distance + avatar.primaryArm.ddistance) * 1.1;
       avatar.primaryArm.flashEndY =
@@ -1011,8 +1014,10 @@ export function avatarDropWeapon(game, avatar, dx, dy) {
  * @param {number} dy
  */
 export function avatarTakeDamage(game, avatar, damage, dx, dy) {
+  // if (avatar.face.type === "passive") {
   avatar.face.type = "hurt";
-  avatar.face.ticks = 50;
+  avatar.face.ticks = 30;
+  // }
   avatar.health -= damage;
 
   for (let i = 0; i < 3; i++) {
