@@ -82,6 +82,7 @@ export function createAvatar(game, x, y, color, face) {
     color,
     facing: 1,
     face: {
+      squish: 0,
       index: face,
       type: "passive",
       ticks: 0,
@@ -110,6 +111,7 @@ export function createAvatar(game, x, y, color, face) {
       flashEndX: x,
       flashEndY: y,
       flashOpacity: 0,
+      punchCount: 0,
       vx: 1,
       vy: 0,
       dangle: 0,
@@ -227,9 +229,13 @@ export function avatarTick(game, level, avatar) {
     avatar.box.dy /= AVATAR.VERTICAL_FRICTION;
   }
 
-  if (avatar.box.dx !== 0) {
-    avatar.facing = Math.sign(avatar.box.dx);
+  if (avatar.inputs.aimX !== 0) {
+    avatar.facing = Math.sign(avatar.inputs.aimX);
   }
+
+  // if (avatar.box.dx !== 0) {
+  //   avatar.facing = Math.sign(avatar.box.dx);
+  // }
 
   avatar.primaryArm.vx -= (avatar.primaryArm.vx - avatar.inputs.aimX) / 2;
   avatar.primaryArm.vy -= (avatar.primaryArm.vy - avatar.inputs.aimY) / 2;
@@ -336,7 +342,8 @@ export function avatarTick(game, level, avatar) {
       avatar.body.dx += avatar.primaryArm.vx;
       avatar.body.dy += avatar.primaryArm.vy / (avatar.box.wallBottom ? 1 : 3);
       avatar.primaryArm.damage = 1;
-      avatar.primaryCooldown = 10;
+      avatar.primaryArm.punchCount += 1;
+      avatar.primaryCooldown = 5;
       avatar.primaryArm.flashOpacity = 0.7;
 
       avatar.primaryArm.flashStartX = 0;
@@ -354,13 +361,16 @@ export function avatarTick(game, level, avatar) {
 
   if (avatar.secondaryCooldown === 0 && avatar.inputs.secondary) {
     if (avatar.gun !== undefined) {
+      avatar.primaryArm.ddistance += 1.5;
+      avatar.body.dx += avatar.inputs.aimX * 1.5;
+      avatar.body.dy += avatar.inputs.aimY * 1.5;
       avatarDropWeapon(game, avatar, avatar.inputs.aimX / 1.3, avatar.inputs.aimY / 1.3);
       avatar.secondaryCooldown = 1;
     } else if (!avatar.rope.active) {
       avatar.rope.active = true;
       avatar.rope.box.dx = avatar.inputs.aimX;
       avatar.rope.box.dy = avatar.inputs.aimY;
-      avatar.secondaryCooldown = 7;
+      avatar.secondaryCooldown = 15;
     }
   }
 
@@ -510,6 +520,14 @@ export function avatarTick(game, level, avatar) {
     }
   }
 
+  if (avatar.rope.active && (avatar.rope.grabbingAvatarID || avatar.rope.grabbingGunID || !avatar.rope.grabbingWall)) {
+    const dx = avatar.rope.box.x - avatar.box.x;
+    const dy = avatar.rope.box.y - avatar.box.y;
+    const dist = Math.hypot(dx, dy);
+    avatar.body.dx -= dx / Math.pow(dist, 1.5) / 3;
+    avatar.body.dy -= dy / Math.pow(dist, 1.5) / 12;
+  }
+
   if (avatar.box.wallBottom === 2) {
     avatarTakeDamage(game, avatar, 2, 0, -1);
     avatar.box.dy -= 1;
@@ -573,8 +591,14 @@ export function avatarTick(game, level, avatar) {
 
           avatar.body.dx -= avatar.primaryArm.vx * 0.5;
           avatar.body.dy -= avatar.primaryArm.vy * 0.5;
-          avatar.box.dx -= avatar.primaryArm.vx * 0.5;
-          avatar.box.dy -= avatar.primaryArm.vy * 0.5;
+          if (!avatar.box.wallBottom) {
+            avatar.box.dx -= avatar.primaryArm.vx * 0.5;
+            avatar.box.dy -= avatar.primaryArm.vy * 0.5;
+            // avatar.box.dx -= avatar.primaryArm.vx * 0.5;
+            // avatar.box.dy -= avatar.primaryArm.vy * 0.5;
+          } else {
+          }
+
           avatar.primaryArm.damage = 0;
 
           for (let i = 0; i < 5; i++) {
@@ -596,6 +620,32 @@ export function avatarTick(game, level, avatar) {
         }
       }
     }
+  }
+
+  let squish = 0;
+  const faceX =
+    avatar.body.x +
+    avatar.body.dx / 8 +
+    (avatar.primaryArm.ddistance < 0 ? (avatar.primaryArm.vx * -avatar.primaryArm.ddistance) / 8 : 0);
+
+  if (avatar.face.type === "angry") {
+    squish = (faceX - avatar.body.x) * 12;
+    if (avatar.gun) squish *= 0.3;
+    else if (avatar.primaryArm.punchCount % 2 === 0) {
+      squish *= -0.1;
+    }
+  } else if (avatar.face.type === "hurt") {
+    squish = (faceX - avatar.body.x) * 8;
+  } else if (avatar.rope.active) {
+    squish = -(faceX - avatar.body.x) * 4;
+  }
+
+  if (squish !== 0) {
+    avatar.face.squish = squish;
+  }
+  avatar.face.squish /= 1.2;
+  if (Math.abs(avatar.face.squish) < 0.1) {
+    avatar.face.squish = 0;
   }
 
   if (avatar.gun?.automatic) {
@@ -768,9 +818,17 @@ export function avatarRender(ctx, game, prevAvatar, avatar, alpha) {
   const feetRightEndY = lin(prevAvatar?.feet.rightY, avatar.feet.rightY, alpha);
   const feetRightKneeX = lin(prevAvatar?.feet.rightKneeX, avatar.feet.rightKneeX, alpha);
   const feetRightKneeY = lin(prevAvatar?.feet.rightKneeY, avatar.feet.rightKneeY, alpha);
+  const faceSquish = lin(prevAvatar?.face.squish, avatar.face.squish, alpha);
 
-  const armStartX = bodyX + primaryArmVX * (avatar.box.width / 4);
-  const armStartY = bodyY + primaryArmVY * (avatar.box.width / 4);
+  let armStartX = bodyX + primaryArmVX * (avatar.box.width / 4);
+  let armStartY = bodyY + primaryArmVY * (avatar.box.width / 4);
+
+  const renderArmOnTop = avatar.primaryArm.damage !== 0 && avatar.primaryArm.punchCount % 2 != 0;
+  if (renderArmOnTop) {
+    armStartX = bodyX - primaryArmVX * (avatar.box.width / 4);
+    armStartY = bodyY - primaryArmVY * (avatar.box.width / 4);
+  }
+
   const armEndX = bodyX + primaryArmVX * primaryArmDistance;
   const armEndY = bodyY + primaryArmVY * primaryArmDistance;
 
@@ -880,11 +938,13 @@ export function avatarRender(ctx, game, prevAvatar, avatar, alpha) {
     [armElbowX, armElbowY] = getPointAtDistance(armStartX, armStartY, armEndX, armEndY, armLength);
   }
 
-  ctx.lineWidth = 0.1 * (1 + primaryArmFlashOpacity * 3);
-  ctx.beginPath();
-  ctx.moveTo(armStartX, armStartY);
-  ctx.quadraticCurveTo(armElbowX, armElbowY, armEndX, armEndY);
-  ctx.stroke();
+  if (!renderArmOnTop) {
+    ctx.lineWidth = 0.1 * (1 + primaryArmFlashOpacity * 3);
+    ctx.beginPath();
+    ctx.moveTo(armStartX, armStartY);
+    ctx.quadraticCurveTo(armElbowX, armElbowY, armEndX, armEndY);
+    ctx.stroke();
+  }
 
   const faceX = bodyX + bodyDX / 8 + (primaryArmDDistance < 0 ? (primaryArmVX * -primaryArmDDistance) / 8 : 0);
   const faceY = bodyY + bodyDY / 8 + (primaryArmDDistance < 0 ? (primaryArmVY * -primaryArmDDistance) / 8 : 0);
@@ -901,13 +961,26 @@ export function avatarRender(ctx, game, prevAvatar, avatar, alpha) {
   ctx.restore();
 
   ctx.save();
-  let squish = avatar.face.type === "hurt" ? (faceX - bodyX) * 8 : 0;
+  let squish = faceSquish;
+
+  // if (avatar.face.type === "angry") {
+  //   squish = (faceX - bodyX) * 12;
+  //   if (avatar.gun) squish *= 0.3;
+  //   else if (avatar.primaryArm.punchCount % 2 === 0) {
+  //     squish *= -0.1;
+  //   }
+  // } else if (avatar.face.type === "hurt") {
+  //   squish = (faceX - bodyX) * 8;
+  // } else if (avatar.rope.active) {
+  //   squish = -(faceX - bodyX) * 4;
+  // }
+
   let maxSquish = 0.35;
   squish = Math.min(squish, maxSquish);
   squish = Math.max(squish, -maxSquish);
 
   ctx.translate(faceX - faceSize / 2 + squish, faceY - faceSize / 2);
-  if (squish !== 0 ? squish < 0 : primaryArmVX < 0) {
+  if (avatar.face.type !== "angry" && squish !== 0 ? squish < 0 : primaryArmVX < 0) {
     ctx.scale(-1, 1);
     ctx.translate(-faceSize, 0);
   }
@@ -922,6 +995,15 @@ export function avatarRender(ctx, game, prevAvatar, avatar, alpha) {
   }
   renderTile(ctx, faceSize, faceSize, face, "hat");
   ctx.restore();
+
+  if (renderArmOnTop) {
+    ctx.lineWidth = 0.1 * (1 + primaryArmFlashOpacity * 3);
+    ctx.beginPath();
+    ctx.moveTo(armStartX, armStartY);
+    ctx.quadraticCurveTo(armElbowX, armElbowY, armEndX, armEndY);
+    ctx.stroke();
+  }
+
   // // Move to face center
   // ctx.translate(faceX, faceY);
 
@@ -960,20 +1042,17 @@ export function avatarRender(ctx, game, prevAvatar, avatar, alpha) {
   // ctx.fillText(avatar.face, 0, 0);
   // ctx.restore();
 
-  if (avatar.grabbedByAvatarID) {
-    const otherAvatar = game.avatars[avatar.grabbedByAvatarID];
-    if (otherAvatar) {
-      const v = avatar.box.width / 2;
-      ctx.beginPath();
-      ctx.moveTo(bodyX - v, bodyY + 0.2);
-      ctx.lineTo(bodyX + v, bodyY + 0.2);
-      ctx.lineWidth = 0.15;
-      ctx.strokeStyle = "#63351eff";
-      ctx.stroke();
-      ctx.strokeStyle = "#804f37ff";
-      ctx.setLineDash([0.5, 0.5]);
-      ctx.stroke();
-    }
+  if (avatar.grabbedByAvatarID || avatar.rope.active) {
+    const v = avatar.box.width / 2;
+    ctx.beginPath();
+    ctx.moveTo(bodyX - v, bodyY + 0.2);
+    ctx.lineTo(bodyX + v, bodyY + 0.2);
+    ctx.lineWidth = 0.15;
+    ctx.strokeStyle = "#63351eff";
+    ctx.stroke();
+    ctx.strokeStyle = "#804f37ff";
+    ctx.setLineDash([0.5, 0.5]);
+    ctx.stroke();
   }
 
   if (avatar.gun) {
@@ -1000,8 +1079,8 @@ export function avatarDropWeapon(game, avatar, dx, dy) {
     avatar.gun = undefined;
     game.guns[game.autoid++] = gun;
 
-    gun.box.x = avatar.box.x + (avatar.box.width - gun.box.width) / 2;
-    gun.box.y = avatar.box.y + (avatar.box.height - gun.box.height) / 2;
+    gun.box.x = avatar.box.x + (avatar.box.width - gun.box.width) / 2 + dx;
+    gun.box.y = avatar.box.y + (avatar.box.height - gun.box.height) / 2 + dy;
     gun.box.dx = dx;
     gun.box.dy = dy;
   }

@@ -38,6 +38,7 @@ type Avatar = {
     index: number;
     type: FaceType;
     ticks: number;
+    squish: number;
   };
   health: number;
   feet: {
@@ -63,6 +64,7 @@ type Avatar = {
     dangle: number;
     ddistance: number;
     damage: number;
+    punchCount: number;
     flashStartX: number;
     flashStartY: number;
     flashEndX: number;
